@@ -1,4 +1,4 @@
-package com.example.foodiebell
+package com.codeharbor.foodiebell
 
 import io.flutter.embedding.android.FlutterActivity
 

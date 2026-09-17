@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="foodiebell"
+        android:label="Quicky"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -25,6 +25,31 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Occasion-driven home-screen icon (`app_icon_channel.dart`,
+             `MainActivity.kt`): no bundled alternate icons right now (the
+             old festiveGold/festiveRed/Dasara assets were removed along
+             with the app icon refresh) — `MainActivity.kt`'s alias map is
+             empty to match, so `setAppIcon` calls harmlessly no-op instead
+             of pointing at a component that doesn't exist here anymore.
+             When a new occasion icon is generated (`generate_occasion_icons.py`),
+             add its `<activity-alias>` back here (same shape as these used
+             to be: targetActivity=".MainActivity", starts disabled, its own
+             MAIN/LAUNCHER intent-filter) and its entry back into that map. -->
+        <!-- FCM's automatic system-tray display (background/terminated,
+             `fcm_topics.dart`) uses this as the small status-bar icon
+             instead of a generic bell/warning glyph when none is set. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <!-- `image_cropper`'s Android implementation (the Yalantis uCrop
+             library) needs this activity declared by the *app* — its own
+             plugin manifest doesn't include it. Without this, launching the
+             crop screen (Vendor document uploads, product photo picker)
+             throws ActivityNotFoundException and takes the whole app down. -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -40,6 +65,14 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- `url_launcher`'s `tel:` scheme (Driver "call customer" /
+             User "call driver") needs this declared here on Android 11+
+             package-visibility rules, or launchUrl silently fails to find
+             the dialer. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
         </intent>
     </queries>
 </manifest>

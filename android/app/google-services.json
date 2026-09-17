@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "427004408627",
+    "project_id": "quickmandi-3b017",
+    "storage_bucket": "quickmandi-3b017.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427004408627:android:b5aa2f45269450b5690446",
+        "android_client_info": {
+          "package_name": "com.codeharbor.quickmandi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXUFlm30_BYyuKke8jdnmDezokqhmxhhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

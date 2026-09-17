@@ -1,0 +1,110 @@
+rules_version = '2';
+
+// Demo/prototype rules: any signed-in QuickMandi user (any role) can read
+// and write the managers collection. There's no server-side custom-claims
+// role check here — that would need Cloud Functions/Admin SDK, out of
+// scope for this mock-data-plus-real-auth build. Good enough to gate out
+// anonymous/third-party traffic without blocking the app itself.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /managers/{managerId} {
+      allow read, write: if request.auth != null;
+    }
+    match /territories/{territoryId} {
+      allow read, write: if request.auth != null;
+    }
+    match /categories/{categoryId} {
+      allow read, write: if request.auth != null;
+    }
+    match /vendors/{vendorId} {
+      allow read, write: if request.auth != null;
+    }
+    match /drivers/{driverId} {
+      allow read, write: if request.auth != null;
+    }
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    match /carts/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    match /addresses/{addressId} {
+      allow read, write: if request.auth != null;
+    }
+    match /orders/{orderId} {
+      allow read, write: if request.auth != null;
+    }
+    match /chat_messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+    match /promotions/{promotionId} {
+      allow read, write: if request.auth != null;
+    }
+    match /coupons/{couponId} {
+      allow read, write: if request.auth != null;
+    }
+    match /couponRedemptions/{redemptionId} {
+      allow read, write: if request.auth != null;
+    }
+    match /tickets/{ticketId} {
+      allow read, write: if request.auth != null;
+    }
+    match /ticket_messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+    match /reviews/{reviewId} {
+      allow read, write: if request.auth != null;
+    }
+    match /settlement_reconciliations/{reconciliationId} {
+      allow read, write: if request.auth != null;
+    }
+    match /products/{productId} {
+      allow read, write: if request.auth != null;
+    }
+    match /global_products/{productId} {
+      allow read, write: if request.auth != null;
+    }
+    match /tax_categories/{taxCategoryId} {
+      allow read, write: if request.auth != null;
+    }
+    match /recent_searches/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    match /list_order_requests/{requestId} {
+      allow read, write: if request.auth != null;
+    }
+    // Occasion branding (QuickMandi_Branding_UserApp.md): public read since
+    // Splash/Onboarding render before any login and still need the active
+    // theme. Write stays the same blanket signed-in-user rule every other
+    // collection here uses — there's no Cloud Functions/Admin SDK layer in
+    // this build to restrict writes to QuickyAdmin specifically.
+    match /app_config/{configId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    // QuickyAdmin's occasion branding packs (QuickMandi_Branding_Admin.md) —
+    // admin-only in practice, but same no-custom-claims caveat as every
+    // other collection here.
+    match /occasions/{occasionId} {
+      allow read, write: if request.auth != null;
+    }
+    // FCM territory topics — one doc per territory (QuickyAdmin's
+    // `createTerritory`), read by the User app's own territory list
+    // implicitly (it derives the topic string itself, `fcm_topics.dart`)
+    // and by QuickyAdmin's Send Notification picker.
+    match /topics/{topicId} {
+      allow read, write: if request.auth != null;
+    }
+    // Admin's push notification send history (`push_notification_screen.dart`).
+    match /notification_broadcasts/{broadcastId} {
+      allow read, write: if request.auth != null;
+    }
+    // Per-recipient order-lifecycle notifications, written server-side by
+    // `onOrderStatusChange` (QuickyAdmin's functions/index.js) — read and
+    // deleted (their own doc only, by convention — see that file's doc
+    // comment) by every role's Notifications screen.
+    match /personal_notifications/{notificationId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
