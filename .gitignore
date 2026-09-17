@@ -27,3 +27,11 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# Platform-specific folders - only dart and yaml source files are pushed
+/android/
+/ios/
+/web/
+/linux/
+/macos/
+/windows/
