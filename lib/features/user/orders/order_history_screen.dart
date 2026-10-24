@@ -24,18 +24,29 @@ class OrderHistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userId = ref.watch(sessionControllerProvider.select((s) => s.account?.id));
+    final userId = ref.watch(
+      sessionControllerProvider.select((s) => s.account?.id),
+    );
     final ordersAsync = ref.watch(firestoreOrdersProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.myOrdersTitle)),
       body: ordersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text(friendlyError(e, action: 'Loading orders', stackTrace: st))),
+        error: (e, st) => Center(
+          child: Text(
+            friendlyError(e, action: 'Loading orders', stackTrace: st),
+          ),
+        ),
         data: (orders) {
-          final allOrders = orders.where((o) => o.userId == userId).toList()..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+          final allOrders = orders.where((o) => o.userId == userId).toList()
+            ..sort((a, b) => b.placedAt.compareTo(a.placedAt));
           if (allOrders.isEmpty) {
-            return EmptyState(icon: Icons.receipt_long_rounded, title: context.l10n.ordersEmptyTitle, subtitle: context.l10n.ordersEmptySubtitle);
+            return EmptyState(
+              icon: Icons.receipt_long_rounded,
+              title: context.l10n.ordersEmptyTitle,
+              subtitle: context.l10n.ordersEmptySubtitle,
+            );
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -69,13 +80,22 @@ class _OrderCard extends StatelessWidget {
       onTap: () => context.push('/user/order/${order.id}'),
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: palette.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: palette.border)),
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: palette.border),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Expanded(child: Text(order.vendorName, style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                  child: Text(
+                    order.vendorName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -87,12 +107,18 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Text(context.l10n.orderItemsSummary(order.items.length, order.id), style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              context.l10n.orderItemsSummary(order.items.length, order.id),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CurrencyText(order.total, style: Theme.of(context).textTheme.titleMedium),
+                CurrencyText(
+                  order.total,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 Icon(Icons.chevron_right_rounded, color: palette.textMuted),
               ],
             ),

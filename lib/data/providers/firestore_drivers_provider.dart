@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/account.dart';
 import '../models/driver_document.dart';
+import '../models/driver_location.dart';
 import '../models/vendor_document.dart';
 import 'mock_accounts_provider.dart';
 
@@ -120,6 +121,34 @@ Future<void> updateDriverConsent(String driverId, bool accepted) =>
 /// offline.
 Future<void> setDriverOnlineStatus(String driverId, bool isOnline) =>
     driversCollection.doc(driverId).update({'isOnline': isOnline});
+
+/// Stamps the Driver's current GPS position onto their own doc — called by
+/// `driver_location_tracker.dart` once at login/registration and then again
+/// every time they move, so the User's order tracking map can follow them.
+Future<void> updateDriverLocation(String driverId, {required double latitude, required double longitude}) =>
+    driversCollection.doc(driverId).update({
+      'latitude': latitude,
+      'longitude': longitude,
+      'locationUpdatedAt': FieldValue.serverTimestamp(),
+    });
+
+/// A single Driver's position, live — its own one-doc listener rather than
+/// a slice of [firestoreDriversProvider], so a User tracking one order
+/// isn't re-reading the whole drivers collection on every GPS update. Null
+/// until that Driver has reported a position at least once.
+final driverLocationProvider = StreamProvider.family<DriverLocation?, String>((ref, driverId) {
+  return driversCollection.doc(driverId).snapshots().map((doc) {
+    final data = doc.data();
+    final latitude = (data?['latitude'] as num?)?.toDouble();
+    final longitude = (data?['longitude'] as num?)?.toDouble();
+    if (latitude == null || longitude == null) return null;
+    return DriverLocation(
+      latitude: latitude,
+      longitude: longitude,
+      updatedAt: (data?['locationUpdatedAt'] as Timestamp?)?.toDate(),
+    );
+  });
+});
 
 /// One atomic write for the Driver's own "Upload" confirmation
 /// (`driver_document_checklist.dart`) — every document the Driver staged

@@ -25,6 +25,7 @@ import 'reviews/rate_review_screen.dart';
 import 'reviews/vendor_public_reviews_screen.dart';
 import 'search/search_screen.dart';
 import 'storefront/vendor_detail_screen.dart';
+import 'transactions/transaction_history_screen.dart';
 import 'wallet/wallet_screen.dart';
 
 /// CANONICAL EXAMPLE — User is the reference [StatefulShellRoute.indexedStack]
@@ -169,6 +170,11 @@ List<RouteBase> get userRoutes => [
     path: '/user/wallet',
     name: 'userWallet',
     builder: (context, state) => const WalletScreen(),
+  ),
+  GoRoute(
+    path: '/user/transactions',
+    name: 'userTransactions',
+    builder: (context, state) => const TransactionHistoryScreen(),
   ),
   GoRoute(
     path: '/user/addresses',

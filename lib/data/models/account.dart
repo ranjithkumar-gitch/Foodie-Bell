@@ -40,6 +40,9 @@ class Account {
     this.category,
     this.subCategory,
     this.ownerName,
+    this.address,
+    this.latitude,
+    this.longitude,
     this.rebatePercent = 15,
     this.documentStatuses = const {},
     this.documentUrls = const {},
@@ -90,6 +93,14 @@ class Account {
   /// Vendor-only: the person running the shop, distinct from [name] (the
   /// shop/business name itself) — see Manager's "Add Vendor" screen.
   final String? ownerName;
+
+  /// Vendor-only: the shop's street address and its map position, set by
+  /// the Vendor themselves from `vendor_profile_edit_screen.dart` — null
+  /// until they've filled it in. [latitude]/[longitude] are always set
+  /// together.
+  final String? address;
+  final double? latitude;
+  final double? longitude;
 
   /// Vendor-only: the negotiated Manager/Company rebate split, 10-20 band
   /// (spec §5.5) — Manager-editable from the Vendor Detail screen.
@@ -187,6 +198,9 @@ class Account {
     String? email,
     String? avatarUrl,
     String? ownerName,
+    String? address,
+    double? latitude,
+    double? longitude,
     AccountStatus? status,
     String? rejectionReason,
     double? rebatePercent,
@@ -216,6 +230,9 @@ class Account {
     category: category,
     subCategory: subCategory,
     ownerName: ownerName ?? this.ownerName,
+    address: address ?? this.address,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
     rebatePercent: rebatePercent ?? this.rebatePercent,
     documentStatuses: documentStatuses ?? this.documentStatuses,
     documentUrls: documentUrls ?? this.documentUrls,

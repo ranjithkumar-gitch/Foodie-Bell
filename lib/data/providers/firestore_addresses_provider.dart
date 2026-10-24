@@ -21,12 +21,14 @@ Map<String, dynamic> _addressToDoc(String userId, Address address) => {
   'landmark': address.landmark,
   'pincode': address.pincode,
   'city': address.city,
+  'latitude': address.latitude,
+  'longitude': address.longitude,
   'isDefault': address.isDefault,
   'isServiceable': address.isServiceable,
 };
 
-Address _addressFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-  final data = doc.data();
+Address _addressFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
   return Address(
     id: doc.id,
     label: AddressLabel.values.byName(data['label'] as String? ?? 'home'),
@@ -36,6 +38,8 @@ Address _addressFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     landmark: data['landmark'] as String?,
     pincode: data['pincode'] as String? ?? '',
     city: data['city'] as String? ?? '',
+    latitude: (data['latitude'] as num?)?.toDouble(),
+    longitude: (data['longitude'] as num?)?.toDouble(),
     isDefault: data['isDefault'] as bool? ?? false,
     isServiceable: data['isServiceable'] as bool? ?? true,
   );
@@ -49,6 +53,21 @@ final firestoreAddressesProvider = StreamProvider.family<List<Address>, String>(
       );
 });
 
+/// One saved address by its doc id, live — how the Driver side reads an
+/// order's drop-off (`Order.deliveryAddressId`) without loading every
+/// address that User has. Null once the address is deleted.
+final addressByIdProvider = StreamProvider.family<Address?, String>((ref, addressId) {
+  return addressesCollection.doc(addressId).snapshots().map((doc) => doc.exists ? _addressFromDoc(doc) : null);
+});
+
+/// "12-4 Main Road, Near Temple, Kakinada 533001" — every part of [address]
+/// a Driver needs to find the door, on one line.
+String fullAddressText(Address address) => [
+  address.line1,
+  if (address.landmark?.trim().isNotEmpty ?? false) address.landmark!.trim(),
+  '${address.city} ${address.pincode}'.trim(),
+].where((part) => part.isNotEmpty).join(', ');
+
 Future<Address> addAddress(String userId, Address address) async {
   final doc = addressesCollection.doc();
   final saved = Address(
@@ -60,6 +79,8 @@ Future<Address> addAddress(String userId, Address address) async {
     landmark: address.landmark,
     pincode: address.pincode,
     city: address.city,
+    latitude: address.latitude,
+    longitude: address.longitude,
     isDefault: address.isDefault,
     isServiceable: address.isServiceable,
   );

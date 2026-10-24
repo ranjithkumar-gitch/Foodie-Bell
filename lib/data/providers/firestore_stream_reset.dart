@@ -42,6 +42,7 @@ void resetFirestoreStreams(Ref ref) {
   ref.invalidate(firestoreManagersProvider);
   ref.invalidate(firestoreVendorsProvider);
   ref.invalidate(firestoreDriversProvider);
+  ref.invalidate(driverLocationProvider);
   ref.invalidate(firestoreTerritoriesProvider);
   ref.invalidate(firestoreCategoriesProvider);
   ref.invalidate(globalProductsProvider);

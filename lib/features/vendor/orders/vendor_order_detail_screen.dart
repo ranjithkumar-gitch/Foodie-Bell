@@ -9,6 +9,7 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/order_status_stepper.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../vendor_session.dart';
 
 String _rateLabel(double rate) => rate == rate.roundToDouble() ? rate.toStringAsFixed(0) : rate.toString();
 
@@ -201,7 +202,10 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => updateOrderStatus(order.id, OrderStatus.vendorAccepted),
+                        onPressed: () async {
+                          if (!await ensureVendorAddressSetUp(context, ref)) return;
+                          await updateOrderStatus(order.id, OrderStatus.vendorAccepted);
+                        },
                         child: const Text('Accept'),
                       ),
                     ),

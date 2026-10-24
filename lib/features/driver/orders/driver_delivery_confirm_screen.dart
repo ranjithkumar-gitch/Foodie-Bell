@@ -68,8 +68,9 @@ class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConf
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.home_rounded), tooltip: 'Back to dashboard', onPressed: () => context.go('/driver/home')),
+        leading: BackButton(onPressed: () => context.go('/driver/delivery/${order.id}/navigate-customer')),
         title: const Text('Confirm delivery'),
+        actions: [IconButton(icon: const Icon(Icons.home_rounded), tooltip: 'Back to dashboard', onPressed: () => context.go('/driver/home'))],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),

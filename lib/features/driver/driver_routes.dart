@@ -79,20 +79,30 @@ List<RouteBase> get driverRoutes => [
 
   // Active delivery funnel: navigate-to-vendor -> pickup-confirm ->
   // navigate-to-customer -> (cash-collection if COD) -> delivery-confirm.
+  // Each step is wrapped in [_BackTo] naming where "back" leads from it.
   GoRoute(
     path: '/driver/delivery/:orderId/navigate-vendor',
     name: 'driverNavigateVendor',
-    builder: (context, state) => DriverNavigateVendorScreen(orderId: state.pathParameters['orderId']!),
+    builder: (context, state) => _BackTo(
+      to: '/driver/home',
+      child: DriverNavigateVendorScreen(orderId: state.pathParameters['orderId']!),
+    ),
   ),
   GoRoute(
     path: '/driver/delivery/:orderId/pickup-confirm',
     name: 'driverPickupConfirm',
-    builder: (context, state) => DriverPickupConfirmScreen(orderId: state.pathParameters['orderId']!),
+    builder: (context, state) => _BackTo(
+      to: '/driver/home',
+      child: DriverPickupConfirmScreen(orderId: state.pathParameters['orderId']!),
+    ),
   ),
   GoRoute(
     path: '/driver/delivery/:orderId/navigate-customer',
     name: 'driverNavigateCustomer',
-    builder: (context, state) => DriverNavigateCustomerScreen(orderId: state.pathParameters['orderId']!),
+    builder: (context, state) => _BackTo(
+      to: '/driver/home',
+      child: DriverNavigateCustomerScreen(orderId: state.pathParameters['orderId']!),
+    ),
   ),
   GoRoute(
     path: '/driver/delivery/:orderId/chat',
@@ -102,12 +112,18 @@ List<RouteBase> get driverRoutes => [
   GoRoute(
     path: '/driver/delivery/:orderId/cash-collection',
     name: 'driverCashCollection',
-    builder: (context, state) => DriverCashCollectionScreen(orderId: state.pathParameters['orderId']!),
+    builder: (context, state) => _BackTo(
+      to: '/driver/delivery/${state.pathParameters['orderId']}/navigate-customer',
+      child: DriverCashCollectionScreen(orderId: state.pathParameters['orderId']!),
+    ),
   ),
   GoRoute(
     path: '/driver/delivery/:orderId/delivery-confirm',
     name: 'driverDeliveryConfirm',
-    builder: (context, state) => DriverDeliveryConfirmScreen(orderId: state.pathParameters['orderId']!),
+    builder: (context, state) => _BackTo(
+      to: '/driver/delivery/${state.pathParameters['orderId']}/navigate-customer',
+      child: DriverDeliveryConfirmScreen(orderId: state.pathParameters['orderId']!),
+    ),
   ),
 
   GoRoute(path: '/driver/profile/edit', name: 'driverProfileEdit', builder: (context, state) => const DriverProfileEditScreen()),
@@ -123,3 +139,25 @@ List<RouteBase> get driverRoutes => [
         DriverTicketChatScreen(ticketId: state.pathParameters['id']!),
   ),
 ];
+
+/// Sends "back" — the device back button and the app bar's back arrow alike
+/// — to [to]. The delivery funnel moves forward with context.go(), which
+/// replaces the screen before it, so there is nothing underneath to pop
+/// back to and a plain back press would leave the app instead.
+class _BackTo extends StatelessWidget {
+  const _BackTo({required this.to, required this.child});
+
+  final String to;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(to);
+      },
+      child: child,
+    );
+  }
+}

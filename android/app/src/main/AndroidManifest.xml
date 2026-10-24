@@ -1,4 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The Driver's own GPS position, reported while they're signed in
+         (`driver_location_tracker.dart`) so the User can follow their
+         delivery on the map. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Keeps a Driver's location reporting while they're on a delivery with
+         the app in the background (e.g. turn-by-turn in Google Maps) — the
+         geolocator plugin's location foreground service, with its ongoing
+         "sharing your location" notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:label="Quicky"
         android:name="${applicationName}"
@@ -50,6 +62,11 @@
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+        <!-- Google Maps SDK key for the User's live order tracking map
+             (`driver_live_map.dart`). -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBVE7vsYfkVURXi8UTjXDyNoE_EBPOvdcQ" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

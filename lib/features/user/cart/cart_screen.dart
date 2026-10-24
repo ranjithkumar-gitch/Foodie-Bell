@@ -14,6 +14,7 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../translation/translated_text.dart';
+import '../widgets/product_tile.dart' show VegMark;
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -142,9 +143,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-                    itemCount: cart.items.length + 1,
+                    // Vendor header first, then the items, then coupons.
+                    itemCount: cart.items.length + 2,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return _VendorHeader(
+                          vendorName: cart.items.first.vendorName,
+                          onAddMore: () => context.push('/user/vendor/${cart.vendorId}'),
+                        );
+                      }
+                      final i = index - 1;
                       if (i == cart.items.length) {
                         return _CouponSection(
                           appliedCoupon: cart.appliedCoupon,
@@ -171,9 +180,30 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TranslatedText(cartItem.product.name, style: Theme.of(context).textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  Row(
+                                    children: [
+                                      if (cartItem.product.isVeg != null) ...[
+                                        VegMark(isVeg: cartItem.product.isVeg!),
+                                        const SizedBox(width: 6),
+                                      ],
+                                      Expanded(
+                                        child: TranslatedText(cartItem.product.name, style: Theme.of(context).textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      ),
+                                    ],
+                                  ),
                                   const SizedBox(height: 4),
-                                  CurrencyText(cartItem.product.price, style: Theme.of(context).textTheme.bodyMedium),
+                                  Row(
+                                    children: [
+                                      CurrencyText(cartItem.lineTotal, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                                      if (cartItem.quantity > 1) ...[
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '${cartItem.quantity} × ${AppFormat.currency(cartItem.product.price)}',
+                                          style: TextStyle(fontSize: 11.5, color: palette.textMuted),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -210,6 +240,36 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     top: false,
                     child: Column(
                       children: [
+                        if (couponDiscount > 0) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: palette.success.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.celebration_rounded, color: palette.success, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    context.l10n.cartSavingsBanner(AppFormat.currency(couponDiscount)),
+                                    style: TextStyle(color: palette.success, fontWeight: FontWeight.w800, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(context.l10n.cartBillDetails, style: Theme.of(context).textTheme.titleMedium),
+                          ),
+                        ),
                         _SummaryRow(label: context.l10n.priceSubtotal, value: cart.subtotal),
                         if (couponDiscount > 0)
                           _SummaryRow(
@@ -232,6 +292,39 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Top of the cart: which vendor this order is from, with Swiggy's "Add
+/// more items" shortcut back to their storefront.
+class _VendorHeader extends StatelessWidget {
+  const _VendorHeader({required this.vendorName, required this.onAddMore});
+
+  final String vendorName;
+  final VoidCallback onAddMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: palette.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+          child: Icon(Icons.storefront_rounded, color: palette.primary, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(vendorName, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
+        ),
+        TextButton.icon(
+          onPressed: onAddMore,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text(context.l10n.cartAddMoreItems),
+        ),
+      ],
     );
   }
 }

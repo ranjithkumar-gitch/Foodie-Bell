@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../widgets/coin_flip_logo.dart';
 import '../widgets/otp_input_field.dart';
 import 'auth_navigation.dart';
 import 'otp_config.dart';
@@ -43,9 +42,17 @@ class OtpScreenArgs {
 ///
 /// Bespoke layout, not [AuthHeroScaffold] — mirrors `auth_login_screen.dart`/
 /// `auth_register_screen.dart`'s visual language exactly: `login_bg1.png` +
-/// `login_bg2.png` hero background, a plain "Verify OTP" wordmark directly
-/// on it, and the same glossy frosted-glass card treatment for the actual
-/// pin entry, with [CoinFlipLogo] straddling the card's top border.
+/// `login_bg2.png` hero background, a back arrow beside the "Quicky"
+/// wordmark (`quicky_text.png`) up top — no "Verify OTP" text out there
+/// anymore; that heading now lives inside the card as "Enter verification
+/// code" (already the card's own heading, just restyled white with a soft
+/// drop shadow, same as login/register's in-card titles). The pin entry
+/// sits on the same glossy frosted-glass card treatment — `BackdropFilter`
+/// blur, a full `Border.all` glass edge, all four corners rounded, sized to
+/// its own content so both hero images stay visible around it. No logo
+/// straddling its top border and no scrolling — an `Expanded` spacer
+/// between the header and the card eats whatever vertical space is left,
+/// same fix as login/register's.
 class AuthOtpScreen extends ConsumerStatefulWidget {
   const AuthOtpScreen({super.key, required this.args, this.mode = 'login'});
 
@@ -226,263 +233,278 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
               ),
             ),
             SafeArea(
-              child: SingleChildScrollView(
-                // Reserves exactly login_bg2's own rendered height (its
-                // real 941×410 aspect scaled to screen width) so nothing
-                // in the card ever lands on top of that image's own
-                // content — see auth_login_screen.dart's identical fix.
-                padding: EdgeInsets.only(
-                  bottom:
-                      MediaQuery.sizeOf(context).width * (410 / 941) +
-                      32 +
-                      MediaQuery.viewInsetsOf(context).bottom,
-                ),
+              // No scrolling here — the whole background, login_bg1's rider
+              // up top down to login_bg2's stores footer at the bottom, has
+              // to be visible in one screen. See auth_login_screen.dart's
+              // identical fix for why.
+              //
+              // No `MediaQuery.viewInsetsOf(context).bottom` in this
+              // padding — with no scroll view to absorb it, the Expanded
+              // spacer below can only shrink to 0, so reserving the
+              // keyboard's height here just overflowed the layout once the
+              // spacer ran out of room. resizeToAvoidBottomInset is
+              // already false, so the keyboard just overlays the bottom of
+              // the screen instead.
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          IconButton(
-                            // Defensive: falls back to the sign-in screen
-                            // if this was ever reached via context.go()
-                            // (replaces the stack) rather than push() —
-                            // pop() alone throws "nothing to pop" in that
-                            // case.
-                            onPressed: () => context.canPop()
-                                ? context.pop()
-                                : context.go('/auth/login'),
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                            icon: const Icon(
-                              Icons.arrow_back_rounded,
-                              color: Colors.white,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Back arrow beside the "Quicky" wordmark, same
+                        // treatment as login/register's headers — the
+                        // plain green "Verify OTP" Text that used to be
+                        // here moved inside the card instead (see below),
+                        // matching their title-in-card treatment.
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              // Defensive: falls back to the sign-in screen
+                              // if this was ever reached via context.go()
+                              // (replaces the stack) rather than push() —
+                              // pop() alone throws "nothing to pop" in that
+                              // case.
+                              onPressed: () => context.canPop()
+                                  ? context.pop()
+                                  : context.go('/auth/login'),
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(
+                                Icons.keyboard_arrow_left_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
                             ),
+                            const SizedBox(width: 6),
+                            Image.asset(
+                              'assets/images/quicky_text.png',
+                              height: 44,
+                              fit: BoxFit.contain,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Get Orders to your Doorstep',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Verify OTP',
-                            style: TextStyle(
-                              // Shared with login/register's own headline —
-                              // see AppColors.authHeadlineGreen's doc
-                              // comment.
-                              color: AppColors.authHeadlineGreen,
-                              fontSize: 38,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
-                            ),
+                        ),
+                      ],
+                    ),
+                    // Flexible gap (replaces the old fixed SizedBox) so the
+                    // card settles wherever's left between the header and
+                    // the bottom-reserved space — same fix as login's.
+                    const Expanded(child: SizedBox.shrink()),
+                    // Card sized to its own content (not stretched to the
+                    // screen's bottom edge) so login_bg1/login_bg2 stay
+                    // visible around it. No logo straddling its top border
+                    // anymore, so no Stack sibling for one.
+                    Container(
+                      width: double.infinity,
+                      // Frosted-glass look — transparent, blurring the
+                      // rider/road behind it — via clipBehavior +
+                      // BackdropFilter rather than a solid fill.
+                      clipBehavior: Clip.antiAlias,
+                      // All four corners now (was top-only) — the card
+                      // floats clear of the screen edges, same as
+                      // login/register's.
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.all(Radius.circular(30)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 30,
+                            offset: Offset(0, 10),
                           ),
                         ],
                       ),
-                    ),
-                    // Back-button-plus-title only header, same shape as
-                    // register's, so it clears the background image's icon
-                    // row the same way and uses the same gap.
-                    const SizedBox(height: 135),
-                    // Card sized to its own content (not stretched to the
-                    // screen's bottom edge) so login_bg2 stays visible
-                    // below it — see the reserved bottom padding above.
-                    // Wrapped in a Stack so CoinFlipLogo can straddle the
-                    // card's top border as a sibling — see
-                    // auth_login_screen.dart's identical treatment.
-                    Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.topCenter,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          // Half the logo's own size, so the card's top
-                          // border passes exactly through the logo's
-                          // vertical center.
-                          margin: const EdgeInsets.only(top: 56),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                        child: DecoratedBox(
                           decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(28),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(30),
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 30,
-                                offset: const Offset(0, -6),
-                              ),
-                              BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.35),
-                                blurRadius: 18,
-                                spreadRadius: -4,
-                              ),
-                            ],
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white.withValues(alpha: 0.55),
+                                Colors.white.withValues(alpha: 0.32),
+                                Colors.white.withValues(alpha: 0.4),
+                              ],
+                              stops: const [0.0, 0.15, 1.0],
+                            ),
+                            // Matches the outer clip's radius (was
+                            // unrounded) so the white edge wraps cleanly
+                            // around every corner instead of drawing as a
+                            // plain rectangle under a rounded clip.
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              width: 1.6,
+                            ),
                           ),
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(28),
-                            ),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0.55),
-                                      Colors.white.withValues(alpha: 0.32),
-                                      Colors.white.withValues(alpha: 0.4),
-                                    ],
-                                    stops: const [0.0, 0.15, 1.0],
-                                  ),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                    width: 1.6,
-                                  ),
+                          child: Padding(
+                            // Shorter now that there's no logo to clear at
+                            // the top — just breathing room on all sides.
+                            padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 440,
                                 ),
-                                child: Padding(
-                                  // Top padding cleared for the logo's
-                                  // bottom half (56) plus real breathing
-                                  // room before the heading.
-                                  padding: const EdgeInsets.fromLTRB(
-                                    24,
-                                    76,
-                                    24,
-                                    32,
-                                  ),
-                                  child: Center(
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 440,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          Text(
-                                            'Enter verification code',
-                                            style: TextStyle(
-                                              color: palette.textPrimary,
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w800,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Same treatment as login's in-card
+                                    // "Login" title — white with a soft
+                                    // dark shadow so it stays legible over
+                                    // the lighter patches of the glass.
+                                    // (This was already the card's own
+                                    // heading — just restyled, not a new
+                                    // element — the outer green "Verify
+                                    // OTP" text is what moved out.)
+                                    Text(
+                                      'Enter verification code',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.2,
                                             ),
-                                            textAlign: TextAlign.center,
+                                            blurRadius: 6,
                                           ),
-                                          const SizedBox(height: 6),
-                                          Text.rich(
-                                            TextSpan(
-                                              style: TextStyle(
-                                                color: palette.textSecondary,
-                                                fontSize: 13,
-                                              ),
-                                              children: [
-                                                const TextSpan(
-                                                  text:
-                                                      'We sent a 6-digit code to ',
-                                                ),
-                                                TextSpan(
-                                                  text: widget.args.phoneNumber,
-                                                  style: TextStyle(
-                                                    color: palette.textPrimary,
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 24),
-                                          if (!kUseDynamicOtp) ...[
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 10,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: palette.primary
-                                                    .withValues(alpha: 0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.info_outline_rounded,
-                                                    size: 16,
-                                                    color: palette.primary,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    'Demo mode — use $kDemoOtp.',
-                                                    style: TextStyle(
-                                                      color: palette.primary,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      fontSize: 12.5,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 20),
-                                          ],
-                                          Center(
-                                            child: OtpInputField(
-                                              onCompleted: _onCompleted,
-                                              onResend: _onResend,
-                                            ),
-                                          ),
-                                          if (_verifying) ...[
-                                            const SizedBox(height: 20),
-                                            Center(
-                                              child: CircularProgressIndicator(
-                                                color: palette.primary,
-                                              ),
-                                            ),
-                                          ],
-                                          if (_error != null) ...[
-                                            const SizedBox(height: 16),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 10,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: palette.error.withValues(
-                                                  alpha: 0.08,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: Text(
-                                                _error!,
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  color: palette.error,
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 12.5,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
                                         ],
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  ),
+                                    const SizedBox(height: 6),
+                                    Text.rich(
+                                      TextSpan(
+                                        style: TextStyle(
+                                          color: palette.textSecondary,
+                                          fontSize: 13,
+                                        ),
+                                        children: [
+                                          const TextSpan(
+                                            text: 'We sent a 6-digit code to ',
+                                          ),
+                                          TextSpan(
+                                            text: widget.args.phoneNumber,
+                                            style: TextStyle(
+                                              color: palette.textPrimary,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    if (!kUseDynamicOtp) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: palette.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.info_outline_rounded,
+                                              size: 16,
+                                              color: palette.primary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Demo mode — use $kDemoOtp.',
+                                              style: TextStyle(
+                                                color: palette.primary,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 12.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    Center(
+                                      child: OtpInputField(
+                                        onCompleted: _onCompleted,
+                                        onResend: _onResend,
+                                      ),
+                                    ),
+                                    if (_verifying) ...[
+                                      const SizedBox(height: 10),
+                                      Center(
+                                        child: CircularProgressIndicator(
+                                          color: palette.primary,
+                                        ),
+                                      ),
+                                    ],
+                                    if (_error != null) ...[
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: palette.error.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _error!,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: palette.error,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        // Straddles the card's top border — see the
-                        // Container's margin above, set to exactly half
-                        // this logo's size.
-                        const Positioned(
-                          top: 0,
-                          child: CoinFlipLogo(size: 112),
-                        ),
-                      ],
+                      ),
+                    ),
+                    // Reserves login_bg2.png's own rendered height (its
+                    // real 941×410 aspect scaled to screen width) plus
+                    // extra breathing room so the card sits up off the
+                    // footer image — the Expanded spacer above shrinks to
+                    // make room, which is what actually pulls the card up
+                    // off the bottom of the screen (same knob as login's).
+                    SizedBox(
+                      height:
+                          MediaQuery.sizeOf(context).width * (410 / 941) + 40,
                     ),
                   ],
                 ),

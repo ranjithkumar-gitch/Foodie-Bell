@@ -29,10 +29,30 @@ class AccountsNotifier extends StateNotifier<List<Account>> {
   /// (`vendor_profile_edit_screen.dart`) — mirrors `updateVendorProfile` for
   /// a just-created Vendor account still only in this local mirror, before
   /// the real `vendors` Firestore stream has caught up to it.
-  void updateProfile(String accountId, {required String name, String? email, String? avatarUrl, String? ownerName}) {
+  void updateProfile(
+    String accountId, {
+    required String name,
+    String? email,
+    String? avatarUrl,
+    String? ownerName,
+    String? address,
+    double? latitude,
+    double? longitude,
+  }) {
     state = [
       for (final a in state)
-        if (a.id == accountId) a.copyWith(name: name, email: email, avatarUrl: avatarUrl, ownerName: ownerName) else a,
+        if (a.id == accountId)
+          a.copyWith(
+            name: name,
+            email: email,
+            avatarUrl: avatarUrl,
+            ownerName: ownerName,
+            address: address,
+            latitude: latitude,
+            longitude: longitude,
+          )
+        else
+          a,
     ];
   }
 

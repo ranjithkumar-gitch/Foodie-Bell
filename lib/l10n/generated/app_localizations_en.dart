@@ -65,6 +65,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get homeAllChipLabel => 'All';
+
+  @override
   String get homePromotedBadge => 'PROMOTED';
 
   @override
@@ -74,7 +77,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeBrandBannerTitle => 'Support your local vendors';
 
   @override
-  String get homeBrandBannerSubtitle => 'Every order helps a nearby shop grow';
+  String get homeBrandBannerSubtitle =>
+      'Every order helps a nearby vendor grow';
 
   @override
   String get storefrontClosedBadge => 'CLOSED';
@@ -218,11 +222,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paymentWallet => 'Wallet';
 
   @override
+  String get paymentOnline => 'UPI / Cards';
+
+  @override
+  String get paymentOnlineSubtitle =>
+      'UPI, credit / debit cards, netbanking & more';
+
+  @override
+  String get paymentCancelled =>
+      'Payment cancelled. Your order was not placed.';
+
+  @override
+  String get paymentFailed =>
+      'Payment could not be completed. Please try again.';
+
+  @override
+  String paymentOrderSaveFailed(Object paymentId) {
+    return 'Your payment went through, but we couldn\'t place the order. Please contact support with payment ID $paymentId.';
+  }
+
+  @override
+  String get invoicePaymentPaid => 'Paid';
+
+  @override
+  String get invoicePaymentIdLabel => 'Payment ID';
+
+  @override
+  String get transactionsEmptyTitle => 'No transactions yet';
+
+  @override
+  String get transactionsEmptySubtitle => 'Your payments will show up here';
+
+  @override
+  String transactionPaidVia(Object method) {
+    return 'Paid via $method';
+  }
+
+  @override
   String get checkoutOrderSummary => 'Order summary';
 
   @override
   String checkoutPlaceOrder(Object amount) {
     return 'Place Order · $amount';
+  }
+
+  @override
+  String checkoutPayAndPlaceOrder(Object amount) {
+    return 'Pay $amount';
   }
 
   @override
@@ -446,6 +492,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLanguageDialogTitle => 'Choose language';
 
   @override
+  String get profileCategorySettings => 'Settings';
+
+  @override
+  String get profileCategoryTransactions => 'Transactions';
+
+  @override
+  String get profileCategoryFoodDelivery => 'Food Delivery';
+
+  @override
+  String get profileTransactionHistory => 'Transaction History';
+
+  @override
   String get editProfileTitle => 'Edit Profile';
 
   @override
@@ -525,6 +583,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addAddressSaveButton => 'Save Address';
+
+  @override
+  String get addAddressUseCurrentLocation => 'Use my current location';
+
+  @override
+  String get addAddressUpdateCurrentLocation => 'Update to my current location';
+
+  @override
+  String get addAddressGettingLocation => 'Getting your location…';
+
+  @override
+  String get addAddressLocationGpsOff =>
+      'Turn on location (GPS) on your phone and try again.';
+
+  @override
+  String get addAddressLocationPermissionNeeded =>
+      'Location permission is needed to pin this address. Allow it in your phone settings.';
 
   @override
   String get rateReviewTitle => 'Rate & Review';
@@ -790,4 +865,132 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editProfileCropPhotoTitle => 'Crop photo';
+
+  @override
+  String vendorEtaRange(int min, int max) {
+    return '$min–$max mins';
+  }
+
+  @override
+  String vendorDistanceKm(Object km) {
+    return '$km km';
+  }
+
+  @override
+  String vendorOfferUseCode(Object code) {
+    return 'Use $code';
+  }
+
+  @override
+  String get homeFilterOpenNow => 'Open now';
+
+  @override
+  String get homeFilterRating4 => 'Rated 4.0+';
+
+  @override
+  String get homeFilterPureVeg => 'Pure Veg';
+
+  @override
+  String get homeFilterNearest => 'Nearest';
+
+  @override
+  String get homeOrderAgainTitle => 'Order again';
+
+  @override
+  String get homeNoVendorsMatchFilters => 'No vendors match these filters';
+
+  @override
+  String get homeClearFilters => 'Clear filters';
+
+  @override
+  String homeCartBarFrom(Object vendorName) {
+    return 'From $vendorName';
+  }
+
+  @override
+  String get storefrontMenuSearchHint => 'Search in menu';
+
+  @override
+  String get storefrontVegOnly => 'Veg only';
+
+  @override
+  String get storefrontNoMenuMatches => 'No items match your search';
+
+  @override
+  String get storefrontOffersTitle => 'Offers for you';
+
+  @override
+  String get productBestseller => 'Bestseller';
+
+  @override
+  String get cartAddMoreItems => 'Add more items';
+
+  @override
+  String cartSavingsBanner(Object amount) {
+    return 'You\'re saving $amount on this order';
+  }
+
+  @override
+  String get cartBillDetails => 'Bill details';
+
+  @override
+  String get homeTrackPlacedTitle => 'Order placed!';
+
+  @override
+  String homeTrackPlacedSubtitle(Object vendorName) {
+    return 'Waiting for $vendorName to accept your order';
+  }
+
+  @override
+  String get homeTrackAcceptedTitle => 'Preparing your order';
+
+  @override
+  String homeTrackAcceptedSubtitle(Object vendorName) {
+    return '$vendorName has accepted and is getting it ready';
+  }
+
+  @override
+  String get homeTrackDriverAssignedTitle => 'Partner heading to the vendor';
+
+  @override
+  String homeTrackDriverAssignedSubtitle(Object driverName) {
+    return '$driverName will pick up your order soon';
+  }
+
+  @override
+  String get homeTrackPickedUpTitle => 'On the way to you';
+
+  @override
+  String homeTrackPickedUpSubtitle(Object driverName) {
+    return '$driverName has picked up your order';
+  }
+
+  @override
+  String get homeTrackDefaultDriver => 'Your delivery partner';
+
+  @override
+  String trackArrivingIn(int minutes) {
+    return 'Arriving in $minutes min';
+  }
+
+  @override
+  String trackDistanceKm(Object km) {
+    return '$km km away';
+  }
+
+  @override
+  String trackLocationStale(Object ago) {
+    return 'Location updated $ago';
+  }
+
+  @override
+  String homeTrackItemsSummary(int count, Object total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '$count item',
+    );
+    return '$_temp0 · $total';
+  }
 }

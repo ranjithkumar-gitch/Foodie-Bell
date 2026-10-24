@@ -55,6 +55,9 @@ Map<String, dynamic> orderToDoc(Order order) => {
   'items': order.items.map(_lineItemToMap).toList(),
   'status': order.status.name,
   'deliveryAddressLabel': order.deliveryAddressLabel,
+  'deliveryAddressId': order.deliveryAddressId,
+  'deliveryLatitude': order.deliveryLatitude,
+  'deliveryLongitude': order.deliveryLongitude,
   'paymentMethod': order.paymentMethod.name,
   'subtotal': order.subtotal,
   'deliveryFee': order.deliveryFee,
@@ -70,6 +73,8 @@ Map<String, dynamic> orderToDoc(Order order) => {
   'codPaymentReceived': order.codPaymentReceived,
   'couponCode': order.couponCode,
   'couponDiscount': order.couponDiscount,
+  'paymentId': order.paymentId,
+  'paidAt': order.paidAt == null ? null : Timestamp.fromDate(order.paidAt!),
 };
 
 Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
@@ -85,6 +90,9 @@ Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
   items: [for (final raw in (data['items'] as List<dynamic>? ?? const [])) _lineItemFromMap(Map<String, dynamic>.from(raw as Map))],
   status: OrderStatus.values.byName(data['status'] as String? ?? 'placed'),
   deliveryAddressLabel: data['deliveryAddressLabel'] as String? ?? '',
+  deliveryAddressId: data['deliveryAddressId'] as String?,
+  deliveryLatitude: (data['deliveryLatitude'] as num?)?.toDouble(),
+  deliveryLongitude: (data['deliveryLongitude'] as num?)?.toDouble(),
   paymentMethod: PaymentMethod.values.byName(data['paymentMethod'] as String? ?? 'cod'),
   subtotal: (data['subtotal'] as num?)?.toDouble() ?? 0,
   deliveryFee: (data['deliveryFee'] as num?)?.toDouble() ?? 0,
@@ -103,6 +111,8 @@ Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
   codPaymentReceived: data['codPaymentReceived'] as bool? ?? false,
   couponCode: data['couponCode'] as String?,
   couponDiscount: (data['couponDiscount'] as num?)?.toDouble() ?? 0,
+  paymentId: data['paymentId'] as String?,
+  paidAt: (data['paidAt'] as Timestamp?)?.toDate(),
 );
 
 /// Every order on the platform, live — every role's screen filters this
@@ -185,4 +195,9 @@ Future<void> cancelOrder(String orderId, String reason) => ordersCollection.doc(
   'cancelReason': reason,
 });
 
-Future<void> markCodPaymentReceived(String orderId) => ordersCollection.doc(orderId).update({'codPaymentReceived': true});
+/// Also stamps `paidAt` — the moment the cash changed hands is when a COD
+/// order's payment completed, same as Checkout success is for an online one.
+Future<void> markCodPaymentReceived(String orderId) => ordersCollection.doc(orderId).update({
+  'codPaymentReceived': true,
+  'paidAt': Timestamp.now(),
+});

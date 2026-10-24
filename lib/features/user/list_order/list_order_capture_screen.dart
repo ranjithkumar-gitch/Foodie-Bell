@@ -130,6 +130,8 @@ class _ListOrderCaptureScreenState
           userPhone: account.phone,
           imageUrls: imageUrls,
           deliveryAddressLabel: address.shortLabel,
+          deliveryLatitude: address.latitude,
+          deliveryLongitude: address.longitude,
           status: ListOrderStatus.pending,
           createdAt: DateTime.now(),
         ),

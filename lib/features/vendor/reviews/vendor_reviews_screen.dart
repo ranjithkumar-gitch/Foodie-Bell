@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
+import '../../../shared/time_ago.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../shared/widgets/empty_state.dart';
@@ -70,7 +70,7 @@ class VendorReviewsScreen extends ConsumerWidget {
                                 Row(
                                   children: [
                                     Expanded(child: Text(review.userName, style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary))),
-                                    Text(DateFormat('MMM d').format(review.createdAt), style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+                                    TimeAgoText(review.createdAt, style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
                                   ],
                                 ),
                                 const SizedBox(height: 4),

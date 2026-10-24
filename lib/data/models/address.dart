@@ -25,6 +25,8 @@ class Address {
     required this.pincode,
     required this.city,
     this.landmark,
+    this.latitude,
+    this.longitude,
     this.isDefault = false,
     this.isServiceable = true,
   });
@@ -39,6 +41,12 @@ class Address {
   final String? landmark;
   final String pincode;
   final String city;
+
+  /// Where the User's phone was when they tapped "Use my current location"
+  /// while adding this address — null when they skipped that (or for
+  /// addresses saved before it existed).
+  final double? latitude;
+  final double? longitude;
   final bool isDefault;
 
   /// Whether this pincode falls inside an active Manager territory.

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
+import '../widgets/country_code_picker.dart';
 import 'auth_navigation.dart';
 import 'auth_otp_screen.dart';
 import 'otp_config.dart';
@@ -46,6 +47,7 @@ class AuthPhoneScreen extends ConsumerStatefulWidget {
 
 class _AuthPhoneScreenState extends ConsumerState<AuthPhoneScreen> {
   final _controller = TextEditingController();
+  PhoneCountry _country = kDefaultPhoneCountry;
   String? _error;
   bool _sending = false;
 
@@ -81,7 +83,7 @@ class _AuthPhoneScreenState extends ConsumerState<AuthPhoneScreen> {
       ref.read(userRegistrationDraftProvider.notifier).setPhone(digits);
     }
 
-    final phone = '+91$digits';
+    final phone = '${_country.dialCode}$digits';
 
     if (!kUseDynamicOtp) {
       setState(() => _sending = false);
@@ -165,18 +167,15 @@ class _AuthPhoneScreenState extends ConsumerState<AuthPhoneScreen> {
               children: [
                 Container(
                   height: 56,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: palette.surfaceMuted,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    '+91',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: palette.textPrimary,
-                    ),
+                  child: CountryCodePrefix(
+                    country: _country,
+                    enabled: !_sending,
+                    onChanged: (c) => setState(() => _country = c),
                   ),
                 ),
                 const SizedBox(width: 12),

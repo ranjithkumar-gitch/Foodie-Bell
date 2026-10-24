@@ -293,6 +293,7 @@ class _QueueOrderCardState extends ConsumerState<_QueueOrderCard> {
   }
 
   Future<void> _accept() async {
+    if (!await ensureVendorAddressSetUp(context, ref)) return;
     try {
       await updateOrderStatus(widget.order.id, OrderStatus.vendorAccepted);
     } catch (e, st) {
@@ -505,6 +506,7 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
   }
 
   Future<void> _acceptAndConfirm(double rebatePercent) async {
+    if (!await ensureVendorAddressSetUp(context, ref) || !mounted) return;
     final source = await DocumentSourceSheet.show(
       context,
       title: 'Photograph the receipt',
@@ -541,6 +543,8 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
           ),
         ],
         deliveryAddressLabel: request.deliveryAddressLabel,
+        deliveryLatitude: request.deliveryLatitude,
+        deliveryLongitude: request.deliveryLongitude,
         paymentMethod: PaymentMethod.upi,
         subtotal: request.quotedAmount ?? 0,
         deliveryFee: 0,

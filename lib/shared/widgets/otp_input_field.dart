@@ -68,6 +68,12 @@ class _OtpInputFieldState extends State<OtpInputField> {
           appContext: context,
           length: widget.length,
           controller: _controller,
+          // Centered with explicit per-box padding below (rather than
+          // relying on the package's own default spaceBetween, which
+          // spreads/shrinks the gaps based on however wide the parent
+          // happens to be) so the 6 boxes always sit with a consistent,
+          // visible gap instead of reading as one solid touching strip.
+          mainAxisAlignment: MainAxisAlignment.start,
           // Explicit, not relying on the package's own (nominally
           // transparent) default — this is the strip behind the boxes:
           // pin_code_fields paints its whole outer row, gaps included, in
@@ -103,8 +109,12 @@ class _OtpInputFieldState extends State<OtpInputField> {
           pinTheme: PinTheme(
             shape: PinCodeFieldShape.box,
             borderRadius: BorderRadius.circular(8),
-            fieldHeight: 48,
-            fieldWidth: 42,
+            fieldHeight: 45,
+            fieldWidth: 40,
+            // Explicit gap between boxes — defaults to zero, which with
+            // mainAxisAlignment.center above would otherwise draw all 6
+            // boxes flush against each other.
+            fieldOuterPadding: const EdgeInsets.symmetric(horizontal: 2),
             activeColor: palette.primary,
             selectedColor: palette.primary,
             inactiveColor: palette.border,

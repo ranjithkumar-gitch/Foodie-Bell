@@ -4,7 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 
 class BottomNavItemData {
-  const BottomNavItemData({required this.icon, required this.label, this.badgeCount = 0});
+  const BottomNavItemData({
+    required this.icon,
+    required this.label,
+    this.badgeCount = 0,
+  });
 
   final IconData icon;
   final String label;
@@ -15,7 +19,11 @@ class BottomNavItemData {
 /// canonical mobile shell for User/Vendor/Driver (spec's mobile-first roles).
 /// Generalized from the original app's `home_shell.dart` nav bar.
 class BottomNavShell extends StatelessWidget {
-  const BottomNavShell({super.key, required this.navigationShell, required this.items});
+  const BottomNavShell({
+    super.key,
+    required this.navigationShell,
+    required this.items,
+  });
 
   final StatefulNavigationShell navigationShell;
   final List<BottomNavItemData> items;
@@ -28,7 +36,13 @@ class BottomNavShell extends StatelessWidget {
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           color: palette.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 20, offset: const Offset(0, -4))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
         ),
         child: SafeArea(
           child: SizedBox(
@@ -40,7 +54,10 @@ class BottomNavShell extends StatelessWidget {
                   _NavItem(
                     data: items[i],
                     selected: navigationShell.currentIndex == i,
-                    onTap: () => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
+                    onTap: () => navigationShell.goBranch(
+                      i,
+                      initialLocation: i == navigationShell.currentIndex,
+                    ),
                   ),
               ],
             ),
@@ -52,7 +69,11 @@ class BottomNavShell extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  const _NavItem({required this.data, required this.selected, required this.onTap});
+  const _NavItem({
+    required this.data,
+    required this.selected,
+    required this.onTap,
+  });
 
   final BottomNavItemData data;
   final bool selected;
@@ -61,7 +82,12 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    final color = selected ? palette.primary : palette.textMuted;
+    // A dedicated medium grey for the unselected state, not
+    // palette.textMuted — that muted tone reads noticeably dark/heavy for
+    // an *unselected* tab (it's tuned for muted body text elsewhere), so
+    // it made every non-active tab look almost as prominent as the
+    // selected one instead of visually receding.
+    final color = selected ? palette.primary : Colors.grey.shade400;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -80,19 +106,36 @@ class _NavItem extends StatelessWidget {
                     top: -4,
                     child: Container(
                       padding: const EdgeInsets.all(3),
-                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                      decoration: BoxDecoration(color: palette.error, shape: BoxShape.circle),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.error,
+                        shape: BoxShape.circle,
+                      ),
                       child: Text(
                         '${data.badgeCount}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(data.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+            Text(
+              data.label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
           ],
         ),
       ),

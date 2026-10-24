@@ -188,6 +188,12 @@ abstract class AppLocalizations {
   /// **'Order {orderId}'**
   String homeOrderIdLabel(Object orderId);
 
+  /// No description provided for @homeAllChipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get homeAllChipLabel;
+
   /// No description provided for @homePromotedBadge.
   ///
   /// In en, this message translates to:
@@ -209,7 +215,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeBrandBannerSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Every order helps a nearby shop grow'**
+  /// **'Every order helps a nearby vendor grow'**
   String get homeBrandBannerSubtitle;
 
   /// No description provided for @storefrontClosedBadge.
@@ -482,6 +488,66 @@ abstract class AppLocalizations {
   /// **'Wallet'**
   String get paymentWallet;
 
+  /// No description provided for @paymentOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'UPI / Cards'**
+  String get paymentOnline;
+
+  /// No description provided for @paymentOnlineSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'UPI, credit / debit cards, netbanking & more'**
+  String get paymentOnlineSubtitle;
+
+  /// No description provided for @paymentCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment cancelled. Your order was not placed.'**
+  String get paymentCancelled;
+
+  /// No description provided for @paymentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment could not be completed. Please try again.'**
+  String get paymentFailed;
+
+  /// No description provided for @paymentOrderSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your payment went through, but we couldn\'t place the order. Please contact support with payment ID {paymentId}.'**
+  String paymentOrderSaveFailed(Object paymentId);
+
+  /// No description provided for @invoicePaymentPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get invoicePaymentPaid;
+
+  /// No description provided for @invoicePaymentIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment ID'**
+  String get invoicePaymentIdLabel;
+
+  /// No description provided for @transactionsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions yet'**
+  String get transactionsEmptyTitle;
+
+  /// No description provided for @transactionsEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your payments will show up here'**
+  String get transactionsEmptySubtitle;
+
+  /// No description provided for @transactionPaidVia.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid via {method}'**
+  String transactionPaidVia(Object method);
+
   /// No description provided for @checkoutOrderSummary.
   ///
   /// In en, this message translates to:
@@ -493,6 +559,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Place Order · {amount}'**
   String checkoutPlaceOrder(Object amount);
+
+  /// No description provided for @checkoutPayAndPlaceOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay {amount}'**
+  String checkoutPayAndPlaceOrder(Object amount);
 
   /// No description provided for @orderSuccessTitle.
   ///
@@ -866,6 +938,30 @@ abstract class AppLocalizations {
   /// **'Choose language'**
   String get profileLanguageDialogTitle;
 
+  /// No description provided for @profileCategorySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get profileCategorySettings;
+
+  /// No description provided for @profileCategoryTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get profileCategoryTransactions;
+
+  /// No description provided for @profileCategoryFoodDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Food Delivery'**
+  String get profileCategoryFoodDelivery;
+
+  /// No description provided for @profileTransactionHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction History'**
+  String get profileTransactionHistory;
+
   /// No description provided for @editProfileTitle.
   ///
   /// In en, this message translates to:
@@ -1027,6 +1123,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save Address'**
   String get addAddressSaveButton;
+
+  /// No description provided for @addAddressUseCurrentLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use my current location'**
+  String get addAddressUseCurrentLocation;
+
+  /// No description provided for @addAddressUpdateCurrentLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Update to my current location'**
+  String get addAddressUpdateCurrentLocation;
+
+  /// No description provided for @addAddressGettingLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting your location…'**
+  String get addAddressGettingLocation;
+
+  /// No description provided for @addAddressLocationGpsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on location (GPS) on your phone and try again.'**
+  String get addAddressLocationGpsOff;
+
+  /// No description provided for @addAddressLocationPermissionNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is needed to pin this address. Allow it in your phone settings.'**
+  String get addAddressLocationPermissionNeeded;
 
   /// No description provided for @rateReviewTitle.
   ///
@@ -1495,6 +1621,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Crop photo'**
   String get editProfileCropPhotoTitle;
+
+  /// No description provided for @vendorEtaRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{min}–{max} mins'**
+  String vendorEtaRange(int min, int max);
+
+  /// No description provided for @vendorDistanceKm.
+  ///
+  /// In en, this message translates to:
+  /// **'{km} km'**
+  String vendorDistanceKm(Object km);
+
+  /// No description provided for @vendorOfferUseCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {code}'**
+  String vendorOfferUseCode(Object code);
+
+  /// No description provided for @homeFilterOpenNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open now'**
+  String get homeFilterOpenNow;
+
+  /// No description provided for @homeFilterRating4.
+  ///
+  /// In en, this message translates to:
+  /// **'Rated 4.0+'**
+  String get homeFilterRating4;
+
+  /// No description provided for @homeFilterPureVeg.
+  ///
+  /// In en, this message translates to:
+  /// **'Pure Veg'**
+  String get homeFilterPureVeg;
+
+  /// No description provided for @homeFilterNearest.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearest'**
+  String get homeFilterNearest;
+
+  /// No description provided for @homeOrderAgainTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order again'**
+  String get homeOrderAgainTitle;
+
+  /// No description provided for @homeNoVendorsMatchFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'No vendors match these filters'**
+  String get homeNoVendorsMatchFilters;
+
+  /// No description provided for @homeClearFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get homeClearFilters;
+
+  /// No description provided for @homeCartBarFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From {vendorName}'**
+  String homeCartBarFrom(Object vendorName);
+
+  /// No description provided for @storefrontMenuSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search in menu'**
+  String get storefrontMenuSearchHint;
+
+  /// No description provided for @storefrontVegOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Veg only'**
+  String get storefrontVegOnly;
+
+  /// No description provided for @storefrontNoMenuMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No items match your search'**
+  String get storefrontNoMenuMatches;
+
+  /// No description provided for @storefrontOffersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers for you'**
+  String get storefrontOffersTitle;
+
+  /// No description provided for @productBestseller.
+  ///
+  /// In en, this message translates to:
+  /// **'Bestseller'**
+  String get productBestseller;
+
+  /// No description provided for @cartAddMoreItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Add more items'**
+  String get cartAddMoreItems;
+
+  /// No description provided for @cartSavingsBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re saving {amount} on this order'**
+  String cartSavingsBanner(Object amount);
+
+  /// No description provided for @cartBillDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill details'**
+  String get cartBillDetails;
+
+  /// No description provided for @homeTrackPlacedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order placed!'**
+  String get homeTrackPlacedTitle;
+
+  /// No description provided for @homeTrackPlacedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for {vendorName} to accept your order'**
+  String homeTrackPlacedSubtitle(Object vendorName);
+
+  /// No description provided for @homeTrackAcceptedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your order'**
+  String get homeTrackAcceptedTitle;
+
+  /// No description provided for @homeTrackAcceptedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{vendorName} has accepted and is getting it ready'**
+  String homeTrackAcceptedSubtitle(Object vendorName);
+
+  /// No description provided for @homeTrackDriverAssignedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner heading to the vendor'**
+  String get homeTrackDriverAssignedTitle;
+
+  /// No description provided for @homeTrackDriverAssignedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{driverName} will pick up your order soon'**
+  String homeTrackDriverAssignedSubtitle(Object driverName);
+
+  /// No description provided for @homeTrackPickedUpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On the way to you'**
+  String get homeTrackPickedUpTitle;
+
+  /// No description provided for @homeTrackPickedUpSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{driverName} has picked up your order'**
+  String homeTrackPickedUpSubtitle(Object driverName);
+
+  /// No description provided for @homeTrackDefaultDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Your delivery partner'**
+  String get homeTrackDefaultDriver;
+
+  /// No description provided for @trackArrivingIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Arriving in {minutes} min'**
+  String trackArrivingIn(int minutes);
+
+  /// No description provided for @trackDistanceKm.
+  ///
+  /// In en, this message translates to:
+  /// **'{km} km away'**
+  String trackDistanceKm(Object km);
+
+  /// No description provided for @trackLocationStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Location updated {ago}'**
+  String trackLocationStale(Object ago);
+
+  /// No description provided for @homeTrackItemsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} item} other{{count} items}} · {total}'**
+  String homeTrackItemsSummary(int count, Object total);
 }
 
 class _AppLocalizationsDelegate

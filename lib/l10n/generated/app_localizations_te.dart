@@ -65,6 +65,9 @@ class AppLocalizationsTe extends AppLocalizations {
   }
 
   @override
+  String get homeAllChipLabel => 'అన్నీ';
+
+  @override
   String get homePromotedBadge => 'ప్రమోట్ చేయబడింది';
 
   @override
@@ -75,7 +78,7 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get homeBrandBannerSubtitle =>
-      'మీ ప్రతి ఆర్డర్ దగ్గరలోని దుకాణానికి సహాయపడుతుంది';
+      'మీ ప్రతి ఆర్డర్ దగ్గరలోని వెండార్‌కి సహాయపడుతుంది';
 
   @override
   String get storefrontClosedBadge => 'మూసివేయబడింది';
@@ -218,11 +221,53 @@ class AppLocalizationsTe extends AppLocalizations {
   String get paymentWallet => 'వాలెట్';
 
   @override
+  String get paymentOnline => 'UPI / కార్డ్‌లు';
+
+  @override
+  String get paymentOnlineSubtitle =>
+      'UPI, క్రెడిట్ / డెబిట్ కార్డ్‌లు, నెట్‌బ్యాంకింగ్ మరియు మరిన్ని';
+
+  @override
+  String get paymentCancelled =>
+      'చెల్లింపు రద్దు చేయబడింది. మీ ఆర్డర్ చేయబడలేదు.';
+
+  @override
+  String get paymentFailed =>
+      'చెల్లింపు పూర్తి కాలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.';
+
+  @override
+  String paymentOrderSaveFailed(Object paymentId) {
+    return 'మీ చెల్లింపు పూర్తయింది, కానీ ఆర్డర్ చేయలేకపోయాము. దయచేసి పేమెంట్ ID $paymentIdతో సపోర్ట్‌ను సంప్రదించండి.';
+  }
+
+  @override
+  String get invoicePaymentPaid => 'చెల్లించారు';
+
+  @override
+  String get invoicePaymentIdLabel => 'పేమెంట్ ID';
+
+  @override
+  String get transactionsEmptyTitle => 'ఇంకా లావాదేవీలు లేవు';
+
+  @override
+  String get transactionsEmptySubtitle => 'మీ చెల్లింపులు ఇక్కడ కనిపిస్తాయి';
+
+  @override
+  String transactionPaidVia(Object method) {
+    return '$method ద్వారా చెల్లించారు';
+  }
+
+  @override
   String get checkoutOrderSummary => 'ఆర్డర్ సారాంశం';
 
   @override
   String checkoutPlaceOrder(Object amount) {
     return 'ఆర్డర్ చేయండి · $amount';
+  }
+
+  @override
+  String checkoutPayAndPlaceOrder(Object amount) {
+    return '$amount చెల్లించండి';
   }
 
   @override
@@ -446,6 +491,18 @@ class AppLocalizationsTe extends AppLocalizations {
   String get profileLanguageDialogTitle => 'భాషను ఎంచుకోండి';
 
   @override
+  String get profileCategorySettings => 'సెట్టింగ్‌లు';
+
+  @override
+  String get profileCategoryTransactions => 'లావాదేవీలు';
+
+  @override
+  String get profileCategoryFoodDelivery => 'ఫుడ్ డెలివరీ';
+
+  @override
+  String get profileTransactionHistory => 'లావాదేవీల చరిత్ర';
+
+  @override
   String get editProfileTitle => 'ప్రొఫైల్‌ను సవరించండి';
 
   @override
@@ -526,6 +583,25 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get addAddressSaveButton => 'చిరునామాను సేవ్ చేయండి';
+
+  @override
+  String get addAddressUseCurrentLocation =>
+      'నా ప్రస్తుత లొకేషన్‌ను ఉపయోగించండి';
+
+  @override
+  String get addAddressUpdateCurrentLocation =>
+      'నా ప్రస్తుత లొకేషన్‌కు అప్‌డేట్ చేయండి';
+
+  @override
+  String get addAddressGettingLocation => 'మీ లొకేషన్‌ను పొందుతోంది…';
+
+  @override
+  String get addAddressLocationGpsOff =>
+      'మీ ఫోన్‌లో లొకేషన్ (GPS) ఆన్ చేసి మళ్లీ ప్రయత్నించండి.';
+
+  @override
+  String get addAddressLocationPermissionNeeded =>
+      'ఈ చిరునామాను పిన్ చేయడానికి లొకేషన్ అనుమతి అవసరం. మీ ఫోన్ సెట్టింగ్‌లలో అనుమతించండి.';
 
   @override
   String get rateReviewTitle => 'రేట్ & సమీక్ష';
@@ -792,4 +868,133 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get editProfileCropPhotoTitle => 'ఫోటోను క్రాప్ చేయండి';
+
+  @override
+  String vendorEtaRange(int min, int max) {
+    return '$min–$max నిమిషాలు';
+  }
+
+  @override
+  String vendorDistanceKm(Object km) {
+    return '$km కి.మీ';
+  }
+
+  @override
+  String vendorOfferUseCode(Object code) {
+    return '$code వాడండి';
+  }
+
+  @override
+  String get homeFilterOpenNow => 'ఇప్పుడు తెరిచి ఉంది';
+
+  @override
+  String get homeFilterRating4 => 'రేటింగ్ 4.0+';
+
+  @override
+  String get homeFilterPureVeg => 'శుద్ధ శాకాహారం';
+
+  @override
+  String get homeFilterNearest => 'దగ్గరలో';
+
+  @override
+  String get homeOrderAgainTitle => 'మళ్ళీ ఆర్డర్ చేయండి';
+
+  @override
+  String get homeNoVendorsMatchFilters => 'ఈ ఫిల్టర్లకు సరిపోయే వెండార్లు లేరు';
+
+  @override
+  String get homeClearFilters => 'ఫిల్టర్లు తీసివేయండి';
+
+  @override
+  String homeCartBarFrom(Object vendorName) {
+    return '$vendorName నుండి';
+  }
+
+  @override
+  String get storefrontMenuSearchHint => 'మెనూలో వెతకండి';
+
+  @override
+  String get storefrontVegOnly => 'శాకాహారం మాత్రమే';
+
+  @override
+  String get storefrontNoMenuMatches => 'మీ శోధనకు సరిపోయే ఐటెమ్‌లు లేవు';
+
+  @override
+  String get storefrontOffersTitle => 'మీ కోసం ఆఫర్లు';
+
+  @override
+  String get productBestseller => 'బెస్ట్‌సెల్లర్';
+
+  @override
+  String get cartAddMoreItems => 'మరిన్ని ఐటెమ్‌లు జోడించండి';
+
+  @override
+  String cartSavingsBanner(Object amount) {
+    return 'ఈ ఆర్డర్‌పై మీరు $amount ఆదా చేస్తున్నారు';
+  }
+
+  @override
+  String get cartBillDetails => 'బిల్లు వివరాలు';
+
+  @override
+  String get homeTrackPlacedTitle => 'ఆర్డర్ చేయబడింది!';
+
+  @override
+  String homeTrackPlacedSubtitle(Object vendorName) {
+    return '$vendorName మీ ఆర్డర్‌ను అంగీకరించే వరకు వేచి ఉంది';
+  }
+
+  @override
+  String get homeTrackAcceptedTitle => 'మీ ఆర్డర్ సిద్ధమవుతోంది';
+
+  @override
+  String homeTrackAcceptedSubtitle(Object vendorName) {
+    return '$vendorName అంగీకరించి సిద్ధం చేస్తున్నారు';
+  }
+
+  @override
+  String get homeTrackDriverAssignedTitle =>
+      'డెలివరీ పార్ట్‌నర్ వెండార్ వద్దకు వెళ్తున్నారు';
+
+  @override
+  String homeTrackDriverAssignedSubtitle(Object driverName) {
+    return '$driverName త్వరలో మీ ఆర్డర్‌ను తీసుకుంటారు';
+  }
+
+  @override
+  String get homeTrackPickedUpTitle => 'మీ వద్దకు వస్తోంది';
+
+  @override
+  String homeTrackPickedUpSubtitle(Object driverName) {
+    return '$driverName మీ ఆర్డర్‌ను తీసుకున్నారు';
+  }
+
+  @override
+  String get homeTrackDefaultDriver => 'మీ డెలివరీ పార్ట్‌నర్';
+
+  @override
+  String trackArrivingIn(int minutes) {
+    return '$minutes నిమిషాల్లో వస్తారు';
+  }
+
+  @override
+  String trackDistanceKm(Object km) {
+    return '$km కి.మీ దూరంలో';
+  }
+
+  @override
+  String trackLocationStale(Object ago) {
+    return 'లొకేషన్ అప్‌డేట్: $ago';
+  }
+
+  @override
+  String homeTrackItemsSummary(int count, Object total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ఐటెమ్‌లు',
+      one: '$count ఐటెమ్',
+    );
+    return '$_temp0 · $total';
+  }
 }

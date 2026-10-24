@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/payments/razorpay_service.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/cart_item.dart';
@@ -9,6 +10,7 @@ import '../../../data/models/order.dart';
 import '../../../data/models/tax_category.dart';
 import '../../../data/providers/cart_provider.dart';
 import '../../../data/providers/firestore_addresses_provider.dart';
+import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_tax_categories_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
@@ -17,11 +19,13 @@ import '../../../shared/widgets/currency_text.dart';
 import '../address_label_text.dart';
 import '../translation/translated_text.dart';
 
-/// Checkout – Payment Method (spec §4.10): Cash on Delivery is the only
-/// live payment path — UPI/Card/Wallet are shown but disabled ("Coming
-/// soon") since there's no real payment gateway integration yet. Placing an
-/// order writes a real `orders` doc (`firestore_orders_provider.dart`)
-/// instead of the old in-memory `mockOrdersProvider`.
+/// Checkout – Payment Method (spec §4.10): Cash on Delivery, plus a single
+/// "UPI / Cards" option that hands off to Razorpay (`razorpay_service.dart`),
+/// where the User picks the actual method. Wallet is still shown but
+/// disabled ("Coming soon"). An online order is only written once
+/// Razorpay reports the payment succeeded — a cancelled/failed payment
+/// leaves the cart untouched and no `orders` doc behind.
+///
 /// This line's GST, resolved from its product's tax category/override
 /// (`resolveProductGst`) and snapshotted onto the order at the moment it's
 /// placed — see [OrderLineItem.gstAmount]'s doc comment for why this isn't
@@ -48,11 +52,19 @@ class CheckoutPaymentScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
-  final PaymentMethod _payment = PaymentMethod.cod;
+  PaymentMethod _payment = PaymentMethod.cod;
   bool _placingOrder = false;
   String? _error;
 
   static const double _platformFee = 5;
+
+  void _selectPayment(PaymentMethod method) {
+    if (_placingOrder) return;
+    setState(() {
+      _payment = method;
+      _error = null;
+    });
+  }
 
   Future<void> _placeOrder(
     double subtotal,
@@ -72,17 +84,58 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
     final cart = ref.read(cartProvider);
     final address = ref.read(selectedAddressProvider);
     final session = ref.read(sessionControllerProvider);
-    final placedAt = DateTime.now();
     final coupon = cart.appliedCoupon;
+    final userId = session.account?.id ?? 'u1';
+    final orderId = generateOrderId();
+
+    String? paymentId;
+    if (_payment != PaymentMethod.cod) {
+      final l10n = context.l10n;
+      try {
+        // Checked again here, before any money moves — `createOrderWithCoupon`
+        // rejecting the coupon *after* a successful payment would leave the
+        // User charged with no order.
+        if (coupon != null && await hasUserRedeemedCoupon(coupon.id, userId)) {
+          if (!mounted) return;
+          setState(() {
+            _placingOrder = false;
+            _error = l10n.cartCouponAlreadyUsed;
+          });
+          return;
+        }
+        paymentId = await ref.read(razorpayServiceProvider).pay(
+          amount: total,
+          orderId: orderId,
+          description: vendorName,
+          customerName: session.account?.name,
+          customerPhone: session.account?.phone,
+          customerEmail: session.account?.email,
+        );
+      } catch (e, st) {
+        if (!mounted) return;
+        final cancelled = e is RazorpayPaymentException && e.cancelled;
+        if (!cancelled) friendlyError(e, action: 'Online payment', stackTrace: st);
+        setState(() {
+          _placingOrder = false;
+          _error = cancelled ? l10n.paymentCancelled : l10n.paymentFailed;
+        });
+        return;
+      }
+    }
+
+    final placedAt = DateTime.now();
     final order = Order(
-      id: generateOrderId(),
+      id: orderId,
       vendorId: vendorId,
       vendorName: vendorName,
-      userId: session.account?.id ?? 'u1',
+      userId: userId,
       userName: session.account?.name ?? 'You',
       userPhone: address?.recipientPhone ?? session.account?.phone ?? '',
       items: [for (final item in cart.items) _lineItemFromCartItem(item, taxCategories)],
       deliveryAddressLabel: address?.shortLabel ?? 'Saved address',
+      deliveryAddressId: address?.id,
+      deliveryLatitude: address?.latitude,
+      deliveryLongitude: address?.longitude,
       paymentMethod: _payment,
       subtotal: subtotal,
       deliveryFee: deliveryFee,
@@ -96,6 +149,8 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
       couponDiscount: cart.couponDiscount,
       handoverCode: generateOrderCode(),
       deliveryOtp: generateOrderCode(),
+      paymentId: paymentId,
+      paidAt: paymentId == null ? null : placedAt,
     );
 
     try {
@@ -106,13 +161,22 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
       }
     } catch (e, st) {
       if (!mounted) return;
+      final message = friendlyError(e, action: 'Placing order', stackTrace: st);
       setState(() {
         _placingOrder = false;
-        // A rejected coupon redemption (`createOrderWithCoupon`'s
+        // The money's already been taken at this point, so the generic
+        // "try again" text would be wrong — retrying would charge twice.
+        // The payment id is what support needs to trace/refund it.
+        //
+        // Otherwise: a rejected coupon redemption (`createOrderWithCoupon`'s
         // transaction) is a real, actionable outcome — not a
         // connectivity/backend failure — so its message is shown as-is
         // instead of being flattened into `friendlyError`'s generic text.
-        _error = e is StateError ? e.message : friendlyError(e, action: 'Placing order', stackTrace: st);
+        _error = paymentId != null
+            ? context.l10n.paymentOrderSaveFailed(paymentId)
+            : e is StateError
+            ? e.message
+            : message;
       });
       return;
     }
@@ -170,11 +234,9 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
             title: context.l10n.checkoutPaymentMethod,
             child: Column(
               children: [
-                _PaymentTile(icon: Icons.payments_outlined, label: context.l10n.paymentCod, subtitle: context.l10n.paymentCodSubtitle, selected: true, onTap: () {}),
+                _PaymentTile(icon: Icons.payments_outlined, label: context.l10n.paymentCod, subtitle: context.l10n.paymentCodSubtitle, selected: _payment == PaymentMethod.cod, onTap: () => _selectPayment(PaymentMethod.cod)),
                 const SizedBox(height: 10),
-                _PaymentTile(icon: Icons.qr_code_rounded, label: context.l10n.paymentUpi, subtitle: context.l10n.paymentComingSoon, selected: false, enabled: false, onTap: () {}),
-                const SizedBox(height: 10),
-                _PaymentTile(icon: Icons.credit_card_rounded, label: context.l10n.paymentCard, subtitle: context.l10n.paymentComingSoon, selected: false, enabled: false, onTap: () {}),
+                _PaymentTile(icon: Icons.credit_card_rounded, label: context.l10n.paymentOnline, subtitle: context.l10n.paymentOnlineSubtitle, selected: _payment == PaymentMethod.online, onTap: () => _selectPayment(PaymentMethod.online)),
                 const SizedBox(height: 10),
                 _PaymentTile(icon: Icons.account_balance_wallet_rounded, label: context.l10n.paymentWallet, subtitle: context.l10n.paymentComingSoon, selected: false, enabled: false, onTap: () {}),
               ],
@@ -228,7 +290,7 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
                 : () => _placeOrder(cart.subtotal, deliveryFee, gstAmount, total, vendorName, vendorId, rebatePercent, taxCategories),
             child: _placingOrder
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4))
-                : Text(context.l10n.checkoutPlaceOrder(AppFormat.currency(total))),
+                : Text(_payment == PaymentMethod.cod ? context.l10n.checkoutPlaceOrder(AppFormat.currency(total)) : context.l10n.checkoutPayAndPlaceOrder(AppFormat.currency(total))),
           ),
         ),
       ),

@@ -18,10 +18,15 @@ extension OrderStatusX on OrderStatus {
   bool get isTerminal => this == OrderStatus.delivered || this == OrderStatus.cancelled || this == OrderStatus.rejected;
 }
 
-enum PaymentMethod { upi, card, wallet, cod }
+/// `online` is a Razorpay payment (`razorpay_service.dart`) — the User picks
+/// UPI/card/netbanking inside Razorpay's own Checkout, which doesn't report
+/// back which one was used, so it's recorded as just "online" rather than
+/// guessed. `upi`/`card` remain for orders written before that.
+enum PaymentMethod { upi, card, wallet, cod, online }
 
 extension PaymentMethodX on PaymentMethod {
   String get label => switch (this) {
+    PaymentMethod.online => 'Online',
     PaymentMethod.upi => 'UPI',
     PaymentMethod.card => 'Card',
     PaymentMethod.wallet => 'Wallet',
@@ -87,6 +92,9 @@ class Order {
     required this.total,
     required this.placedAt,
     required this.rebatePercent,
+    this.deliveryAddressId,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     this.statusTimestamps = const {},
     this.status = OrderStatus.placed,
     this.driverId,
@@ -98,6 +106,8 @@ class Order {
     this.codPaymentReceived = false,
     this.couponCode,
     this.couponDiscount = 0,
+    this.paymentId,
+    this.paidAt,
   });
 
   final String id;
@@ -120,6 +130,20 @@ class Order {
   /// order hasn't reached yet.
   final Map<OrderStatus, DateTime> statusTimestamps;
   final String deliveryAddressLabel;
+
+  /// The `addresses` doc this order was placed to — how the Driver side
+  /// (`order_drop_off.dart`) reads the drop-off's full street address and
+  /// pinned position straight off the saved address, rather than matching
+  /// it by [deliveryAddressLabel] text. Null on orders placed before this
+  /// was recorded.
+  final String? deliveryAddressId;
+
+  /// The delivery address's pinned position (`Address.latitude`/
+  /// `longitude`), snapshotted when the order was placed — where the
+  /// tracking map draws the drop-off. Null when that address had no pin
+  /// (and on orders placed before this existed).
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
   final PaymentMethod paymentMethod;
   final double subtotal;
   final double deliveryFee;
@@ -159,7 +183,30 @@ class Order {
   /// delivery OTP/photo.
   final bool codPaymentReceived;
 
+  /// The Razorpay payment id (`pay_...`) for an order paid online at
+  /// checkout (`razorpay_service.dart`) — the order is only ever written
+  /// after Checkout reports success, so a non-null value here means the
+  /// money was already collected. Null for COD orders.
+  final String? paymentId;
+
+  /// When this order's payment completed: Checkout success for an online
+  /// order, the Driver confirming the cash for a COD one. Null for a COD
+  /// order whose cash hasn't been collected yet (and for COD orders
+  /// collected before this was stamped — see [paymentCompletedAt]).
+  final DateTime? paidAt;
+
   bool get isCod => paymentMethod == PaymentMethod.cod;
+
+  bool get isPaidOnline => paymentId != null;
+
+  /// Money has actually changed hands — online at checkout, or cash handed
+  /// to the Driver. A placed-but-uncollected COD order isn't paid.
+  bool get isPaid => isPaidOnline || codPaymentReceived;
+
+  /// [paidAt], falling back to the delivery time (cash is collected right
+  /// before delivery is confirmed) and then [placedAt] for orders that
+  /// predate [paidAt] being stamped.
+  DateTime get paymentCompletedAt => paidAt ?? statusTimestamps[OrderStatus.delivered] ?? placedAt;
 
   /// When this order reached [status], falling back to [placedAt] for
   /// `placed` itself (which predates [statusTimestamps] existing) and
@@ -185,6 +232,9 @@ class Order {
     userPhone: userPhone,
     items: items,
     deliveryAddressLabel: deliveryAddressLabel,
+    deliveryAddressId: deliveryAddressId,
+    deliveryLatitude: deliveryLatitude,
+    deliveryLongitude: deliveryLongitude,
     paymentMethod: paymentMethod,
     subtotal: subtotal,
     deliveryFee: deliveryFee,
@@ -204,5 +254,7 @@ class Order {
     codPaymentReceived: codPaymentReceived ?? this.codPaymentReceived,
     couponCode: couponCode,
     couponDiscount: couponDiscount,
+    paymentId: paymentId,
+    paidAt: paidAt,
   );
 }

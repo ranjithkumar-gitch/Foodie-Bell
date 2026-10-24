@@ -56,8 +56,9 @@ class _DriverCashCollectionScreenState extends ConsumerState<DriverCashCollectio
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.home_rounded), tooltip: 'Back to dashboard', onPressed: () => context.go('/driver/home')),
+        leading: BackButton(onPressed: () => context.go('/driver/delivery/${order.id}/navigate-customer')),
         title: const Text('Collect cash'),
+        actions: [IconButton(icon: const Icon(Icons.home_rounded), tooltip: 'Back to dashboard', onPressed: () => context.go('/driver/home'))],
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),

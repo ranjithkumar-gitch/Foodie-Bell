@@ -37,6 +37,9 @@ Map<String, dynamic> accountToVendorDoc(Account account) => {
   'category': account.category,
   'subCategory': account.subCategory,
   'ownerName': account.ownerName,
+  'address': account.address,
+  'latitude': account.latitude,
+  'longitude': account.longitude,
   'rebatePercent': account.rebatePercent,
   'documentStatuses': account.documentStatuses.map(
     (type, status) => MapEntry(type.name, status.name),
@@ -65,6 +68,9 @@ Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     category: data['category'] as String?,
     subCategory: data['subCategory'] as String?,
     ownerName: data['ownerName'] as String?,
+    address: data['address'] as String?,
+    latitude: (data['latitude'] as num?)?.toDouble(),
+    longitude: (data['longitude'] as num?)?.toDouble(),
     rebatePercent: (data['rebatePercent'] as num?)?.toDouble() ?? 15,
     documentStatuses: {
       for (final type in VendorDocumentType.values)
@@ -186,18 +192,29 @@ Future<void> updateVendorStatus(
 Future<void> setVendorOpen(String vendorId, bool isOpen) =>
     vendorsCollection.doc(vendorId).update({'isOpen': isOpen});
 
-/// Vendor editing their own shop name/owner name/email
+/// Vendor editing their own shop name/owner name/email/address
 /// (`vendor_profile_edit_screen.dart`) — territory/managerCode/category
-/// stay Manager-assigned, not editable here.
+/// stay Manager-assigned, not editable here. [latitude]/[longitude] are
+/// only written when given, so saving the form without a pinned location
+/// never wipes one that's already on record.
 Future<void> updateVendorProfile(
   String vendorId, {
   required String name,
   String? ownerName,
   String? email,
+  String? address,
+  double? latitude,
+  double? longitude,
 }) => vendorsCollection.doc(vendorId).update({
   'name': name,
   'ownerName': ownerName,
   'email': email,
+  'address': address,
+  if (latitude != null && longitude != null) ...{
+    'latitude': latitude,
+    'longitude': longitude,
+    'locationUpdatedAt': FieldValue.serverTimestamp(),
+  },
 });
 
 Future<void> updateVendorDocumentStatus(

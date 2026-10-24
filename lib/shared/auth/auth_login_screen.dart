@@ -11,7 +11,7 @@ import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
 import '../widgets/app_text_field.dart';
-import '../widgets/coin_flip_logo.dart';
+import '../widgets/country_code_picker.dart';
 import '../widgets/glossy_surface.dart';
 import 'auth_navigation.dart';
 import 'auth_otp_screen.dart';
@@ -41,16 +41,20 @@ import 'otp_config.dart';
 /// seam reads as one continuous background rather than a visible edge.
 /// The "Quicky" wordmark (`quicky_text.png`, the brand's own stylized
 /// logotype) + "Get Orders to your Doorstep" subtext sit directly on that
-/// background (no card behind them), but the sign-in
-/// form below sits on a glossy frosted-glass card — `ClipRRect`+
-/// `BackdropFilter`, transparent enough to still show the blurred image
-/// behind it, with a full `Border.all` glass edge (plus a white-tinted
-/// glow alongside the drop shadow) rather than just a top highlight — sized
-/// to its own content rather than stretched to the screen's bottom edge, so
-/// `login_bg2.png` stays visible below it. [CoinFlipLogo] straddles the
-/// card's top border — the card's own top margin is set to exactly half
-/// the logo's size, so the border passes through the logo's center, half
-/// on the image above and half on the card below.
+/// background (no card behind them), and the sign-in form below sits on a
+/// glossy frosted-glass card — `BackdropFilter`, transparent enough to
+/// still show the blurred image behind it, with a `Border.all` glass edge
+/// — sized to its own content, kept deliberately short (no logo straddling
+/// its top border anymore) so both `login_bg1.png` above and
+/// `login_bg2.png` below stay visible around it rather than the card
+/// eating most of the screen.
+///
+/// The whole page is laid out to fit one screen without scrolling — the
+/// old `SingleChildScrollView` is gone, replaced by an `Expanded` spacer
+/// between the wordmark block and the card that eats whatever vertical
+/// space is left, so `login_bg1.png` up top and `login_bg2.png` at the
+/// bottom both stay fully visible at once instead of requiring a scroll
+/// to reach.
 ///
 /// Admin has no path here — it only ever signs in via the separate
 /// QuickyAdmin app. Only User self-registers (Vendor/Driver are created by
@@ -75,6 +79,7 @@ class AuthLoginScreen extends ConsumerStatefulWidget {
 
 class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   final _phoneController = TextEditingController();
+  PhoneCountry _country = kDefaultPhoneCountry;
   bool _submitting = false;
   String? _error;
 
@@ -95,7 +100,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
       _submitting = true;
     });
 
-    final phone = '+91$digits';
+    final phone = '${_country.dialCode}$digits';
 
     if (!kUseDynamicOtp) {
       setState(() => _submitting = false);
@@ -204,336 +209,343 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               ),
             ),
             SafeArea(
-              child: SingleChildScrollView(
-                // Bottom padding reserves exactly login_bg2.png's own
-                // rendered height (it's fitWidth, so that height scales
-                // with screen width — 941×410 is the asset's actual pixel
-                // size) plus a little breathing room, so "New here?
-                // Register" always ends above it instead of landing on
-                // top of the image's own baked-in pin/text and going
-                // unreadable the way it did before this reserved gap.
-                padding: EdgeInsets.only(
-                  bottom:
-                      MediaQuery.sizeOf(context).width * (410 / 941) +
-                      32 +
-                      MediaQuery.viewInsetsOf(context).bottom,
-                ),
+              // No scrolling here (was SingleChildScrollView) — the whole
+              // background, login_bg1's rider up top down to login_bg2's
+              // stores footer at the bottom, has to be visible in one
+              // screen, not revealed by scrolling. The Expanded spacer
+              // below does the job the old fixed "SizedBox(height: 210)"
+              // gap used to: it eats whatever vertical space is left
+              // between the wordmark block and the card, shrinking on
+              // short screens instead of overflowing.
+              //
+              // No `MediaQuery.viewInsetsOf(context).bottom` in this
+              // padding (unlike the still-scrolling OTP/register-details
+              // screens) — with the scroll view gone there's nothing left
+              // to absorb it: the Expanded spacer can shrink to 0 but no
+              // further, so reserving the keyboard's height here just
+              // overflowed the layout by however much the keyboard didn't
+              // fit once the spacer ran out of room. resizeToAvoidBottomInset
+              // is already false, so the keyboard simply overlays the
+              // bottom of the screen instead — nothing here needs to
+              // shrink for it.
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // The "Quicky" wordmark itself, not styled Text —
-                          // quicky_text.png is the brand's own stylized
-                          // logotype (dimensional white-on-green lettering,
-                          // leaf accent on the "y"), not something a plain
-                          // TextStyle can reproduce.
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Image.asset(
-                              'assets/images/quicky_text.png',
-                              height: 44,
-                              fit: BoxFit.contain,
-                            ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // The "Quicky" wordmark itself, not styled Text —
+                        // quicky_text.png is the brand's own stylized
+                        // logotype (dimensional white-on-green lettering,
+                        // leaf accent on the "y"), not something a plain
+                        // TextStyle can reproduce.
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Image.asset(
+                            'assets/images/quicky_text.png',
+                            height: 44,
+                            fit: BoxFit.contain,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Get Orders to your Doorstep',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Get Orders to your Doorstep',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Flexible gap (replaces the old fixed SizedBox) so the
+                    // card settles wherever's left between the wordmark and
+                    // the bottom-reserved space, keeping bg1 fully visible
+                    // above it without needing to scroll to see it.
+                    const Expanded(child: SizedBox.shrink()),
+                    // Card sized to its own content (not Expanded/stretched
+                    // to fill the screen) so everything below and above it
+                    // stays the plain, unobstructed background image — no
+                    // logo straddling its top border anymore, so no Stack
+                    // sibling/margin reserved for one.
+                    Container(
+                      width: double.infinity,
+                      // Frosted-glass look — transparent, blurring the
+                      // rider/road behind it — via clipBehavior +
+                      // BackdropFilter rather than a solid fill.
+                      clipBehavior: Clip.antiAlias,
+                      // All four corners now (was top-only) — the card
+                      // floats clear of the screen edges these days (it
+                      // no longer sits flush against the bottom), so a
+                      // square bottom read as a mistake rather than a
+                      // deliberate edge-to-edge sheet.
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.all(Radius.circular(30)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 30,
+                            offset: Offset(0, 10),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 210),
-                    // Card sized to its own content (not Expanded/stretched
-                    // to fill the screen) so everything below it stays the
-                    // plain, unobstructed background image. Wrapped in a
-                    // Stack so [CoinFlipLogo] can sit as a sibling,
-                    // straddling the card's top border rather than living
-                    // in the content flow — see the Positioned below.
-                    Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.topCenter,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          // Half the logo's own size, so the card's top
-                          // border passes exactly through the logo's
-                          // vertical center — the other half hangs above
-                          // it, over the background image.
-                          margin: const EdgeInsets.only(top: 56),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                        child: DecoratedBox(
                           decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(28),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(30),
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 30,
-                                offset: const Offset(0, -6),
-                              ),
-                              // A second, white-tinted glow (tight, negative
-                              // spread) rather than just the one dark drop
-                              // shadow above — reads as light catching the
-                              // card's edge, part of "more glossy at the
-                              // borders" alongside the all-around border below.
-                              BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.35),
-                                blurRadius: 18,
-                                spreadRadius: -4,
-                              ),
-                            ],
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              // The sheen: noticeably lighter right at
+                              // the top edge (glossy highlight), settling
+                              // to a flatter, still-translucent white for
+                              // the rest of the card.
+                              colors: [
+                                Colors.white.withValues(alpha: 0.55),
+                                Colors.white.withValues(alpha: 0.32),
+                                Colors.white.withValues(alpha: 0.4),
+                              ],
+                              stops: const [0.0, 0.15, 1.0],
+                            ),
+                            // Matches the outer clip's radius now (was
+                            // unrounded) — without this the border drew as
+                            // a plain rectangle while the clip rounded the
+                            // corners around it, so the white edge looked
+                            // cut off/broken right where it mattered most.
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              width: 1.6,
+                            ),
                           ),
-                          // ClipRRect+BackdropFilter for the frosted-glass
-                          // look (transparent, blurring the rider/road
-                          // behind it) — the blur only samples whatever's
-                          // inside this clip, so it has to wrap the filter
-                          // tightly to the card's own rounded shape or
-                          // it'd blur past the corners. Card is sized to
-                          // its own content (not stretched to the bottom
-                          // of the screen), so login_bg2 stays visible
-                          // below it — see the bottom padding reserved for
-                          // it further up this build method.
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(28),
-                            ),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    // The sheen: noticeably lighter right at
-                                    // the top edge (glossy highlight),
-                                    // settling to a flatter, still-translucent
-                                    // white for the rest of the card.
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0.55),
-                                      Colors.white.withValues(alpha: 0.32),
-                                      Colors.white.withValues(alpha: 0.4),
-                                    ],
-                                    stops: const [0.0, 0.15, 1.0],
-                                  ),
-                                  // All four sides now (was top-only) and
-                                  // brighter — the actual "more glossy at the
-                                  // borders" ask: a visible glass edge running
-                                  // all the way around the card, not just a
-                                  // highlight along the top.
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                    width: 1.6,
-                                  ),
+                          child: Padding(
+                            // Shorter now that there's no logo to
+                            // clear at the top — just breathing room
+                            // on all four sides, so the card takes
+                            // up less height and more background
+                            // shows above and below it.
+                            padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 400,
                                 ),
-                                child: Padding(
-                                  // Top padding cleared for the logo's
-                                  // bottom half (56) plus real breathing
-                                  // room before "Sign in to continue".
-                                  padding: const EdgeInsets.fromLTRB(
-                                    24,
-                                    76,
-                                    24,
-                                    28,
-                                  ),
-                                  child: Center(
-                                    child: ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 440,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          Text(
-                                            'Sign in to continue',
-                                            style: TextStyle(
-                                              color: palette.textPrimary,
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w800,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      'Login',
+                                      // White reads cleanly against the
+                                      // glass — a soft dark shadow keeps it
+                                      // legible over the lighter patches of
+                                      // the gradient instead of washing out.
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.2,
                                             ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Use your mobile number',
-                                            style: TextStyle(
-                                              color: palette.textSecondary,
-                                              fontSize: 13,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 28),
-                                          AppTextField(
-                                            label: 'Mobile number',
-                                            controller: _phoneController,
-                                            hint: '10-digit mobile number',
-                                            keyboardType: TextInputType.phone,
-                                            prefixIcon: Icons.call_outlined,
-                                            enabled: !_submitting,
-                                            textColor: Colors.black,
-                                            maxLength: 10,
-                                            inputFormatters: [
-                                              FilteringTextInputFormatter
-                                                  .digitsOnly,
-                                            ],
-                                          ),
-                                          if (_error != null) ...[
-                                            const SizedBox(height: 8),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 10,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: palette.error.withValues(
-                                                  alpha: 0.08,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: Text(
-                                                _error!,
-                                                style: TextStyle(
-                                                  color: palette.error,
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 12.5,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                          const SizedBox(height: 20),
-                                          Opacity(
-                                            opacity: _submitting ? 0.7 : 1,
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: InkWell(
-                                                borderRadius:
-                                                    BorderRadius.circular(22),
-                                                onTap: _submitting
-                                                    ? null
-                                                    : _submit,
-                                                child: GlossySurface(
-                                                  borderRadius: 22,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        vertical: 17,
-                                                      ),
-                                                  child: Center(
-                                                    child: _submitting
-                                                        ? const SizedBox(
-                                                            width: 22,
-                                                            height: 22,
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  strokeWidth:
-                                                                      2.4,
-                                                                ),
-                                                          )
-                                                        : const Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                              Text(
-                                                                'Send OTP',
-                                                                style: TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
-                                                                  fontSize: 16,
-                                                                ),
-                                                              ),
-                                                              SizedBox(
-                                                                width: 8,
-                                                              ),
-                                                              Icon(
-                                                                Icons
-                                                                    .arrow_forward_rounded,
-                                                                color: Colors
-                                                                    .white,
-                                                                size: 20,
-                                                              ),
-                                                            ],
-                                                          ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 20),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                "New here?",
-                                                style: TextStyle(
-                                                  color: palette.textSecondary,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                              TextButton(
-                                                // Only User self-registers — see this
-                                                // screen's doc comment — so this can
-                                                // go straight there.
-                                                onPressed: () {
-                                                  ref
-                                                      .read(
-                                                        sessionControllerProvider
-                                                            .notifier,
-                                                      )
-                                                      .selectRole(AppRole.user);
-                                                  // push, not go — Register has a real
-                                                  // back button (context.pop()) that
-                                                  // needs an actual stack entry
-                                                  // underneath it to return to; go()
-                                                  // replaces the stack instead of
-                                                  // adding to it, which is what made
-                                                  // that back button throw "nothing to
-                                                  // pop".
-                                                  context.push(
-                                                    '/auth/register',
-                                                  );
-                                                },
-                                                child: const Text(
-                                                  'Register',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                            blurRadius: 6,
                                           ),
                                         ],
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Enter your mobile number to continue',
+                                      // Kept dark (was already
+                                      // textSecondary) — at this smaller
+                                      // size and weight, white read too
+                                      // faint against the glass; the
+                                      // existing muted dark tone stayed the
+                                      // more legible choice.
+                                      style: TextStyle(
+                                        color: palette.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    AppTextField(
+                                      label: 'Mobile number',
+                                      controller: _phoneController,
+                                      hint: '10-digit mobile number',
+                                      keyboardType: TextInputType.phone,
+                                      // Only field on this card — "Done",
+                                      // not "Next".
+                                      textInputAction: TextInputAction.done,
+                                      prefix: CountryCodePrefix(
+                                        country: _country,
+                                        enabled: !_submitting,
+                                        onChanged: (c) =>
+                                            setState(() => _country = c),
+                                      ),
+                                      enabled: !_submitting,
+                                      textColor: Colors.black,
+                                      maxLength: _country.phoneLength,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                      ],
+                                      // Clears the validation message as
+                                      // soon as the person starts fixing
+                                      // the number, rather than leaving it
+                                      // on screen until the next Send OTP
+                                      // tap.
+                                      onChanged: (_) {
+                                        if (_error != null) {
+                                          setState(() => _error = null);
+                                        }
+                                      },
+                                    ),
+                                    if (_error != null) ...[
+                                      const SizedBox(height: 5),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: palette.error.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _error!,
+                                          style: TextStyle(
+                                            color: palette.error,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 15),
+                                    Opacity(
+                                      opacity: _submitting ? 0.7 : 1,
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            22,
+                                          ),
+                                          onTap: _submitting ? null : _submit,
+                                          child: GlossySurface(
+                                            borderRadius: 22,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 17,
+                                            ),
+                                            child: Center(
+                                              child: _submitting
+                                                  ? const SizedBox(
+                                                      width: 22,
+                                                      height: 22,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            color: Colors.white,
+                                                            strokeWidth: 2.4,
+                                                          ),
+                                                    )
+                                                  : const Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Text(
+                                                          'Send OTP',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 8),
+                                                        Icon(
+                                                          Icons
+                                                              .arrow_forward_rounded,
+                                                          color: Colors.white,
+                                                          size: 20,
+                                                        ),
+                                                      ],
+                                                    ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "Don't have account?",
+                                          style: TextStyle(
+                                            color: palette.textSecondary,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        TextButton(
+                                          // Only User self-registers — see this
+                                          // screen's doc comment — so this can
+                                          // go straight there.
+                                          onPressed: () {
+                                            ref
+                                                .read(
+                                                  sessionControllerProvider
+                                                      .notifier,
+                                                )
+                                                .selectRole(AppRole.user);
+                                            // push, not go — Register has a real
+                                            // back button (context.pop()) that
+                                            // needs an actual stack entry
+                                            // underneath it to return to; go()
+                                            // replaces the stack instead of
+                                            // adding to it, which is what made
+                                            // that back button throw "nothing to
+                                            // pop".
+                                            context.push('/auth/register');
+                                          },
+                                          child: const Text(
+                                            'Register',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        // Straddles the card's top border — see the
-                        // Container's margin above, set to exactly half
-                        // this logo's size.
-                        const Positioned(
-                          top: 0,
-                          child: CoinFlipLogo(size: 112),
-                        ),
-                      ],
+                      ),
+                    ),
+                    // Reserves login_bg2.png's own rendered height (it's
+                    // fitWidth, so that height scales with screen width —
+                    // 941×410 is the asset's actual pixel size) below the
+                    // card, plus a little breathing room so the card
+                    // doesn't rest right on top of it. Kept small (was 40)
+                    // — too much here starves the Expanded spacer above,
+                    // pulling the card up far enough to crowd out
+                    // login_bg1's rider at the top.
+                    SizedBox(
+                      height:
+                          MediaQuery.sizeOf(context).width * (410 / 941) + 0,
                     ),
                   ],
                 ),

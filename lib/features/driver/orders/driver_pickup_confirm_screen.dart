@@ -58,7 +58,7 @@ class _DriverPickupConfirmScreenState extends ConsumerState<DriverPickupConfirmS
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.home_rounded), tooltip: 'Back to dashboard', onPressed: () => context.go('/driver/home')),
+        leading: BackButton(onPressed: () => context.go('/driver/home')),
         title: const Text('Confirm pickup'),
       ),
       body: Padding(

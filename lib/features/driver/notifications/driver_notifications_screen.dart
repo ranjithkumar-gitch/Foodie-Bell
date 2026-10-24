@@ -50,7 +50,7 @@ class _DriverNotificationsScreenState
                 body: p.body,
                 createdAt: p.createdAt,
                 deletable: true,
-                icon: Icons.local_shipping_rounded,
+                icon: Icons.two_wheeler_rounded,
               ),
           ],
           emptySubtitle: 'New deliveries and order updates will show up here.',

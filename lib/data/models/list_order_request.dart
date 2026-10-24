@@ -37,6 +37,8 @@ class ListOrderRequest {
     required this.deliveryAddressLabel,
     required this.status,
     required this.createdAt,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     this.quotedAmount,
     this.receiptImageUrl,
     this.orderId,
@@ -50,6 +52,11 @@ class ListOrderRequest {
   final String userPhone;
   final List<String> imageUrls;
   final String deliveryAddressLabel;
+
+  /// The chosen address's pinned position, carried onto the `Order` this
+  /// becomes — null when that address has none.
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
   final ListOrderStatus status;
   final DateTime createdAt;
 
@@ -78,6 +85,8 @@ class ListOrderRequest {
     userPhone: userPhone,
     imageUrls: imageUrls,
     deliveryAddressLabel: deliveryAddressLabel,
+    deliveryLatitude: deliveryLatitude,
+    deliveryLongitude: deliveryLongitude,
     status: status ?? this.status,
     createdAt: createdAt,
     quotedAmount: quotedAmount ?? this.quotedAmount,

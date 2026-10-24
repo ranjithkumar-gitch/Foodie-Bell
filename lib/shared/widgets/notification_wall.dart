@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/theme/app_colors.dart';
-
-final _timeFmt = DateFormat('h:mm a');
+import '../time_ago.dart';
 
 /// One row on a Notifications screen — a common shape every role's wall
 /// (`notifications_screen.dart` for User, and the Vendor/Manager/Driver
@@ -160,13 +158,13 @@ class _WallTile extends StatelessWidget {
                       fontSize: 12.5,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.createdAt == null
-                        ? ''
-                        : _timeFmt.format(item.createdAt!),
-                    style: TextStyle(color: palette.textMuted, fontSize: 11.5),
-                  ),
+                  if (item.createdAt != null) ...[
+                    const SizedBox(height: 6),
+                    TimeAgoText(
+                      item.createdAt!,
+                      style: TextStyle(color: palette.textMuted, fontSize: 11.5),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -174,11 +172,11 @@ class _WallTile extends StatelessWidget {
               IconButton(
                 onPressed: () => onDelete(item),
                 icon: Icon(
-                  Icons.close_rounded,
-                  size: 18,
+                  Icons.delete_outline_rounded,
+                  size: 20,
                   color: palette.textMuted,
                 ),
-                tooltip: 'Remove',
+                tooltip: 'Delete',
                 visualDensity: VisualDensity.compact,
               ),
           ],

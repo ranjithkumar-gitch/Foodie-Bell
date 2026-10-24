@@ -23,6 +23,8 @@ Map<String, dynamic> _requestToDoc(ListOrderRequest request) => {
   'userPhone': request.userPhone,
   'imageUrls': request.imageUrls,
   'deliveryAddressLabel': request.deliveryAddressLabel,
+  'deliveryLatitude': request.deliveryLatitude,
+  'deliveryLongitude': request.deliveryLongitude,
   'status': request.status.name,
   'quotedAmount': request.quotedAmount,
   'receiptImageUrl': request.receiptImageUrl,
@@ -45,6 +47,8 @@ ListOrderRequest _requestFromData(String id, Map<String, dynamic> data) {
         .map((e) => e as String)
         .toList(),
     deliveryAddressLabel: data['deliveryAddressLabel'] as String? ?? '',
+    deliveryLatitude: (data['deliveryLatitude'] as num?)?.toDouble(),
+    deliveryLongitude: (data['deliveryLongitude'] as num?)?.toDouble(),
     status: ListOrderStatus.values.firstWhere(
       (s) => s.name == data['status'],
       orElse: () => ListOrderStatus.pending,

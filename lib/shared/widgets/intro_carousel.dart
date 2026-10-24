@@ -15,7 +15,7 @@ const _slides = [
   _IntroSlide(
     title: 'Order from local vendors',
     description:
-        'Food, pharmacy, grocery, and fresh produce from shops in your own neighbourhood.',
+        'Food, pharmacy, grocery, and fresh produce from vendors in your own neighbourhood.',
   ),
   _IntroSlide(
     title: 'No aggregator tax',

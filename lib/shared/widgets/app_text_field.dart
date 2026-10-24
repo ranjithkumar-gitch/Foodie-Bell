@@ -27,7 +27,16 @@ class AppTextField extends StatelessWidget {
     this.glossy = false,
     this.maxLength,
     this.inputFormatters,
+    this.focusNode,
+    this.textInputAction,
+    this.onFieldSubmitted,
+    this.prefix,
   });
+
+  /// A widget in place of [prefixIcon] — e.g. the phone fields'
+  /// `CountryCodePrefix` ("🇮🇳 +91 ▾"). Wins over [prefixIcon] when both
+  /// are set.
+  final Widget? prefix;
 
   final String label;
   final TextEditingController? controller;
@@ -40,6 +49,15 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final bool enabled;
   final ValueChanged<String>? onChanged;
+
+  final FocusNode? focusNode;
+
+  /// The keyboard's own action button — e.g. `TextInputAction.next` to
+  /// show "Next" (pair with [onFieldSubmitted] moving focus to the next
+  /// field) instead of the default "Done" on a form with more than one
+  /// field. Left null keeps whatever [TextFormField] picks on its own.
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
 
   /// Hard input-level cap (e.g. 10 for phone number fields) — suppresses
   /// the default "x/y" counter row underneath, since none of this app's
@@ -75,7 +93,9 @@ class AppTextField extends StatelessWidget {
     final palette = context.colors;
     final field = TextFormField(
       controller: controller,
+      focusNode: focusNode,
       keyboardType: keyboardType,
+      textInputAction: textInputAction,
       obscureText: obscureText,
       maxLines: maxLines,
       maxLength: maxLength,
@@ -83,6 +103,7 @@ class AppTextField extends StatelessWidget {
       enabled: enabled,
       validator: validator,
       onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted,
       style: TextStyle(
         color: textColor ?? palette.textPrimary,
         fontWeight: FontWeight.w500,
@@ -90,9 +111,13 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         counterText: maxLength == null ? null : '',
-        prefixIcon: prefixIcon == null
+        prefixIcon: prefix ??
+            (prefixIcon == null
+                ? null
+                : Icon(prefixIcon, color: palette.textMuted)),
+        prefixIconConstraints: prefix == null
             ? null
-            : Icon(prefixIcon, color: palette.textMuted),
+            : const BoxConstraints(minHeight: 48),
         suffixIcon: suffixIcon,
         filled: glossy ? true : null,
         fillColor: glossy ? Colors.transparent : null,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
@@ -90,6 +91,43 @@ Future<void> setCurrentVendorOpen(WidgetRef ref, String vendorId, bool isOpen) a
   } else {
     ref.read(mockAccountsProvider.notifier).setOpen(vendorId, isOpen);
   }
+}
+
+/// Gate in front of every "Accept" a Vendor can tap (Live Order Queue,
+/// Order Detail, a photo order's "Accept & confirm"): a Driver can't be
+/// sent to a shop with no address or map location on record, so until the
+/// Vendor has saved both (`vendor_profile_edit_screen.dart`) this shows a
+/// dialog pointing them there and returns false instead of letting the
+/// order through.
+Future<bool> ensureVendorAddressSetUp(BuildContext context, WidgetRef ref) async {
+  final account = ref.read(sessionControllerProvider).account;
+  if (account == null) return false;
+  final live = ref.read(liveVendorAccountProvider(account.id)) ?? account;
+  final hasAddress = (live.address ?? '').trim().isNotEmpty;
+  final hasLocation = live.latitude != null && live.longitude != null;
+  if (hasAddress && hasLocation) return true;
+
+  final palette = context.colors;
+  final setUp = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      icon: Icon(Icons.location_off_outlined, color: palette.error, size: 32),
+      title: const Text('Set up your shop address first'),
+      content: Text(
+        !hasAddress && !hasLocation
+            ? 'Add your shop address and shop location in your profile before accepting orders, so the delivery partner can find your shop.'
+            : !hasAddress
+            ? 'Add your shop address in your profile before accepting orders, so the delivery partner can find your shop.'
+            : 'Add your shop location in your profile before accepting orders, so the delivery partner can find your shop.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Not now')),
+        ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Set up address')),
+      ],
+    ),
+  );
+  if (setUp == true && context.mounted) context.push('/vendor/profile/edit');
+  return false;
 }
 
 /// Confirms before flipping the Open/Closed switch either direction —

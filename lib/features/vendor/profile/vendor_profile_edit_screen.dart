@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/session/session_controller.dart';
@@ -12,9 +13,9 @@ import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_text_field.dart';
 
-/// Edit the signed-in Vendor's own shop name, owner name, and email —
-/// reached via the pencil icon on `vendor_profile_screen.dart`'s gradient
-/// card. Phone isn't editable (OTP-verified login identity, same reasoning
+/// Edit the signed-in Vendor's own shop name, owner name, email, and shop
+/// address/map location — reached via the pencil icon on
+/// `vendor_profile_screen.dart`'s gradient card. Phone isn't editable (OTP-verified login identity, same reasoning
 /// as `user_profile_edit_screen.dart`). Territory/Manager Code/category
 /// aren't editable either — those are Manager-assigned at creation, not a
 /// Vendor self-edit.
@@ -43,7 +44,13 @@ class _VendorProfileEditScreenState
   late final _emailController = TextEditingController(
     text: _account?.email ?? '',
   );
+  late final _addressController = TextEditingController(
+    text: _account?.address ?? '',
+  );
+  late double? _latitude = _account?.latitude;
+  late double? _longitude = _account?.longitude;
   bool _saving = false;
+  bool _locating = false;
   String? _error;
 
   Account? get _account => ref.read(sessionControllerProvider).account;
@@ -53,7 +60,53 @@ class _VendorProfileEditScreenState
     _nameController.dispose();
     _ownerNameController.dispose();
     _emailController.dispose();
+    _addressController.dispose();
     super.dispose();
+  }
+
+  /// Pins the shop to wherever the Vendor's phone is right now — meant to
+  /// be tapped while standing at the shop. Only staged here; it's written
+  /// along with the rest of the form on "Save changes".
+  Future<void> _useCurrentLocation() async {
+    setState(() {
+      _locating = true;
+      _error = null;
+    });
+    String? problem;
+    Position? position;
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        problem = 'Turn on location (GPS) on your phone and try again.';
+      } else {
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          problem =
+              'Location permission is needed to set your shop location. Allow it in your phone settings.';
+        } else {
+          position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 20),
+            ),
+          );
+        }
+      }
+    } catch (e, st) {
+      problem = friendlyError(e, action: 'Getting your location', stackTrace: st);
+    }
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      _error = problem;
+      if (position != null) {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      }
+    });
   }
 
   Future<void> _save() async {
@@ -71,6 +124,7 @@ class _VendorProfileEditScreenState
     });
 
     final email = _emailController.text.trim();
+    final address = _addressController.text.trim();
     final isFirestoreBacked =
         ref
             .read(firestoreVendorsProvider)
@@ -85,6 +139,9 @@ class _VendorProfileEditScreenState
           name: name,
           ownerName: ownerName,
           email: email.isEmpty ? null : email,
+          address: address.isEmpty ? null : address,
+          latitude: _latitude,
+          longitude: _longitude,
         );
       } else {
         ref
@@ -94,6 +151,9 @@ class _VendorProfileEditScreenState
               name: name,
               ownerName: ownerName,
               email: email.isEmpty ? null : email,
+              address: address.isEmpty ? null : address,
+              latitude: _latitude,
+              longitude: _longitude,
             );
       }
 
@@ -101,6 +161,9 @@ class _VendorProfileEditScreenState
         name: name,
         ownerName: ownerName,
         email: email.isEmpty ? null : email,
+        address: address.isEmpty ? null : address,
+        latitude: _latitude,
+        longitude: _longitude,
       );
       ref.read(sessionControllerProvider.notifier).refreshAccount(updated);
     } catch (e, st) {
@@ -230,6 +293,70 @@ class _VendorProfileEditScreenState
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          AppTextField(
+            label: 'Shop address',
+            controller: _addressController,
+            hint: 'Door no., street, area, city, pincode',
+            keyboardType: TextInputType.streetAddress,
+            maxLines: 3,
+            enabled: !_saving,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Shop location',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: palette.surfaceMuted,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.location_on_outlined, color: palette.textMuted),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _latitude != null && _longitude != null
+                        ? 'Lat ${_latitude!.toStringAsFixed(6)}, Long ${_longitude!.toStringAsFixed(6)}'
+                        : 'Not set yet',
+                    style: TextStyle(
+                      color: palette.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _saving || _locating ? null : _useCurrentLocation,
+              icon: _locating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location_rounded, size: 18),
+              label: Text(
+                _locating
+                    ? 'Getting your location…'
+                    : _latitude != null
+                    ? 'Update to my current location'
+                    : 'Use my current location',
+              ),
             ),
           ),
           if (_error != null) ...[

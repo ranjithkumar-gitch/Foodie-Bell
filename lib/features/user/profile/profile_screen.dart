@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/auth/logout_confirmation_sheet.dart';
 import '../../../shared/widgets/app_network_image.dart';
-import '../../../shared/widgets/coming_soon_sheet.dart';
 import '../user_locale.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -25,7 +24,8 @@ class ProfileScreen extends ConsumerWidget {
             child: Row(
               children: [
                 const Expanded(child: Text('English')),
-                if (currentCode == 'en') Icon(Icons.check_rounded, color: context.colors.primary),
+                if (currentCode == 'en')
+                  Icon(Icons.check_rounded, color: context.colors.primary),
               ],
             ),
           ),
@@ -34,21 +34,28 @@ class ProfileScreen extends ConsumerWidget {
             child: Row(
               children: [
                 const Expanded(child: Text('తెలుగు')),
-                if (currentCode == 'te') Icon(Icons.check_rounded, color: context.colors.primary),
+                if (currentCode == 'te')
+                  Icon(Icons.check_rounded, color: context.colors.primary),
               ],
             ),
           ),
         ],
       ),
     );
-    if (chosen != null && chosen != currentCode) await setUserAppLanguage(ref, chosen);
+    if (chosen != null && chosen != currentCode)
+      await setUserAppLanguage(ref, chosen);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
-    final account = ref.watch(sessionControllerProvider.select((s) => s.account));
-    final currentLanguageLabel = ref.watch(userLocaleProvider).languageCode == 'te' ? 'తెలుగు' : 'English';
+    final account = ref.watch(
+      sessionControllerProvider.select((s) => s.account),
+    );
+    final currentLanguageLabel =
+        ref.watch(userLocaleProvider).languageCode == 'te'
+        ? 'తెలుగు'
+        : 'English';
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.profileTitle)),
@@ -59,28 +66,54 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(gradient: LinearGradient(colors: palette.promoGradient), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: palette.promoGradient),
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Stack(
                 children: [
                   Row(
                     children: [
                       account?.avatarUrl != null
-                          ? AppNetworkImage(url: account!.avatarUrl!, width: 60, height: 60, borderRadius: BorderRadius.circular(16))
+                          ? AppNetworkImage(
+                              url: account!.avatarUrl!,
+                              width: 60,
+                              height: 60,
+                              borderRadius: BorderRadius.circular(16),
+                            )
                           : Container(
                               width: 60,
                               height: 60,
                               alignment: Alignment.center,
-                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                              child: Icon(Icons.person_rounded, size: 34, color: palette.primary),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(
+                                Icons.person_rounded,
+                                size: 34,
+                                color: palette.primary,
+                              ),
                             ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(account?.name ?? context.l10n.profileGuestFallback, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
+                            Text(
+                              account?.name ??
+                                  context.l10n.profileGuestFallback,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(color: Colors.white),
+                            ),
                             const SizedBox(height: 3),
-                            Text(account?.email ?? account?.phone ?? '', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.9))),
+                            Text(
+                              account?.email ?? account?.phone ?? '',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
+                            ),
                           ],
                         ),
                       ),
@@ -95,7 +128,14 @@ class ProfileScreen extends ConsumerWidget {
                       child: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: () => context.push('/user/profile/edit'),
-                        child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.edit_rounded, color: Colors.white, size: 18)),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.edit_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -103,25 +143,67 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-            _MenuTile(icon: Icons.location_on_outlined, label: context.l10n.profileSavedAddresses, onTap: () => context.push('/user/addresses')),
-            _MenuTile(
-              icon: Icons.language_rounded,
-              label: context.l10n.profileLanguage,
-              trailingLabel: currentLanguageLabel,
-              onTap: () => _showLanguagePicker(context, ref),
+            // Grouped into category cards (Settings / Transactions / Food
+            // Delivery) instead of one flat list of rows — each row lost
+            // its own individual border/card in the process (that's now
+            // just the category card's outer border, with thin dividers
+            // between rows inside it).
+            _ProfileCategoryCard(
+              title: context.l10n.profileCategorySettings,
+              rows: [
+                _CategoryMenuRow(
+                  icon: Icons.notifications_none_rounded,
+                  label: context.l10n.notificationsTitle,
+                  onTap: () => context.push('/user/notifications'),
+                ),
+                _CategoryMenuRow(
+                  icon: Icons.language_rounded,
+                  label: context.l10n.profileLanguage,
+                  trailingLabel: currentLanguageLabel,
+                  onTap: () => _showLanguagePicker(context, ref),
+                ),
+                _CategoryMenuRow(
+                  icon: Icons.help_outline_rounded,
+                  label: context.l10n.profileHelpSupport,
+                  onTap: () => context.push('/user/help'),
+                ),
+                _CategoryMenuRow(
+                  icon: Icons.location_on_outlined,
+                  label: context.l10n.profileSavedAddresses,
+                  onTap: () => context.push('/user/addresses'),
+                ),
+              ],
             ),
-            _MenuTile(
-              icon: Icons.account_balance_wallet_outlined,
-              label: context.l10n.profileWalletRefunds,
-              comingSoon: true,
-              onTap: () => ComingSoonSheet.show(
-                context,
-                icon: Icons.account_balance_wallet_rounded,
-                title: context.l10n.profileWalletRefunds,
-                message: context.l10n.profileWalletComingSoonMessage,
-              ),
+            const SizedBox(height: 16),
+            _ProfileCategoryCard(
+              title: context.l10n.profileCategoryTransactions,
+              rows: [
+                _CategoryMenuRow(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: context.l10n.profileWalletRefunds,
+                  onTap: () => context.push('/user/wallet'),
+                ),
+                // Real online (Razorpay) payments — separate from Wallet's
+                // own screen, whose history is still mock data.
+                _CategoryMenuRow(
+                  icon: Icons.receipt_long_outlined,
+                  label: context.l10n.profileTransactionHistory,
+                  onTap: () => context.push('/user/transactions'),
+                ),
+              ],
             ),
-            _MenuTile(icon: Icons.help_outline_rounded, label: context.l10n.profileHelpSupport, onTap: () => context.push('/user/help')),
+            const SizedBox(height: 16),
+            _ProfileCategoryCard(
+              title: context.l10n.profileCategoryFoodDelivery,
+              rows: [
+                _CategoryMenuRow(
+                  icon: Icons.shopping_bag_outlined,
+                  label: context.l10n.profileOrderHistory,
+                  onTap: () => context.push('/user/orders'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             _MenuTile(
               icon: Icons.logout_rounded,
               label: context.l10n.profileLogOut,
@@ -137,13 +219,16 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 class _MenuTile extends StatelessWidget {
-  const _MenuTile({required this.icon, required this.label, required this.onTap, this.color, this.comingSoon = false, this.trailingLabel});
+  const _MenuTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final Color? color;
-  final bool comingSoon;
-  final String? trailingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -158,28 +243,176 @@ class _MenuTile extends StatelessWidget {
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: palette.border)),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: palette.border),
+            ),
             child: Row(
               children: [
                 Icon(icon, color: color ?? palette.textSecondary, size: 22),
                 const SizedBox(width: 14),
-                Expanded(child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: color ?? palette.textPrimary))),
-                if (trailingLabel != null) ...[
-                  Text(trailingLabel!, style: TextStyle(color: palette.textSecondary, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
-                ],
-                if (comingSoon) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: palette.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                    child: Text(context.l10n.profileComingSoonBadge, style: TextStyle(color: palette.warning, fontSize: 9.5, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: color ?? palette.textPrimary,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                ],
+                ),
                 Icon(Icons.chevron_right_rounded, color: palette.textMuted),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A titled group of [_CategoryMenuRow]s inside one shared card — the
+/// "grouped settings" look (a colored accent bar + heading, rows separated
+/// by thin dividers instead of each getting its own bordered box) rather
+/// than one flat list of individually-bordered [_MenuTile]s.
+class _ProfileCategoryCard extends StatelessWidget {
+  const _ProfileCategoryCard({required this.title, required this.rows});
+
+  final String title;
+  final List<_CategoryMenuRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    // BoxDecoration.border can't mix colors when borderRadius is set (a
+    // grey border on 3 sides + a green one on the left throws "A
+    // borderRadius can only be given on borders with uniform colors" at
+    // paint time) — so the green accent is a filled bar on the left
+    // instead, clipped to the same rounded shape as the card's top-left
+    // corner rather than drawn as part of the border itself.
+    //
+    // The vertical spacing from the card's top edge, and before the rows
+    // below, is a plain SizedBox outside this Row now (was padding inside
+    // it, on the Text only) — that padding used to inflate the Row's own
+    // height, and since the bar stretches to match the Row (IntrinsicHeight
+    // gives it a bounded height to stretch into — needed since this card
+    // sits in a plain ListView, which hands out unbounded height), the bar
+    // ended up visibly taller than the title text itself. Now the Row's
+    // height is just the text's own line height, so the bar starts and
+    // ends right where the text does.
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: palette.surface,
+          border: Border.all(color: palette.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 14),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Rounded on its right edge only (a flat pill cap) — the
+                  // left edge stays flush/square against the card's own
+                  // left border.
+                  Container(
+                    width: 4,
+                    decoration: BoxDecoration(
+                      color: palette.primary,
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(3),
+                        bottomRight: Radius.circular(3),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  indent: 16,
+                  endIndent: 16,
+                  color: palette.border,
+                ),
+              rows[i],
+            ],
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One row inside a [_ProfileCategoryCard] — same icon/label/chevron
+/// layout [_MenuTile] uses, just without its own border/card since the
+/// category card around it already provides that.
+class _CategoryMenuRow extends StatelessWidget {
+  const _CategoryMenuRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.trailingLabel,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final String? trailingLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.grey.shade400, size: 21),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            if (trailingLabel != null) ...[
+              Text(
+                trailingLabel!,
+                style: TextStyle(
+                  color: palette.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Icon(
+              Icons.chevron_right_rounded,
+              color: palette.textMuted,
+              size: 20,
+            ),
+          ],
         ),
       ),
     );
