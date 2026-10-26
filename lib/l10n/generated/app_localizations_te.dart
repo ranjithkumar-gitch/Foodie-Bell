@@ -209,7 +209,7 @@ class AppLocalizationsTe extends AppLocalizations {
   String get paymentCodSubtitle => 'మీ ఆర్డర్ వచ్చినప్పుడు చెల్లించండి';
 
   @override
-  String get paymentUpi => 'UPI';
+  String get paymentUpi => 'UPI (PhonePe, Google Pay, Paytm)';
 
   @override
   String get paymentComingSoon => 'త్వరలో వస్తుంది';
@@ -234,6 +234,35 @@ class AppLocalizationsTe extends AppLocalizations {
   @override
   String get paymentFailed =>
       'చెల్లింపు పూర్తి కాలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.';
+
+  @override
+  String get paymentUpiSubtitle =>
+      'మీ UPI యాప్ నుండి నేరుగా షాప్‌కు చెల్లించండి';
+
+  @override
+  String get paymentChooseUpiApp => 'దీనితో చెల్లించండి';
+
+  @override
+  String get paymentNoUpiApp =>
+      'ఈ ఫోన్‌లో UPI యాప్ లేదు. PhonePe, Google Pay లేదా Paytm ఇన్‌స్టాల్ చేయండి, లేదా క్యాష్ ఆన్ డెలివరీ ఎంచుకోండి.';
+
+  @override
+  String paymentUpiPending(Object ref) {
+    return 'మీ చెల్లింపు ఇంకా ప్రాసెస్ అవుతోంది, కాబట్టి ఆర్డర్ చేయబడలేదు. డబ్బు కట్ అయితే, రిఫరెన్స్ $ref తో సపోర్ట్‌ను సంప్రదించండి.';
+  }
+
+  @override
+  String get paymentUpiConfirmTitle => 'మీ చెల్లింపు పూర్తయిందా?';
+
+  @override
+  String get paymentUpiConfirmMessage =>
+      'మీ UPI యాప్‌లో చూడండి. చెల్లింపు విజయవంతమైతే మాత్రమే \"అవును, చెల్లించాను\" నొక్కండి.';
+
+  @override
+  String get paymentUpiConfirmYes => 'అవును, చెల్లించాను';
+
+  @override
+  String get paymentUpiConfirmNo => 'లేదు';
 
   @override
   String paymentOrderSaveFailed(Object paymentId) {
@@ -975,6 +1004,11 @@ class AppLocalizationsTe extends AppLocalizations {
   @override
   String trackArrivingIn(int minutes) {
     return '$minutes నిమిషాల్లో వస్తారు';
+  }
+
+  @override
+  String trackReachingShopIn(int minutes) {
+    return '$minutes నిమిషాల్లో షాప్‌కు చేరుకుంటారు';
   }
 
   @override

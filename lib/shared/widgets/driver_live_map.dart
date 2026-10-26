@@ -17,7 +17,6 @@ import '../../data/providers/firestore_drivers_provider.dart';
 import '../../data/providers/firestore_vendors_provider.dart';
 import '../../data/providers/road_route_provider.dart';
 import '../../l10n/app_localizations_context.dart';
-import '../time_ago.dart';
 import 'mock_map_view.dart';
 
 /// The User's live order tracking map: a real Google map of the shop, the
@@ -39,7 +38,15 @@ class DriverLiveMap extends ConsumerStatefulWidget {
     this.borderRadius,
     this.interactive = true,
     this.viewerIsCustomer = true,
+    this.driverPosition,
   });
+
+  /// The Driver's live position off their own phone's GPS — passed in on
+  /// the Driver's phone (Driver Home) so the line starts where they really
+  /// are, exactly like the navigate screens' map, instead of from the
+  /// Firestore copy, which can be minutes behind. Null on the customer's
+  /// phone, which only has the Firestore copy.
+  final LatLng? driverPosition;
 
   /// True on the User's own phone, where "this phone's position" is a fair
   /// last-resort drop-off pin for an order without one. False on the
@@ -82,10 +89,6 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
   /// Null until they've moved far enough to tell.
   double? _heading;
 
-  /// Re-renders every 30 s so "Location updated X min ago" keeps counting
-  /// up even while no new position is arriving (that's the whole point).
-  Timer? _staleTicker;
-
   /// Where the marker is drawn right now — mid-glide this sits between
   /// [_glideFrom] and [_glideTo].
   LatLng? _shown;
@@ -111,9 +114,6 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     buildMapBadgeIcon(Icons.home_rounded, _homeColor).then((icon) {
       if (mounted) setState(() => _homeIcon = icon);
     });
-    _staleTicker = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -132,8 +132,14 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
   }
 
   @override
+  void didUpdateWidget(DriverLiveMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final position = widget.driverPosition;
+    if (position != null && position != oldWidget.driverPosition) _moveTo(position);
+  }
+
+  @override
   void dispose() {
-    _staleTicker?.cancel();
     _glide.dispose();
     _mapController?.dispose();
     super.dispose();
@@ -192,8 +198,11 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
         await controller.animateCamera(CameraUpdate.newLatLngZoom(LatLng((south + north) / 2, (west + east) / 2), 16));
         return;
       }
+      // Scaled to the map's size — a fixed 44 px on the 150 px Home card
+      // left barely 60 px for the route itself.
+      final padding = (widget.height * 0.14).clamp(20.0, 44.0);
       await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(LatLngBounds(southwest: LatLng(south, west), northeast: LatLng(north, east)), 44),
+        CameraUpdate.newLatLngBounds(LatLngBounds(southwest: LatLng(south, west), northeast: LatLng(north, east)), padding),
       );
     } catch (e) {
       debugPrint('driver_live_map: framing the map failed: $e');
@@ -223,13 +232,11 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     if (widget.viewerIsCustomer) home ??= ref.watch(devicePositionProvider).valueOrNull;
 
     LatLng? reported;
-    DateTime? reportedAt;
-    if (driverId != null) {
+    if (driverId != null && widget.driverPosition != null) {
+      reported = widget.driverPosition;
+    } else if (driverId != null) {
       final location = ref.watch(driverLocationProvider(driverId)).valueOrNull;
-      if (location != null) {
-        reported = LatLng(location.latitude, location.longitude);
-        reportedAt = location.updatedAt;
-      }
+      if (location != null) reported = LatLng(location.latitude, location.longitude);
       ref.listen(driverLocationProvider(driverId), (previous, next) {
         final moved = next.valueOrNull;
         if (moved != null) _moveTo(LatLng(moved.latitude, moved.longitude));
@@ -238,11 +245,14 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     if (reported == null) _shown = null;
     final shown = reported == null ? null : (_shown ??= reported);
 
-    // The line always runs from the Driver to the drop-off — through the
-    // shop until the order is picked up, straight there after. An order
-    // with no pinned drop-off can only be drawn as far as the shop.
-    final destination = reported == null ? null : (home ?? (pickedUp ? null : vendor));
-    final via = pickedUp || destination == vendor ? null : vendor;
+    // Only the leg the Driver is on right now: to the shop until the order
+    // is picked up, then to the customer — for the customer and the Driver
+    // alike, and the same line the Driver's navigate screens
+    // (`driver_navigate_vendor_screen.dart` / `..._customer_screen.dart`)
+    // draw. Drawing the whole trip through the shop at once made the line
+    // run on past the shop before the Driver had even got there.
+    final destination = reported == null ? null : (pickedUp ? home : vendor);
+    const LatLng? via = null;
     RoadRoute? route;
     if (reported != null && destination != null) {
       if (_routeDestination != destination) {
@@ -274,13 +284,22 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
       final minutes = (meters / 1000 / 25 * 60).ceil();
       eta = (minutes: minutes < 1 ? 1 : minutes, km: meters / 1000);
     }
-    // The Driver's phone stopped reporting (app killed, no signal, GPS
-    // off) — say how old the pin is rather than let it look live.
-    final staleMinutes = reportedAt == null ? null : DateTime.now().difference(reportedAt).inMinutes;
-    final isStale = staleMinutes != null && staleMinutes >= 2;
 
+    // The road line as drawn: starting exactly at the Driver's marker, with
+    // the stretch they've already covered dropped. Google's route starts at
+    // the lookup origin, which is snapped to a ~100 m grid
+    // (`roadRouteRequest`), so drawn as-is it began up to ~100 m away from
+    // the marker and kept the road behind them on screen.
+    final routeLine = route != null && route.points.length > 1 && shown != null
+        ? _lineFromDriver(shown, route.points)
+        : null;
+
+    // Everything the camera keeps in view — the whole road route too, not
+    // just its ends, so a route that bends away isn't cut off at the edge.
+    // Google's own points, not [routeLine]: that one changes on every
+    // frame of the marker's glide, and would re-frame the camera nonstop.
     final focus = reported != null
-        ? [reported, ?via, ?destination]
+        ? [reported, ?via, ?destination, ...?route?.points]
         : [?vendor, ?home];
     if (focus.isEmpty) {
       _focus = const [];
@@ -349,10 +368,10 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
                     ),
           },
           polylines: {
-            if (route != null && route.points.length > 1)
+            if (routeLine != null)
               Polyline(
                 polylineId: const PolylineId('road-route'),
-                points: route.points,
+                points: routeLine,
                 color: context.colors.primary,
                 width: 5,
                 startCap: Cap.roundCap,
@@ -388,32 +407,23 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
       children: [
         map,
         // Customer-facing only — on the Driver's own phone (Driver Home's
-        // delivery cards) an ETA to themselves and a warning about their own
-        // location being old mean nothing.
-        if (widget.viewerIsCustomer && (eta != null || isStale))
+        // delivery cards) an ETA to themselves means nothing.
+        if (widget.viewerIsCustomer && eta != null)
           Positioned(
             left: 10,
             top: 10,
             right: 10,
             child: IgnorePointer(
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  if (eta != null)
-                    _MapChip(
-                      icon: Icons.schedule_rounded,
-                      label:
-                          '${context.l10n.trackArrivingIn(eta.minutes)} · ${context.l10n.trackDistanceKm(eta.km < 10 ? eta.km.toStringAsFixed(1) : eta.km.toStringAsFixed(0))}',
-                      color: context.colors.primary,
-                    ),
-                  if (isStale)
-                    _MapChip(
-                      icon: Icons.signal_wifi_bad_rounded,
-                      label: context.l10n.trackLocationStale(timeAgoOf(context, reportedAt!)),
-                      color: context.colors.warning,
-                    ),
-                ],
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: _MapChip(
+                  icon: Icons.schedule_rounded,
+                  // Before pickup the line (and so the time) only runs to
+                  // the shop, so it says that instead of "Arriving in".
+                  label:
+                      '${pickedUp ? context.l10n.trackArrivingIn(eta.minutes) : context.l10n.trackReachingShopIn(eta.minutes)} · ${context.l10n.trackDistanceKm(eta.km < 10 ? eta.km.toStringAsFixed(1) : eta.km.toStringAsFixed(0))}',
+                  color: context.colors.primary,
+                ),
               ),
             ),
           ),
@@ -423,6 +433,26 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     if (widget.borderRadius == null) return overlaid;
     return ClipRRect(borderRadius: widget.borderRadius!, child: overlaid);
   }
+}
+
+/// [route] from the point on it nearest [driver] onwards, with [driver]
+/// itself as the first point — so the line starts at the marker and only
+/// shows the road still ahead. Only looks a short way along the route for
+/// that nearest point: the Driver is near its start (the lookup is redone
+/// every ~100 m), and a route that doubles back past the same spot later
+/// mustn't be cut there.
+List<LatLng> _lineFromDriver(LatLng driver, List<LatLng> route) {
+  final searchEnd = route.length < 40 ? route.length : 40;
+  var nearest = 0;
+  var nearestMeters = double.infinity;
+  for (var i = 0; i < searchEnd; i++) {
+    final meters = Geolocator.distanceBetween(driver.latitude, driver.longitude, route[i].latitude, route[i].longitude);
+    if (meters < nearestMeters) {
+      nearestMeters = meters;
+      nearest = i;
+    }
+  }
+  return [driver, ...route.skip(nearest + 1)];
 }
 
 /// A small pill floating over the top of the tracking map — the live ETA,

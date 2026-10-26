@@ -216,19 +216,46 @@ class OrderDetailScreen extends ConsumerWidget {
             ),
             child: Column(
               children: [
+                // Shop name and delivery address on their own lines — side
+                // by side, a long address squeezed the shop name into a
+                // narrow, broken column.
                 Row(
                   children: [
+                    Icon(
+                      Icons.storefront_rounded,
+                      size: 20,
+                      color: palette.primary,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         order.vendorName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    Text(
-                      order.deliveryAddressLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: palette.textSecondary,
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.place_outlined,
+                      size: 18,
+                      color: palette.textSecondary,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        order.deliveryAddressLabel,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: palette.textSecondary,
+                        ),
                       ),
                     ),
                   ],

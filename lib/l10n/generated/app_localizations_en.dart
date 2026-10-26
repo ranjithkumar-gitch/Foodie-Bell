@@ -210,7 +210,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paymentCodSubtitle => 'Pay when your order arrives';
 
   @override
-  String get paymentUpi => 'UPI';
+  String get paymentUpi => 'UPI (PhonePe, Google Pay, Paytm)';
 
   @override
   String get paymentComingSoon => 'Coming soon';
@@ -235,6 +235,34 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get paymentFailed =>
       'Payment could not be completed. Please try again.';
+
+  @override
+  String get paymentUpiSubtitle => 'Pay the shop directly from your UPI app';
+
+  @override
+  String get paymentChooseUpiApp => 'Pay with';
+
+  @override
+  String get paymentNoUpiApp =>
+      'No UPI app found on this phone. Install PhonePe, Google Pay or Paytm, or choose Cash on Delivery.';
+
+  @override
+  String paymentUpiPending(Object ref) {
+    return 'Your payment is still processing, so the order was not placed. If money was debited, contact support with reference $ref.';
+  }
+
+  @override
+  String get paymentUpiConfirmTitle => 'Did your payment go through?';
+
+  @override
+  String get paymentUpiConfirmMessage =>
+      'Check your UPI app. Tap \"Yes, I paid\" only if the payment was successful.';
+
+  @override
+  String get paymentUpiConfirmYes => 'Yes, I paid';
+
+  @override
+  String get paymentUpiConfirmNo => 'No';
 
   @override
   String paymentOrderSaveFailed(Object paymentId) {
@@ -971,6 +999,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String trackArrivingIn(int minutes) {
     return 'Arriving in $minutes min';
+  }
+
+  @override
+  String trackReachingShopIn(int minutes) {
+    return 'Reaching shop in $minutes min';
   }
 
   @override

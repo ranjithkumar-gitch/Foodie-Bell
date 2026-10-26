@@ -56,6 +56,7 @@ class Account {
     this.bankAccountHolder,
     this.bankAccountNumber,
     this.bankIfsc,
+    this.upiIds = const [],
   });
 
   final String id;
@@ -174,6 +175,16 @@ class Account {
   final String? bankAccountNumber;
   final String? bankIfsc;
 
+  /// Vendor-only: UPI IDs (VPAs) customers pay this shop on directly when
+  /// they choose UPI at checkout (`checkout_payment_screen.dart`). The first
+  /// is the one payments go to; the rest are kept as alternates the Vendor
+  /// can switch to from `vendor_upi_screen.dart`. Empty until set — the
+  /// Vendor can't accept orders until they add one (`ensureVendorUpiSetUp`).
+  final List<String> upiIds;
+
+  /// The UPI ID payments go to, or null when none is set.
+  String? get primaryUpiId => upiIds.isEmpty ? null : upiIds.first;
+
   VendorDocumentStatus documentStatus(VendorDocumentType type) => documentStatuses[type] ?? VendorDocumentStatus.required;
 
   String? documentUrl(VendorDocumentType type) => documentUrls[type];
@@ -215,6 +226,7 @@ class Account {
     String? bankAccountHolder,
     String? bankAccountNumber,
     String? bankIfsc,
+    List<String>? upiIds,
   }) => Account(
     id: id,
     role: role,
@@ -246,5 +258,6 @@ class Account {
     bankAccountHolder: bankAccountHolder ?? this.bankAccountHolder,
     bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
     bankIfsc: bankIfsc ?? this.bankIfsc,
+    upiIds: upiIds ?? this.upiIds,
   );
 }

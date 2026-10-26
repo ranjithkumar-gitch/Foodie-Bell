@@ -93,6 +93,54 @@ Future<void> setCurrentVendorOpen(WidgetRef ref, String vendorId, bool isOpen) a
   }
 }
 
+/// Saves this vendor's UPI IDs (`vendor_upi_screen.dart`) — same Firestore/
+/// mock dual path as [setCurrentVendorOpen].
+Future<void> setCurrentVendorUpiIds(WidgetRef ref, String vendorId, List<String> upiIds) async {
+  final isFirestoreBacked = ref.read(firestoreVendorsProvider).valueOrNull?.any((v) => v.id == vendorId) ?? false;
+  if (isFirestoreBacked) {
+    await setVendorUpiIds(vendorId, upiIds);
+  } else {
+    ref.read(mockAccountsProvider.notifier).setUpiIds(vendorId, upiIds);
+  }
+}
+
+/// Second gate in front of every "Accept", after [ensureVendorAddressSetUp]:
+/// customers who pay by UPI pay the shop's own UPI ID directly
+/// (`checkout_payment_screen.dart`), so a Vendor with none on record is
+/// sent to add one (`vendor_upi_screen.dart`) instead of accepting.
+Future<bool> ensureVendorUpiSetUp(BuildContext context, WidgetRef ref) async {
+  final account = ref.read(sessionControllerProvider).account;
+  if (account == null) return false;
+  final live = ref.read(liveVendorAccountProvider(account.id)) ?? account;
+  if (live.upiIds.isNotEmpty) return true;
+
+  final palette = context.colors;
+  final setUp = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      icon: Icon(Icons.qr_code_2_rounded, color: palette.primary, size: 32),
+      title: const Text('Add your UPI ID first'),
+      content: const Text(
+        'Add the UPI ID where you want to receive payments (PhonePe, Google Pay, Paytm or any UPI app) before accepting orders.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Not now')),
+        ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Add UPI ID')),
+      ],
+    ),
+  );
+  if (setUp == true && context.mounted) context.push('/vendor/profile/upi');
+  return false;
+}
+
+/// Both gates a Vendor must pass before accepting an order — shop address
+/// first, then UPI.
+Future<bool> ensureVendorReadyToAccept(BuildContext context, WidgetRef ref) async {
+  if (!await ensureVendorAddressSetUp(context, ref)) return false;
+  if (!context.mounted) return false;
+  return ensureVendorUpiSetUp(context, ref);
+}
+
 /// Gate in front of every "Accept" a Vendor can tap (Live Order Queue,
 /// Order Detail, a photo order's "Accept & confirm"): a Driver can't be
 /// sent to a shop with no address or map location on record, so until the

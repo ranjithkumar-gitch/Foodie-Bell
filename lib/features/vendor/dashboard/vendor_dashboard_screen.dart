@@ -18,6 +18,9 @@ import '../vendor_session.dart';
 
 /// Dashboard (spec §5.7): today's order count, earnings snapshot, open/
 /// closed toggle, pending settlement amount.
+///
+/// Kept deliberately plain for small-town shop owners: white cards, one
+/// green accent, large text, and a simple menu list instead of tiles.
 class VendorDashboardScreen extends ConsumerWidget {
   const VendorDashboardScreen({super.key});
 
@@ -76,179 +79,277 @@ class VendorDashboardScreen extends ConsumerWidget {
         : vendorReviews.map((r) => r.vendorRating).reduce((a, b) => a + b) /
               vendorReviews.length;
 
+    final isOpen = account?.isOpen ?? true;
+
     return Scaffold(
+      backgroundColor: palette.background,
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
           Stack(
             clipBehavior: Clip.none,
             children: [
-              IconButton(
+              IconButton.filledTonal(
                 tooltip: 'Notifications',
+                style: IconButton.styleFrom(
+                  backgroundColor: palette.surfaceMuted,
+                  foregroundColor: palette.textPrimary,
+                ),
                 icon: const Icon(Icons.notifications_none_rounded),
                 onPressed: () => context.push('/vendor/notifications'),
               ),
               const NotificationBellDot(),
             ],
           ),
-          IconButton(
+          const SizedBox(width: 6),
+          // Red power button, so it reads as "log out" at a glance and
+          // isn't mistaken for the notification bell beside it.
+          IconButton.filledTonal(
             tooltip: 'Log out',
+            style: IconButton.styleFrom(
+              backgroundColor: palette.error.withValues(alpha: 0.1),
+              foregroundColor: palette.error,
+            ),
             icon: const Icon(Icons.power_settings_new_rounded),
             onPressed: () => LogoutConfirmationSheet.show(context, ref),
           ),
+          const SizedBox(width: 12),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: palette.surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: palette.border),
-            ),
-            child: Row(
+          // Shop + open/closed.
+          _Section(
+            child: Column(
               children: [
-                shopFrontPhotoUrl != null
-                    ? AppNetworkImage(
-                        url: shopFrontPhotoUrl,
-                        width: 52,
-                        height: 52,
-                        borderRadius: BorderRadius.circular(14),
-                      )
-                    : Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: palette.primaryLight.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          vendor.category.icon,
-                          color: palette.primary,
-                          size: 26,
-                        ),
-                      ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Text(
-                        account?.name ?? vendor.name,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        account?.category ?? vendor.category.label,
-                        style: TextStyle(
-                          color: palette.textSecondary,
-                          fontSize: 12.5,
+                      shopFrontPhotoUrl != null
+                          ? AppNetworkImage(
+                              url: shopFrontPhotoUrl,
+                              width: 52,
+                              height: 52,
+                              borderRadius: BorderRadius.circular(12),
+                            )
+                          : Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: palette.surfaceMuted,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                vendor.category.icon,
+                                color: palette.textSecondary,
+                              ),
+                            ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              account?.name ?? vendor.name,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              account?.category ?? vendor.category.label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: palette.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Switch(
-                      value: account?.isOpen ?? true,
-                      onChanged: (v) =>
-                          confirmAndSetVendorOpen(context, ref, vendorId, v),
-                    ),
-                    Text(
-                      (account?.isOpen ?? true) ? 'Open' : 'Closed',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: (account?.isOpen ?? true)
-                            ? palette.success
-                            : palette.error,
+                Divider(height: 1, color: palette.divider),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isOpen ? palette.success : palette.error,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isOpen ? 'Shop is open' : 'Shop is closed',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Switch(
+                        value: isOpen,
+                        onChanged: (v) =>
+                            confirmAndSetVendorOpen(context, ref, vendorId, v),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            "Today's snapshot",
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 14,
-            crossAxisSpacing: 14,
-            childAspectRatio: 1.5,
-            children: [
-              _KpiCard(
-                label: "Today's orders",
-                value: '${todaysOrders.length}',
-                icon: Icons.receipt_long_rounded,
-              ),
-              _KpiCard(
-                label: "Today's earnings",
-                value: AppFormat.currency(todaysEarnings),
-                icon: Icons.payments_rounded,
-              ),
-              _KpiCard(
-                label: 'Pending settlement',
-                value: AppFormat.currency(pendingSettlement),
-                icon: Icons.account_balance_wallet_rounded,
-              ),
-              _KpiCard(
-                label: vendorReviews.isEmpty
-                    ? 'Rating'
-                    : 'Rating (${vendorReviews.length})',
-                value: vendorReviews.isEmpty
-                    ? '—'
-                    : averageRating.toStringAsFixed(1),
-                icon: Icons.star_rounded,
-                onTap: () => context.push('/vendor/reviews'),
-              ),
-            ],
-          ),
           if (liveQueueCount > 0) ...[
-            const SizedBox(height: 20),
-            _NewOrdersBanner(
-              count: liveQueueCount,
-              onTap: () => context.go('/vendor/orders'),
+            const SizedBox(height: 12),
+            Material(
+              color: palette.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => context.go('/vendor/orders'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.notifications_active_rounded,
+                        color: palette.warning,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          liveQueueCount == 1
+                              ? '1 new order is waiting'
+                              : '$liveQueueCount new orders are waiting',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'View',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: palette.warning,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
           const SizedBox(height: 24),
-          Text('Quick actions', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          _ActionTile(
-            icon: Icons.pending_actions_rounded,
-            label: 'Live Order Queue',
-            trailing: liveQueueCount > 0 ? '$liveQueueCount waiting' : null,
-            onTap: () => context.go('/vendor/orders'),
+          const _SectionTitle('Today'),
+          const SizedBox(height: 10),
+          _Section(
+            child: Column(
+              children: [
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Stat(
+                        label: 'Orders',
+                        value: Text('${todaysOrders.length}'),
+                      ),
+                      VerticalDivider(width: 1, color: palette.divider),
+                      _Stat(
+                        label: 'Earnings',
+                        value: CurrencyText(todaysEarnings),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, color: palette.divider),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Stat(
+                        label: 'To be settled',
+                        value: CurrencyText(pendingSettlement),
+                        onTap: () => context.push('/vendor/earnings'),
+                      ),
+                      VerticalDivider(width: 1, color: palette.divider),
+                      _Stat(
+                        label: vendorReviews.isEmpty
+                            ? 'Rating'
+                            : 'Rating (${vendorReviews.length})',
+                        value: Text(
+                          vendorReviews.isEmpty
+                              ? '—'
+                              : '★ ${averageRating.toStringAsFixed(1)}',
+                        ),
+                        onTap: () => context.push('/vendor/reviews'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          _ActionTile(
-            icon: Icons.storefront_rounded,
-            label: 'Manage Catalogue',
-            onTap: () => context.go('/vendor/catalogue'),
-          ),
-          _ActionTile(
-            icon: Icons.account_balance_wallet_outlined,
-            label: 'Earnings & Settlement',
-            onTap: () => context.push('/vendor/earnings'),
-          ),
-          _ActionTile(
-            icon: Icons.campaign_outlined,
-            label: 'Promotions',
-            onTap: () => context.push('/vendor/promotions'),
-          ),
-          _ActionTile(
-            icon: Icons.reviews_outlined,
-            label: 'Reviews & Ratings',
-            onTap: () => context.push('/vendor/reviews'),
+          const SizedBox(height: 24),
+          const _SectionTitle('Manage'),
+          const SizedBox(height: 10),
+          _Section(
+            child: Column(
+              children: [
+                _MenuRow(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'Orders',
+                  trailing: liveQueueCount > 0 ? '$liveQueueCount new' : null,
+                  onTap: () => context.go('/vendor/orders'),
+                ),
+                _MenuRow(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Products',
+                  onTap: () => context.go('/vendor/catalogue'),
+                ),
+                _MenuRow(
+                  icon: Icons.qr_code_2_rounded,
+                  label: 'UPI for payments',
+                  trailing: account?.primaryUpiId == null ? 'Add now' : null,
+                  onTap: () => context.push('/vendor/profile/upi'),
+                ),
+                _MenuRow(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Earnings & Payments',
+                  onTap: () => context.push('/vendor/earnings'),
+                ),
+                _MenuRow(
+                  icon: Icons.local_offer_outlined,
+                  label: 'Offers',
+                  onTap: () => context.push('/vendor/promotions'),
+                ),
+                _MenuRow(
+                  icon: Icons.star_outline_rounded,
+                  label: 'Reviews',
+                  onTap: () => context.push('/vendor/reviews'),
+                ),
+                _MenuRow(
+                  icon: Icons.help_outline_rounded,
+                  label: 'Help',
+                  onTap: () => context.push('/vendor/help'),
+                  showDivider: false,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -256,133 +357,75 @@ class VendorDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _KpiCard extends StatelessWidget {
-  const _KpiCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.onTap,
-  });
-  final String label;
-  final String value;
-  final IconData icon;
-  final VoidCallback? onTap;
+/// A plain white bordered card.
+class _Section extends StatelessWidget {
+  const _Section({required this.child});
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: palette.primary, size: 20),
-        const SizedBox(height: 8),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            maxLines: 1,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-              color: palette.textPrimary,
-            ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11.5, color: palette.textSecondary),
-        ),
-      ],
-    );
-    return Material(
-      color: palette.surface,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: palette.surface,
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: palette.border),
-          ),
-          child: content,
-        ),
+        border: Border.all(color: palette.border),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: palette.textPrimary,
       ),
     );
   }
 }
 
-/// Prominent alert shown above Quick Actions whenever a placed order is
-/// still waiting on this vendor's Accept/Reject decision — the trailing
-/// "waiting" hint on the Live Order Queue tile below is easy to miss, so
-/// this surfaces the same [count] as a banner nobody can scroll past
-/// without noticing.
-class _NewOrdersBanner extends StatelessWidget {
-  const _NewOrdersBanner({required this.count, required this.onTap});
-  final int count;
-  final VoidCallback onTap;
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value, this.onTap});
+  final String label;
+  final Widget value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    return Material(
-      color: palette.warning.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(16),
+    return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.warning.withValues(alpha: 0.4)),
-          ),
-          child: Row(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: palette.warning.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.notifications_active_rounded,
-                  color: palette.warning,
-                ),
+              Text(
+                label,
+                style: TextStyle(fontSize: 14, color: palette.textSecondary),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      count == 1
-                          ? '1 new order waiting'
-                          : '$count new orders waiting',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Tap to review and accept',
-                      style: TextStyle(
-                        color: palette.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 4),
+              DefaultTextStyle.merge(
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
                 ),
+                child: value,
               ),
-              Icon(Icons.chevron_right_rounded, color: palette.warning),
             ],
           ),
         ),
@@ -391,44 +434,39 @@ class _NewOrdersBanner extends StatelessWidget {
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
     required this.icon,
     required this.label,
     required this.onTap,
     this.trailing,
+    this.showDivider = true,
   });
   final IconData icon;
   final String label;
   final String? trailing;
   final VoidCallback onTap;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+    return Column(
+      children: [
+        InkWell(
           onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: palette.border),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             child: Row(
               children: [
-                Icon(icon, color: palette.textSecondary, size: 22),
+                Icon(icon, color: palette.textSecondary, size: 24),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: palette.textPrimary,
                     ),
                   ),
@@ -437,9 +475,9 @@ class _ActionTile extends StatelessWidget {
                   Text(
                     trailing!,
                     style: TextStyle(
-                      color: palette.primary,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                      color: palette.warning,
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -449,7 +487,9 @@ class _ActionTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
+        if (showDivider)
+          Divider(height: 1, indent: 54, color: palette.divider),
+      ],
     );
   }
 }

@@ -1,10 +1,10 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -16,13 +16,12 @@ import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/list_order_image_storage_provider.dart';
 import '../../../shared/error_reporting.dart';
+import '../../../shared/time_ago.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_source_sheet.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../shared/widgets/order_status_timestamp.dart';
-import '../../../shared/widgets/status_chip.dart';
 import '../vendor_session.dart';
 
 /// Orders (spec §5.8 + §5.14, combined): Live Order Queue and Order
@@ -32,6 +31,9 @@ import '../vendor_session.dart';
 /// status transition from the Queue tab — `placed -> vendorAccepted` —
 /// everything after that (assignment, pickup, delivery) belongs to the
 /// Driver's app; History is read-only.
+///
+/// Kept deliberately plain for small-town shop owners: white cards, large
+/// text, colour only where it carries meaning (new order, cancelled).
 class VendorOrderQueueScreen extends ConsumerStatefulWidget {
   const VendorOrderQueueScreen({super.key});
 
@@ -52,10 +54,11 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     final vendorId = ref.watch(currentVendorIdProvider);
     final ordersAsync = ref.watch(firestoreOrdersProvider);
-    final queueCount = (ordersAsync.valueOrNull ?? const [])
-        .where((o) => o.vendorId == vendorId && o.status == OrderStatus.placed)
+    final activeCount = (ordersAsync.valueOrNull ?? const <Order>[])
+        .where((o) => o.vendorId == vendorId && !o.status.isTerminal)
         .length;
     final listRequestsAsync = ref.watch(firestoreListOrderRequestsProvider);
     final listRequestPendingCount = (listRequestsAsync.valueOrNull ?? const [])
@@ -65,19 +68,33 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
         .length;
 
     return Scaffold(
+      backgroundColor: palette.background,
       appBar: AppBar(
         title: const Text('Orders'),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
+          labelStyle: const TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.w700,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.w500,
+          ),
+          labelColor: palette.primary,
+          unselectedLabelColor: palette.textSecondary,
+          indicatorColor: palette.primary,
+          indicatorWeight: 3,
+          dividerColor: palette.divider,
           tabs: [
-            Tab(text: queueCount > 0 ? 'Queue ($queueCount)' : 'Queue'),
+            Tab(text: activeCount > 0 ? 'Active ($activeCount)' : 'Active'),
             const Tab(text: 'History'),
             Tab(
               text: listRequestPendingCount > 0
-                  ? 'Photo Orders ($listRequestPendingCount)'
-                  : 'Photo Orders',
+                  ? 'Photo orders ($listRequestPendingCount)'
+                  : 'Photo orders',
             ),
           ],
         ),
@@ -114,16 +131,18 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
               return queue.isEmpty
                   ? const EmptyState(
                       icon: Icons.inbox_rounded,
-                      title: 'No orders in progress',
+                      title: 'No orders right now',
                       subtitle:
                           'New orders will show up here the moment customers place them.',
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       itemCount: queue.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
-                      itemBuilder: (context, i) =>
-                          _QueueOrderCard(order: queue[i]),
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) => _QueueOrderCard(
+                        key: ValueKey(queue[i].id),
+                        order: queue[i],
+                      ),
                     );
             },
           ),
@@ -143,15 +162,7 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
                       icon: Icons.receipt_long_rounded,
                       title: 'No orders yet',
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                      itemCount: history.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, i) => _HistoryOrderCard(
-                        order: history[i],
-                        tone: orderStatusTone(history[i].status),
-                      ),
-                    );
+                  : _HistoryList(orders: history);
             },
           ),
           listRequestsAsync.when(
@@ -174,12 +185,12 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
                       icon: Icons.document_scanner_outlined,
                       title: 'No photo orders yet',
                       subtitle:
-                          "Customers who photograph what they want instead of browsing will show up here.",
+                          "Customers who send a photo of their list will show up here.",
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       itemCount: mine.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, i) =>
                           _ListRequestCard(request: mine[i]),
                     );
@@ -191,71 +202,182 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
   }
 }
 
-StatusTone orderStatusTone(OrderStatus status) => switch (status) {
-  OrderStatus.delivered => StatusTone.success,
-  OrderStatus.cancelled || OrderStatus.rejected => StatusTone.error,
-  OrderStatus.placed => StatusTone.info,
-  _ => StatusTone.warning,
+Color _statusColor(AppPalette palette, OrderStatus status) => switch (status) {
+  OrderStatus.placed => palette.warning,
+  OrderStatus.delivered => palette.success,
+  OrderStatus.cancelled || OrderStatus.rejected => palette.error,
+  _ => palette.primary,
 };
 
-class _HistoryOrderCard extends StatelessWidget {
-  const _HistoryOrderCard({required this.order, required this.tone});
-  final Order order;
-  final StatusTone tone;
+/// A plain white bordered card.
+class _Card extends StatelessWidget {
+  const _Card({required this.child, this.onTap, this.highlight});
+  final Widget child;
+  final VoidCallback? onTap;
+
+  /// Border colour for a card that needs attention; plain border otherwise.
+  final Color? highlight;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () => context.push('/vendor/order/${order.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    order.id,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    StatusChip(label: order.status.label, tone: tone),
-                    const SizedBox(height: 3),
-                    OrderStatusTimestamp(order.statusReachedAt(order.status)),
-                  ],
-                ),
-              ],
+    return Material(
+      color: palette.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: highlight ?? palette.border,
+              width: highlight != null ? 1.5 : 1,
             ),
-            const SizedBox(height: 6),
-            Text(
-              '${order.items.length} item${order.items.length == 1 ? '' : 's'} · ${order.userName}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 10),
-            CurrencyText(
-              order.total,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
+          ),
+          child: child,
         ),
       ),
     );
   }
 }
 
+/// A coloured dot followed by text — the one way status is shown here.
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({required this.text, required this.color});
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _itemsSummary(Order order) =>
+    order.items.map((i) => '${i.quantity} × ${i.name}').join(', ');
+
+String _paymentText(PaymentMethod method) =>
+    method == PaymentMethod.cod ? 'Cash on delivery' : 'Paid online';
+
+final _dayFormat = DateFormat('EEE, d MMM');
+final _timeFormat = DateFormat('h:mm a');
+
+/// Every order, newest first, under a plain date heading per day.
+class _HistoryList extends StatelessWidget {
+  const _HistoryList({required this.orders});
+  final List<Order> orders;
+
+  String _dayLabel(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(DateTime(dt.year, dt.month, dt.day)).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return _dayFormat.format(dt);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    final grouped = <String, List<Order>>{};
+    for (final o in orders) {
+      grouped.putIfAbsent(_dayLabel(o.placedAt), () => []).add(o);
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        for (final entry in grouped.entries) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+            child: Text(
+              entry.key,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: palette.textSecondary,
+              ),
+            ),
+          ),
+          for (final order in entry.value) ...[
+            _Card(
+              onTap: () => context.push('/vendor/order/${order.id}'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          order.userName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      CurrencyText(
+                        order.total,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: palette.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _itemsSummary(order),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _StatusLine(
+                    text:
+                        '${order.status.label} · ${_timeFormat.format(order.placedAt)}',
+                    color: _statusColor(palette, order.status),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
 class _QueueOrderCard extends ConsumerStatefulWidget {
-  const _QueueOrderCard({required this.order});
+  const _QueueOrderCard({super.key, required this.order});
   final Order order;
 
   @override
@@ -263,198 +385,174 @@ class _QueueOrderCard extends ConsumerStatefulWidget {
 }
 
 class _QueueOrderCardState extends ConsumerState<_QueueOrderCard> {
-  static const _kWindowSeconds = 120;
-  late int _secondsLeft = _kWindowSeconds;
-  Timer? _timer;
+  bool _updating = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // The Accept/Reject countdown only makes sense while this order is
-    // still actually waiting on that decision — once accepted it stays in
-    // this same tab (see the Queue tab's doc comment) all the way through
-    // delivery, so there's nothing left to count down.
-    if (widget.order.status == OrderStatus.placed) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-        if (!mounted) return;
-        if (_secondsLeft <= 0) {
-          t.cancel();
-        } else {
-          setState(() => _secondsLeft--);
-        }
-      });
+  Future<void> _setStatus(OrderStatus status, String failedAction) async {
+    setState(() => _updating = true);
+    try {
+      await updateOrderStatus(widget.order.id, status);
+    } catch (e, st) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            friendlyError(e, action: failedAction, stackTrace: st),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _updating = false);
     }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   Future<void> _accept() async {
-    if (!await ensureVendorAddressSetUp(context, ref)) return;
-    try {
-      await updateOrderStatus(widget.order.id, OrderStatus.vendorAccepted);
-    } catch (e, st) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            friendlyError(e, action: 'Accepting order', stackTrace: st),
-          ),
-        ),
-      );
-    }
+    if (!await ensureVendorReadyToAccept(context, ref)) return;
+    await _setStatus(OrderStatus.vendorAccepted, 'Accepting order');
   }
 
-  Future<void> _reject() async {
-    try {
-      await updateOrderStatus(widget.order.id, OrderStatus.rejected);
-    } catch (e, st) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            friendlyError(e, action: 'Rejecting order', stackTrace: st),
-          ),
-        ),
-      );
-    }
-  }
+  Future<void> _reject() =>
+      _setStatus(OrderStatus.rejected, 'Rejecting order');
+
+  String _progressText(Order order) => switch (order.status) {
+    OrderStatus.vendorAccepted => 'Accepted · finding a driver',
+    OrderStatus.driverAssigned =>
+      '${order.driverName ?? 'Driver'} is coming to pick up',
+    OrderStatus.pickedUp =>
+      'Picked up by ${order.driverName ?? 'driver'} · on the way',
+    _ => order.status.label,
+  };
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
     final order = widget.order;
     final awaitingDecision = order.status == OrderStatus.placed;
-    final minutes = (_secondsLeft ~/ 60).toString().padLeft(2, '0');
-    final seconds = (_secondsLeft % 60).toString().padLeft(2, '0');
-    final urgent = _secondsLeft <= 30;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
+    return _Card(
       onTap: () => context.push('/vendor/order/${order.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    order.id,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                if (awaitingDecision)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: (urgent ? palette.error : palette.warning)
-                          .withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.timer_outlined,
-                          size: 14,
-                          color: urgent ? palette.error : palette.warning,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _secondsLeft > 0 ? '$minutes:$seconds' : 'Expiring',
-                          style: TextStyle(
-                            color: urgent ? palette.error : palette.warning,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  StatusChip(label: order.status.label, tone: orderStatusTone(order.status)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              order.items.map((i) => '${i.quantity}x ${i.name}').join(', '),
-              style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                CurrencyText(
-                  order.total,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  order.paymentMethod.label,
-                  style: TextStyle(fontSize: 11.5, color: palette.textMuted),
-                ),
-              ],
-            ),
-            if (awaitingDecision) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: palette.error,
-                        side: BorderSide(color: palette.error),
+      highlight: awaitingDecision ? palette.warning : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _StatusLine(
+            text: awaitingDecision ? 'New order' : _progressText(order),
+            color: awaitingDecision ? palette.warning : palette.primary,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.userName,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
                       ),
-                      onPressed: _reject,
-                      child: const Text('Reject'),
+                    ),
+                    const SizedBox(height: 2),
+                    TimeAgoText(
+                      order.placedAt,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: palette.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  CurrencyText(
+                    order.total,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _accept,
-                      child: const Text('Accept'),
+                  const SizedBox(height: 2),
+                  Text(
+                    _paymentText(order.paymentMethod),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
               ),
-            ] else ...[
-              const SizedBox(height: 8),
-              Text(
-                order.driverName != null
-                    ? 'With ${order.driverName} · tap to view'
-                    : 'Waiting for a driver · tap to view',
-                style: TextStyle(color: palette.textMuted, fontSize: 12),
-              ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: palette.divider),
+          const SizedBox(height: 12),
+          for (final item in order.items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    child: Text(
+                      '${item.quantity} ×',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (awaitingDecision) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: palette.error,
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    onPressed: _updating ? null : _reject,
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    onPressed: _updating ? null : _accept,
+                    child: const Text('Accept'),
+                  ),
+                ),
+              ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 }
-
-StatusTone _listRequestTone(ListOrderStatus status) => switch (status) {
-  ListOrderStatus.pending => StatusTone.warning,
-  ListOrderStatus.quoted => StatusTone.warning,
-  ListOrderStatus.paid => StatusTone.info,
-  ListOrderStatus.accepted => StatusTone.success,
-  ListOrderStatus.rejected || ListOrderStatus.cancelled => StatusTone.error,
-};
 
 /// A single "Order via Photo" request — the vendor looks at the customer's
 /// photo(s), sends a price, and (once paid) confirms with a receipt photo,
@@ -506,7 +604,7 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
   }
 
   Future<void> _acceptAndConfirm(double rebatePercent) async {
-    if (!await ensureVendorAddressSetUp(context, ref) || !mounted) return;
+    if (!await ensureVendorReadyToAccept(context, ref) || !mounted) return;
     final source = await DocumentSourceSheet.show(
       context,
       title: 'Photograph the receipt',
@@ -596,22 +694,62 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
         .where((v) => v.id == request.vendorId)
         .map((v) => v.rebatePercent)
         .firstOrNull ?? 15;
+    final statusColor = switch (request.status) {
+      ListOrderStatus.pending || ListOrderStatus.quoted => palette.warning,
+      ListOrderStatus.paid => palette.primary,
+      ListOrderStatus.accepted => palette.success,
+      ListOrderStatus.rejected || ListOrderStatus.cancelled => palette.error,
+    };
+    final needsAction = request.status == ListOrderStatus.pending ||
+        request.status == ListOrderStatus.paid;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.border),
-      ),
+    return _Card(
+      highlight: needsAction ? statusColor : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _StatusLine(text: request.status.label, color: statusColor),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.userName,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      request.deliveryAddressLabel,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Call customer',
+                onPressed: request.userPhone.isEmpty ? null : _call,
+                icon: Icon(Icons.call_outlined, color: palette.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           // Full-width and tap-to-zoom, not small thumbnails — these photos
           // ARE the order, and a vendor needs to actually see what's in
           // them to price and fulfill the request.
           SizedBox(
-            height: 140,
+            height: 150,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: request.imageUrls.length,
@@ -623,103 +761,85 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
                   title: '${request.userName}\'s photo ${i + 1}',
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   child: AppNetworkImage(
                     url: request.imageUrls[i],
-                    width: 140,
-                    height: 140,
+                    width: 150,
+                    height: 150,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      request.userName,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      request.deliveryAddressLabel,
-                      style: TextStyle(
-                        color: palette.textSecondary,
-                        fontSize: 12.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              StatusChip(
-                label: request.status.label,
-                tone: _listRequestTone(request.status),
-              ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            'Tap a photo to see it bigger',
+            style: TextStyle(fontSize: 13.5, color: palette.textMuted),
           ),
           if (request.quotedAmount != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Text('Quoted: ', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
-                CurrencyText(request.quotedAmount!, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Expanded(
+                  child: Text(
+                    'Your price',
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ),
+                CurrencyText(
+                  request.quotedAmount!,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
+                ),
               ],
             ),
           ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: request.userPhone.isEmpty ? null : _call,
-                  icon: const Icon(Icons.call_outlined, size: 16),
-                  label: const Text('Call customer'),
-                ),
-              ),
-              if (request.status == ListOrderStatus.pending) ...[
-                const SizedBox(width: 10),
+          if (request.status == ListOrderStatus.pending) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: palette.error,
-                      side: BorderSide(color: palette.error),
+                      minimumSize: const Size.fromHeight(50),
                     ),
                     onPressed: _updating ? null : _decline,
                     child: const Text('Decline'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
                     onPressed: _updating ? null : _sendQuote,
-                    child: const Text('Send quote'),
-                  ),
-                ),
-              ] else if (request.status == ListOrderStatus.paid) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _updating ? null : () => _acceptAndConfirm(rebatePercent),
-                    child: const Text('Accept & confirm'),
+                    child: const Text('Send price'),
                   ),
                 ),
               ],
-            ],
-          ),
-          if (request.status == ListOrderStatus.quoted) ...[
-            const SizedBox(height: 8),
+            ),
+          ] else if (request.status == ListOrderStatus.paid) ...[
+            const SizedBox(height: 14),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+              ),
+              onPressed: _updating ? null : () => _acceptAndConfirm(rebatePercent),
+              child: const Text('Confirm order'),
+            ),
+          ] else if (request.status == ListOrderStatus.quoted) ...[
+            const SizedBox(height: 10),
             Text(
               'Waiting for the customer to pay.',
-              style: TextStyle(color: palette.textMuted, fontSize: 12),
+              style: TextStyle(fontSize: 14.5, color: palette.textSecondary),
             ),
           ],
         ],
@@ -766,24 +886,25 @@ class _QuoteAmountSheetState extends State<_QuoteAmountSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Send a quote', style: Theme.of(context).textTheme.headlineSmall),
+              Text('Send your price', style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
               Text(
-                'Enter the total amount for this order based on the photos.',
-                style: TextStyle(color: palette.textSecondary),
+                'Enter the total amount for everything in the photos.',
+                style: TextStyle(color: palette.textSecondary, fontSize: 15),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _controller,
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 decoration: const InputDecoration(prefixText: '₹ ', hintText: 'Amount'),
                 onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(onPressed: _submit, child: const Text('Send quote')),
+                child: ElevatedButton(onPressed: _submit, child: const Text('Send price')),
               ),
             ],
           ),

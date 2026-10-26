@@ -467,7 +467,7 @@ abstract class AppLocalizations {
   /// No description provided for @paymentUpi.
   ///
   /// In en, this message translates to:
-  /// **'UPI'**
+  /// **'UPI (PhonePe, Google Pay, Paytm)'**
   String get paymentUpi;
 
   /// No description provided for @paymentComingSoon.
@@ -511,6 +511,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Payment could not be completed. Please try again.'**
   String get paymentFailed;
+
+  /// No description provided for @paymentUpiSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay the shop directly from your UPI app'**
+  String get paymentUpiSubtitle;
+
+  /// No description provided for @paymentChooseUpiApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay with'**
+  String get paymentChooseUpiApp;
+
+  /// No description provided for @paymentNoUpiApp.
+  ///
+  /// In en, this message translates to:
+  /// **'No UPI app found on this phone. Install PhonePe, Google Pay or Paytm, or choose Cash on Delivery.'**
+  String get paymentNoUpiApp;
+
+  /// No description provided for @paymentUpiPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Your payment is still processing, so the order was not placed. If money was debited, contact support with reference {ref}.'**
+  String paymentUpiPending(Object ref);
+
+  /// No description provided for @paymentUpiConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Did your payment go through?'**
+  String get paymentUpiConfirmTitle;
+
+  /// No description provided for @paymentUpiConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your UPI app. Tap \"Yes, I paid\" only if the payment was successful.'**
+  String get paymentUpiConfirmMessage;
+
+  /// No description provided for @paymentUpiConfirmYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, I paid'**
+  String get paymentUpiConfirmYes;
+
+  /// No description provided for @paymentUpiConfirmNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get paymentUpiConfirmNo;
 
   /// No description provided for @paymentOrderSaveFailed.
   ///
@@ -1795,6 +1843,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Arriving in {minutes} min'**
   String trackArrivingIn(int minutes);
+
+  /// No description provided for @trackReachingShopIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Reaching shop in {minutes} min'**
+  String trackReachingShopIn(int minutes);
 
   /// No description provided for @trackDistanceKm.
   ///

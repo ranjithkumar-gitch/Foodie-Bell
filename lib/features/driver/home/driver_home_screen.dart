@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -534,6 +535,8 @@ class _ActiveDeliveryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final drop = watchOrderDropOff(ref, order);
+    // Same live GPS the navigate screens draw their route from.
+    final devicePosition = ref.watch(driverDevicePositionProvider).valueOrNull;
     final palette = context.colors;
     final pickedUp = order.status == OrderStatus.pickedUp;
     final stageColor = pickedUp ? palette.success : palette.warning;
@@ -576,7 +579,13 @@ class _ActiveDeliveryCard extends ConsumerWidget {
           ),
           InkWell(
             onTap: () => context.push(route),
-            child: DriverLiveMap(order: order, height: 150, interactive: false, viewerIsCustomer: false),
+            child: DriverLiveMap(
+              order: order,
+              height: 150,
+              interactive: false,
+              viewerIsCustomer: false,
+              driverPosition: devicePosition == null ? null : LatLng(devicePosition.latitude, devicePosition.longitude),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),

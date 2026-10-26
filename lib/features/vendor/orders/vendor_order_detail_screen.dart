@@ -203,7 +203,7 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
-                          if (!await ensureVendorAddressSetUp(context, ref)) return;
+                          if (!await ensureVendorReadyToAccept(context, ref)) return;
                           await updateOrderStatus(order.id, OrderStatus.vendorAccepted);
                         },
                         child: const Text('Accept'),

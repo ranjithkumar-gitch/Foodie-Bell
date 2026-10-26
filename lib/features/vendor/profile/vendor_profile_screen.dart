@@ -108,6 +108,13 @@ class VendorProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           _MenuTile(
+            icon: Icons.qr_code_2_rounded,
+            label: 'UPI for payments',
+            trailing: account?.primaryUpiId ?? 'Not added',
+            trailingColor: account?.primaryUpiId == null ? palette.error : null,
+            onTap: () => context.push('/vendor/profile/upi'),
+          ),
+          _MenuTile(
             icon: Icons.schedule_rounded,
             label: 'Edit Store Hours',
             onTap: () => context.push('/vendor/profile/hours'),
@@ -171,11 +178,15 @@ class _MenuTile extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.color,
+    this.trailing,
+    this.trailingColor,
   });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final Color? color;
+  final String? trailing;
+  final Color? trailingColor;
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +218,17 @@ class _MenuTile extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      trailing!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13.5, color: trailingColor ?? palette.textSecondary),
+                    ),
+                  ),
+                ],
                 Icon(Icons.chevron_right_rounded, color: palette.textMuted),
               ],
             ),

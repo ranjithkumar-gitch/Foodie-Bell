@@ -17,6 +17,7 @@ import 'profile/vendor_documents_status_screen.dart';
 import 'profile/vendor_profile_edit_screen.dart';
 import 'profile/vendor_profile_screen.dart';
 import 'profile/vendor_store_hours_screen.dart';
+import 'profile/vendor_upi_screen.dart';
 import 'promotions/vendor_promotions_screen.dart';
 import 'registration/vendor_business_details_screen.dart';
 import 'registration/vendor_documents_screen.dart';
@@ -185,6 +186,11 @@ List<RouteBase> get vendorRoutes => [
     path: '/vendor/profile/edit',
     name: 'vendorProfileEdit',
     builder: (context, state) => const VendorProfileEditScreen(),
+  ),
+  GoRoute(
+    path: '/vendor/profile/upi',
+    name: 'vendorUpi',
+    builder: (context, state) => const VendorUpiScreen(),
   ),
   GoRoute(
     path: '/vendor/reviews',

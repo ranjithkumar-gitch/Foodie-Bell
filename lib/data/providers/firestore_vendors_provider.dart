@@ -49,6 +49,7 @@ Map<String, dynamic> accountToVendorDoc(Account account) => {
   ),
   'status': account.status.name,
   'isOpen': account.isOpen,
+  'upiIds': account.upiIds,
 };
 
 Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
@@ -86,6 +87,7 @@ Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     },
     status: AccountStatus.values.byName(data['status'] as String? ?? 'active'),
     isOpen: data['isOpen'] as bool? ?? true,
+    upiIds: (data['upiIds'] as List<dynamic>? ?? const []).cast<String>(),
     deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
   );
 }
@@ -191,6 +193,12 @@ Future<void> updateVendorStatus(
 /// [Account.isOpen] to keep a closed vendor from being ordered from.
 Future<void> setVendorOpen(String vendorId, bool isOpen) =>
     vendorsCollection.doc(vendorId).update({'isOpen': isOpen});
+
+/// Vendor's own UPI IDs (`vendor_upi_screen.dart`) — the whole list is
+/// written at once since order matters (the first is the one customers
+/// pay to, see [Account.upiIds]).
+Future<void> setVendorUpiIds(String vendorId, List<String> upiIds) =>
+    vendorsCollection.doc(vendorId).update({'upiIds': upiIds});
 
 /// Vendor editing their own shop name/owner name/email/address
 /// (`vendor_profile_edit_screen.dart`) — territory/managerCode/category

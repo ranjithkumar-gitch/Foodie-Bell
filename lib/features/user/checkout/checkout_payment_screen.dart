@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/payments/razorpay_service.dart';
+import '../../../core/payments/upi_service.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/cart_item.dart';
@@ -13,18 +16,23 @@ import '../../../data/providers/firestore_addresses_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_tax_categories_provider.dart';
+import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../address_label_text.dart';
 import '../translation/translated_text.dart';
 
-/// Checkout – Payment Method (spec §4.10): Cash on Delivery, plus a single
-/// "UPI / Cards" option that hands off to Razorpay (`razorpay_service.dart`),
-/// where the User picks the actual method. Wallet is still shown but
-/// disabled ("Coming soon"). An online order is only written once
-/// Razorpay reports the payment succeeded — a cancelled/failed payment
-/// leaves the cart untouched and no `orders` doc behind.
+/// Checkout – Payment Method (spec §4.10): Cash on Delivery, plus one
+/// online option. When the vendor has a UPI ID on record
+/// (`Account.upiIds`), that option is "UPI": the User picks one of their
+/// installed UPI apps and pays the shop directly with the amount filled in
+/// (`upi_service.dart`). Otherwise it's "UPI / Cards" through Razorpay
+/// (`razorpay_service.dart`), where the User picks the actual method.
+/// Wallet is still shown but disabled ("Coming soon"). An online order is
+/// only written once the payment is reported successful — a
+/// cancelled/failed payment leaves the cart untouched and no `orders` doc
+/// behind.
 ///
 /// This line's GST, resolved from its product's tax category/override
 /// (`resolveProductGst`) and snapshotted onto the order at the moment it's
@@ -66,6 +74,87 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
     });
   }
 
+  /// Stops the order with [message] shown under the summary (or nothing,
+  /// when the User just backed out of the app picker).
+  void _stop([String? message]) {
+    if (!mounted) return;
+    setState(() {
+      _placingOrder = false;
+      _error = message;
+    });
+  }
+
+  /// Pays [total] to the vendor's [upiId] through a UPI app the User
+  /// picks. Returns the payment id to store on the order, or null — after
+  /// calling [_stop] — when the order shouldn't go ahead.
+  Future<String?> _collectUpiPayment({
+    required double total,
+    required String orderId,
+    required String upiId,
+    required String vendorName,
+  }) async {
+    final l10n = context.l10n;
+    UpiApp? app;
+    if (Platform.isAndroid) {
+      final apps = await installedUpiApps();
+      if (!mounted) return null;
+      if (apps.isEmpty) {
+        _stop(l10n.paymentNoUpiApp);
+        return null;
+      }
+      app = await showModalBottomSheet<UpiApp>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _UpiAppSheet(apps: apps, amount: total),
+      );
+      if (app == null) {
+        _stop();
+        return null;
+      }
+    }
+
+    final result = await payWithUpi(
+      app: app,
+      upiId: upiId,
+      payeeName: vendorName,
+      amount: total,
+      transactionRef: orderId,
+      note: 'Order $orderId',
+    );
+    if (!mounted) return null;
+
+    switch (result.status) {
+      case UpiStatus.success:
+        return result.transactionId ?? orderId;
+      case UpiStatus.unknown:
+        // iOS: the UPI app can't report back, so ask.
+        final paid = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(l10n.paymentUpiConfirmTitle),
+            content: Text(l10n.paymentUpiConfirmMessage),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text(l10n.paymentUpiConfirmNo)),
+              ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(l10n.paymentUpiConfirmYes)),
+            ],
+          ),
+        );
+        if (paid == true) return orderId;
+        _stop(l10n.paymentCancelled);
+        return null;
+      case UpiStatus.submitted:
+        _stop(l10n.paymentUpiPending(result.transactionId ?? orderId));
+        return null;
+      case UpiStatus.cancelled:
+        _stop(l10n.paymentCancelled);
+        return null;
+      case UpiStatus.failure:
+        _stop(l10n.paymentFailed);
+        return null;
+    }
+  }
+
   Future<void> _placeOrder(
     double subtotal,
     double deliveryFee,
@@ -75,6 +164,7 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
     String vendorId,
     double rebatePercent,
     List<TaxCategory> taxCategories,
+    String? vendorUpiId,
   ) async {
     setState(() {
       _placingOrder = true;
@@ -103,14 +193,31 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
           });
           return;
         }
-        paymentId = await ref.read(razorpayServiceProvider).pay(
-          amount: total,
-          orderId: orderId,
-          description: vendorName,
-          customerName: session.account?.name,
-          customerPhone: session.account?.phone,
-          customerEmail: session.account?.email,
-        );
+        if (_payment == PaymentMethod.upi) {
+          if (vendorUpiId == null) {
+            _stop(l10n.paymentFailed);
+            return;
+          }
+          paymentId = await _collectUpiPayment(
+            total: total,
+            orderId: orderId,
+            upiId: vendorUpiId,
+            vendorName: vendorName,
+          );
+          if (paymentId == null) return;
+        } else {
+          paymentId = await ref.read(razorpayServiceProvider).pay(
+            amount: total,
+            orderId: orderId,
+            description: vendorName,
+            customerName: session.account?.name,
+            customerPhone: session.account?.phone,
+            customerEmail: session.account?.email,
+          );
+        }
+      } on UpiAppNotFoundException {
+        _stop(l10n.paymentNoUpiApp);
+        return;
       } catch (e, st) {
         if (!mounted) return;
         final cancelled = e is RazorpayPaymentException && e.cancelled;
@@ -199,6 +306,12 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
     final vendorName = cart.items.isEmpty ? '' : cart.items.first.vendorName;
     final vendorId = cart.items.isEmpty ? '' : cart.items.first.vendorId;
     final rebatePercent = cart.items.isEmpty ? 0.0 : cart.items.first.rebatePercent;
+    final vendorUpiId = vendorId.isEmpty ? null : ref.watch(liveVendorAccountProvider(vendorId))?.primaryUpiId;
+    // With a vendor UPI ID, the online option is direct UPI; otherwise
+    // Razorpay. A selection of the one that isn't offered falls back to
+    // the one that is (e.g. the vendor removed their UPI ID mid-checkout).
+    final onlineMethod = vendorUpiId != null ? PaymentMethod.upi : PaymentMethod.online;
+    if (_payment != PaymentMethod.cod && _payment != onlineMethod) _payment = onlineMethod;
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.checkoutPaymentTitle)),
@@ -236,7 +349,10 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
               children: [
                 _PaymentTile(icon: Icons.payments_outlined, label: context.l10n.paymentCod, subtitle: context.l10n.paymentCodSubtitle, selected: _payment == PaymentMethod.cod, onTap: () => _selectPayment(PaymentMethod.cod)),
                 const SizedBox(height: 10),
-                _PaymentTile(icon: Icons.credit_card_rounded, label: context.l10n.paymentOnline, subtitle: context.l10n.paymentOnlineSubtitle, selected: _payment == PaymentMethod.online, onTap: () => _selectPayment(PaymentMethod.online)),
+                if (onlineMethod == PaymentMethod.upi)
+                  _PaymentTile(icon: Icons.qr_code_2_rounded, label: context.l10n.paymentUpi, subtitle: context.l10n.paymentUpiSubtitle, selected: _payment == PaymentMethod.upi, onTap: () => _selectPayment(PaymentMethod.upi))
+                else
+                  _PaymentTile(icon: Icons.credit_card_rounded, label: context.l10n.paymentOnline, subtitle: context.l10n.paymentOnlineSubtitle, selected: _payment == PaymentMethod.online, onTap: () => _selectPayment(PaymentMethod.online)),
                 const SizedBox(height: 10),
                 _PaymentTile(icon: Icons.account_balance_wallet_rounded, label: context.l10n.paymentWallet, subtitle: context.l10n.paymentComingSoon, selected: false, enabled: false, onTap: () {}),
               ],
@@ -287,7 +403,7 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
           child: ElevatedButton(
             onPressed: (cart.isEmpty || _placingOrder)
                 ? null
-                : () => _placeOrder(cart.subtotal, deliveryFee, gstAmount, total, vendorName, vendorId, rebatePercent, taxCategories),
+                : () => _placeOrder(cart.subtotal, deliveryFee, gstAmount, total, vendorName, vendorId, rebatePercent, taxCategories, vendorUpiId),
             child: _placingOrder
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4))
                 : Text(_payment == PaymentMethod.cod ? context.l10n.checkoutPlaceOrder(AppFormat.currency(total)) : context.l10n.checkoutPayAndPlaceOrder(AppFormat.currency(total))),
@@ -368,6 +484,55 @@ class _PaymentTile extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet listing the User's installed UPI apps; pops the one tapped.
+class _UpiAppSheet extends StatelessWidget {
+  const _UpiAppSheet({required this.apps, required this.amount});
+  final List<UpiApp> apps;
+  final double amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${context.l10n.paymentChooseUpiApp} · ${AppFormat.currency(amount)}',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final app in apps)
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      leading: app.icon != null
+                          ? Image.memory(app.icon!, width: 40, height: 40)
+                          : Icon(Icons.account_balance_wallet_rounded, size: 40, color: palette.primary),
+                      title: Text(app.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: palette.textPrimary)),
+                      trailing: Icon(Icons.chevron_right_rounded, color: palette.textMuted),
+                      onTap: () => Navigator.pop(context, app),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

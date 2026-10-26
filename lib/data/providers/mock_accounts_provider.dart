@@ -66,6 +66,13 @@ class AccountsNotifier extends StateNotifier<List<Account>> {
     ];
   }
 
+  void setUpiIds(String accountId, List<String> upiIds) {
+    state = [
+      for (final a in state)
+        if (a.id == accountId) a.copyWith(upiIds: upiIds) else a,
+    ];
+  }
+
   /// Mirrors `updateVendorDocumentStatus` for a Vendor account still only in
   /// this local mirror — Manager setting required/not-required, or Vendor
   /// marking their own submission.

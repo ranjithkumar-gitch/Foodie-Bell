@@ -19,55 +19,72 @@ import '../vendor_session.dart';
 /// and [VendorCategory] (`vendor_session.dart`), so a Pharmacy vendor's
 /// catalogue looks and behaves differently from a Food vendor's, and two
 /// different vendors logged in on two devices never see each other's data.
-class VendorCatalogueScreen extends ConsumerWidget {
+///
+/// Kept deliberately plain for small-town shop owners: a search box, then
+/// one simple row per product with its in-stock switch.
+class VendorCatalogueScreen extends ConsumerStatefulWidget {
   const VendorCatalogueScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VendorCatalogueScreen> createState() =>
+      _VendorCatalogueScreenState();
+}
+
+enum _Tool { global, categories, bulkUpload }
+
+class _VendorCatalogueScreenState extends ConsumerState<VendorCatalogueScreen> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final palette = context.colors;
     final vendorId = ref.watch(currentVendorIdProvider);
     final category = ref.watch(currentVendorCategoryProvider);
     final productsAsync = ref.watch(vendorProductsProvider(vendorId));
 
     return Scaffold(
+      backgroundColor: palette.background,
       appBar: AppBar(
-        title: const Text('Catalogue'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(28),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(category.icon, size: 15, color: palette.textMuted),
-                const SizedBox(width: 5),
-                Text(
-                  category.label,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: palette.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        title: const Text('Products'),
         actions: [
-          IconButton(
-            tooltip: 'Copy from Global Catalogue',
-            icon: const Icon(Icons.library_add_outlined),
-            onPressed: () => context.push('/vendor/catalogue/global'),
-          ),
-          IconButton(
-            tooltip: 'Category Manager',
-            icon: const Icon(Icons.category_outlined),
-            onPressed: () => context.push('/vendor/catalogue/categories'),
-          ),
-          IconButton(
-            tooltip: 'Bulk Upload',
-            icon: const Icon(Icons.upload_file_rounded),
-            onPressed: () => context.push('/vendor/catalogue/bulk-upload'),
+          PopupMenuButton<_Tool>(
+            tooltip: 'More options',
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (tool) => context.push(switch (tool) {
+              _Tool.global => '/vendor/catalogue/global',
+              _Tool.categories => '/vendor/catalogue/categories',
+              _Tool.bulkUpload => '/vendor/catalogue/bulk-upload',
+            }),
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: _Tool.global,
+                child: _MenuText(
+                  icon: Icons.library_add_outlined,
+                  text: 'Add from ready list',
+                ),
+              ),
+              PopupMenuItem(
+                value: _Tool.categories,
+                child: _MenuText(
+                  icon: Icons.category_outlined,
+                  text: 'Manage categories',
+                ),
+              ),
+              PopupMenuItem(
+                value: _Tool.bulkUpload,
+                child: _MenuText(
+                  icon: Icons.upload_file_outlined,
+                  text: 'Upload many products',
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -75,8 +92,8 @@ class VendorCatalogueScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
           child: Text(
-            'Couldn\'t load your catalogue.',
-            style: TextStyle(color: palette.error),
+            'Couldn\'t load your products.',
+            style: TextStyle(color: palette.error, fontSize: 15),
           ),
         ),
         data: (products) {
@@ -98,27 +115,106 @@ class VendorCatalogueScreen extends ConsumerWidget {
                   child: TextButton.icon(
                     onPressed: () => context.push('/vendor/catalogue/global'),
                     icon: const Icon(Icons.library_add_outlined),
-                    label: const Text('Copy from Global Catalogue'),
+                    label: const Text('Add from ready list'),
                   ),
                 ),
               ],
             );
           }
 
+          final q = _query.trim().toLowerCase();
+          final shown = q.isEmpty
+              ? products
+              : products.where((p) => p.name.toLowerCase().contains(q));
           final grouped = <String, List<Product>>{};
-          for (final p in products) {
+          for (final p in shown) {
             grouped.putIfAbsent(p.subCategory, () => []).add(p);
           }
+          final outOfStock = products.where((p) => !p.inStock).length;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
             children: [
+              TextField(
+                controller: _searchController,
+                onChanged: (v) => setState(() => _query = v),
+                textInputAction: TextInputAction.search,
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: 'Search products',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Clear',
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                        ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  outOfStock == 0
+                      ? '${products.length} products · all in stock'
+                      : '${products.length} products · $outOfStock out of stock',
+                  style: TextStyle(fontSize: 14, color: palette.textSecondary),
+                ),
+              ),
+              if (grouped.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 48),
+                  child: Center(
+                    child: Text(
+                      'No products match "${_query.trim()}"',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
               for (final entry in grouped.entries) ...[
-                Text(entry.key, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 10),
-                for (final product in entry.value)
-                  _ProductTile(product: product, vendorId: vendorId),
-                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+                  child: Text(
+                    entry.key,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                ),
+                Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < entry.value.length; i++) ...[
+                        if (i > 0)
+                          Divider(
+                            height: 1,
+                            indent: 84,
+                            color: palette.divider,
+                          ),
+                        _ProductRow(
+                          product: entry.value[i],
+                          vendorId: vendorId,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ],
           );
@@ -133,8 +229,29 @@ class VendorCatalogueScreen extends ConsumerWidget {
   }
 }
 
-class _ProductTile extends ConsumerWidget {
-  const _ProductTile({required this.product, required this.vendorId});
+class _MenuText extends StatelessWidget {
+  const _MenuText({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(width: 12),
+        Text(text, style: const TextStyle(fontSize: 15.5)),
+      ],
+    );
+  }
+}
+
+enum _ProductAction { edit, delete }
+
+/// Photo · name and price · in-stock switch · edit/delete menu. Tapping the
+/// row opens the edit screen.
+class _ProductRow extends ConsumerWidget {
+  const _ProductRow({required this.product, required this.vendorId});
 
   final Product product;
   final String vendorId;
@@ -142,31 +259,30 @@ class _ProductTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () =>
-            context.push('/vendor/catalogue/product/${product.id}/edit'),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: palette.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: palette.border),
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+    final inStock = product.inStock;
+    return InkWell(
+      onTap: () => context.push('/vendor/catalogue/product/${product.id}/edit'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Opacity(
+                opacity: inStock ? 1 : 0.4,
                 child: CachedNetworkImage(
                   imageUrl: product.imageUrl,
-                  width: 54,
-                  height: 54,
+                  width: 60,
+                  height: 60,
                   fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    width: 60,
+                    height: 60,
+                    color: palette.surfaceMuted,
+                  ),
                   errorWidget: (context, url, error) => Container(
-                    width: 54,
-                    height: 54,
+                    width: 60,
+                    height: 60,
                     color: palette.surfaceMuted,
                     child: Icon(
                       Icons.image_not_supported_outlined,
@@ -175,90 +291,82 @@ class _ProductTile extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (product.isVeg != null)
-                          Icon(
-                            Icons.circle,
-                            size: 10,
-                            color: product.isVeg!
-                                ? palette.success
-                                : palette.error,
-                          ),
-                        if (product.isVeg != null) const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            product.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: palette.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: palette.textPrimary,
                     ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${AppFormat.currency(product.price)} / ${product.unit}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                  if (!inStock) ...[
                     const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        CurrencyText(
-                          product.price,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: palette.primary,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '· ${product.unit}',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: palette.textMuted,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Out of stock',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: palette.error,
+                      ),
                     ),
                   ],
-                ),
+                ],
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Switch(
-                    value: product.inStock,
-                    onChanged: (v) => setProductStock(product.id, v),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+            ),
+            Switch(
+              value: inStock,
+              onChanged: (v) => setProductStock(product.id, v),
+            ),
+            PopupMenuButton<_ProductAction>(
+              tooltip: 'Edit or delete',
+              icon: Icon(Icons.more_vert_rounded, color: palette.textMuted),
+              onSelected: (action) => switch (action) {
+                _ProductAction.edit => context.push(
+                  '/vendor/catalogue/product/${product.id}/edit',
+                ),
+                _ProductAction.delete => _confirmDelete(context, ref),
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: _ProductAction.edit,
+                  child: _MenuText(icon: Icons.edit_outlined, text: 'Edit'),
+                ),
+                PopupMenuItem(
+                  value: _ProductAction.delete,
+                  child: Row(
                     children: [
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.edit_outlined, size: 19),
-                        onPressed: () => context.push(
-                          '/vendor/catalogue/product/${product.id}/edit',
-                        ),
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        size: 22,
+                        color: palette.error,
                       ),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          Icons.delete_outline_rounded,
-                          size: 19,
-                          color: palette.error,
-                        ),
-                        onPressed: () => _confirmDelete(context, ref),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Delete',
+                        style: TextStyle(fontSize: 15.5, color: palette.error),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -269,7 +377,7 @@ class _ProductTile extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete product?'),
-        content: Text('Remove "${product.name}" from your catalogue?'),
+        content: Text('Remove "${product.name}" from your products?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
