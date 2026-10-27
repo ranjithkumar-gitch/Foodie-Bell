@@ -11,10 +11,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/order.dart';
 import '../../data/providers/device_position_provider.dart';
+import '../../data/providers/firestore_drivers_provider.dart';
+import '../../data/providers/firestore_orders_provider.dart';
+import '../../data/providers/firestore_vendors_provider.dart';
 import '../../data/providers/geocode_provider.dart';
 import '../../data/providers/order_drop_off.dart';
-import '../../data/providers/firestore_drivers_provider.dart';
-import '../../data/providers/firestore_vendors_provider.dart';
 import '../../data/providers/road_route_provider.dart';
 import '../../l10n/app_localizations_context.dart';
 import 'mock_map_view.dart';
@@ -234,6 +235,16 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     LatLng? reported;
     if (driverId != null && widget.driverPosition != null) {
       reported = widget.driverPosition;
+    } else if (driverId != null && widget.viewerIsCustomer) {
+      // Customers follow their Driver through the position mirrored onto
+      // their own order — they can't read any Driver's record.
+      LatLng? positionOf(Order? o) =>
+          o?.driverLatitude == null || o?.driverLongitude == null ? null : LatLng(o!.driverLatitude!, o.driverLongitude!);
+      reported = positionOf(ref.watch(orderByIdProvider(order.id)).valueOrNull ?? order);
+      ref.listen(orderByIdProvider(order.id), (previous, next) {
+        final moved = positionOf(next.valueOrNull);
+        if (moved != null) _moveTo(moved);
+      });
     } else if (driverId != null) {
       final location = ref.watch(driverLocationProvider(driverId)).valueOrNull;
       if (location != null) reported = LatLng(location.latitude, location.longitude);

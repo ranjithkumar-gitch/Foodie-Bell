@@ -39,35 +39,10 @@ Category _categoryFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
   );
 }
 
-Future<void> _seedInitialCategoriesIfMissing() async {
-  final snapshot = await categoriesCollection.get();
-  if (snapshot.docs.isEmpty) {
-    final batch = FirebaseFirestore.instance.batch();
-    for (final category in MockCategories.seed) {
-      batch.set(categoriesCollection.doc(category.id), {
-        ..._categoryToDoc(category),
-        'createdAt': Timestamp.fromDate(DateTime(2024, 1, 1)),
-      });
-    }
-    await batch.commit();
-    return;
-  }
-  // Backfill for environments seeded before `subcategories` existed on this
-  // doc shape (e.g. this one, mid-development) — without this, Food's
-  // subcategory picker on Add Vendor would silently stay empty even though
-  // the seed data now defines options for it.
-  for (final category in MockCategories.seed) {
-    if (category.subcategories.isEmpty) continue;
-    final doc = snapshot.docs.where((d) => d.id == category.id).firstOrNull;
-    if (doc != null && doc.data()['subcategories'] == null) {
-      await categoriesCollection.doc(category.id).update({'subcategories': category.subcategories});
-    }
-  }
-}
-
-final firestoreCategoriesProvider = StreamProvider<List<Category>>((ref) async* {
-  await _seedInitialCategoriesIfMissing();
-  yield* categoriesCollection
+/// Categories are seeded and edited only by the Super Admin (QuickyAdmin) —
+/// this app just reads them.
+final firestoreCategoriesProvider = StreamProvider<List<Category>>((ref) {
+  return categoriesCollection
       .orderBy('sortOrder')
       .snapshots()
       .map((snapshot) => snapshot.docs.map(_categoryFromDoc).toList());

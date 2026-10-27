@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
 import '../../data/models/vendor_document.dart';
 import '../../data/providers/firestore_vendors_provider.dart';
+import '../../data/providers/kyc_document_url_provider.dart';
 import '../../data/providers/mock_accounts_provider.dart';
 import '../../data/providers/vendor_document_storage_provider.dart';
 import 'app_network_image.dart';
@@ -72,12 +73,12 @@ class _VendorDocumentChecklistState extends ConsumerState<VendorDocumentChecklis
 
     setState(() => _uploading.add(type));
     try {
-      final url = await uploadVendorDocument(widget.account.id, type, File(cropped.path));
+      final uploaded = await uploadVendorDocument(widget.account.id, type, File(cropped.path));
       if (widget.isFirestoreBacked) {
-        await updateVendorDocumentUrl(widget.account.id, type, url);
+        await updateVendorDocumentPath(widget.account.id, type, uploaded.path, coverPhotoUrl: uploaded.url);
         await updateVendorDocumentStatus(widget.account.id, type, VendorDocumentStatus.submitted);
       } else {
-        ref.read(mockAccountsProvider.notifier).updateDocumentUrl(widget.account.id, type, url);
+        ref.read(mockAccountsProvider.notifier).updateDocumentPath(widget.account.id, type, uploaded.path);
         ref.read(mockAccountsProvider.notifier).updateDocumentStatus(widget.account.id, type, VendorDocumentStatus.submitted);
       }
     } catch (_) {
@@ -107,10 +108,10 @@ class _VendorDocumentChecklistState extends ConsumerState<VendorDocumentChecklis
     try {
       await deleteVendorDocumentFile(widget.account.id, type);
       if (widget.isFirestoreBacked) {
-        await clearVendorDocumentUrl(widget.account.id, type);
+        await clearVendorDocumentPath(widget.account.id, type);
         await updateVendorDocumentStatus(widget.account.id, type, VendorDocumentStatus.required);
       } else {
-        ref.read(mockAccountsProvider.notifier).clearDocumentUrl(widget.account.id, type);
+        ref.read(mockAccountsProvider.notifier).clearDocumentPath(widget.account.id, type);
         ref.read(mockAccountsProvider.notifier).updateDocumentStatus(widget.account.id, type, VendorDocumentStatus.required);
       }
     } catch (_) {
@@ -131,7 +132,7 @@ class _VendorDocumentChecklistState extends ConsumerState<VendorDocumentChecklis
             _DocumentTile(
               type: type,
               status: widget.account.documentStatus(type),
-              imageUrl: widget.account.documentUrl(type),
+              imageUrl: watchKycDocumentUrl(ref, widget.account.documentPath(type)),
               uploading: _uploading.contains(type),
               onTap: widget.account.documentStatus(type) == VendorDocumentStatus.required ? () => _submit(type) : null,
               onView: (url) => DocumentViewerScreen.show(context, imageUrl: url, title: type.label),

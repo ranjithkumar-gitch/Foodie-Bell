@@ -627,6 +627,7 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
       final order = Order(
         id: generateOrderId(),
         vendorId: request.vendorId,
+        territoryId: ref.read(liveVendorAccountProvider(request.vendorId))?.territoryId,
         vendorName: request.vendorName,
         userId: request.userId,
         userName: request.userName,
@@ -652,8 +653,6 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
         placedAt: placedAt,
         statusTimestamps: {OrderStatus.placed: placedAt},
         rebatePercent: rebatePercent,
-        handoverCode: generateOrderCode(),
-        deliveryOtp: generateOrderCode(),
       );
       await acceptListOrderRequestAndCreateOrder(
         requestId: request.id,

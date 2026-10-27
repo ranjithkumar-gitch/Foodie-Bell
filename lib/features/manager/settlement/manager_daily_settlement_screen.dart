@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/session/access_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/order.dart';
@@ -41,7 +42,7 @@ class ManagerDailySettlementScreen extends ConsumerWidget {
 
   Future<void> _toggleReconciled(BuildContext context, WidgetRef ref, String vendorId, DateTime today, bool wasReconciled, String? managerId) async {
     try {
-      await setSettlementReconciled(vendorId, today, reconciled: !wasReconciled, managerId: managerId);
+      await setSettlementReconciled(vendorId, today, reconciled: !wasReconciled, managerId: managerId, territoryId: ref.read(accessScopeProvider)?.territoryId);
     } catch (e, st) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e, action: 'Updating reconciliation', stackTrace: st))));

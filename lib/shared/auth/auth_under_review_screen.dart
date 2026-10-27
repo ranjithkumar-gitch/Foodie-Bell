@@ -119,30 +119,6 @@ class AuthUnderReviewScreen extends ConsumerWidget {
           ] else if (role == AppRole.driver) ...[
             const SizedBox(height: 24),
             _DriverPendingChecklist(sessionAccount: session.account!),
-          ] else ...[
-            const SizedBox(height: 40),
-            Text('FOR DEMO PURPOSES ONLY', style: TextStyle(color: palette.textMuted, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 0.6)),
-            const SizedBox(height: 4),
-            Text(
-              "There's no real Manager/Admin on the other end in this demo — use the buttons below to simulate their decision.",
-              style: TextStyle(color: palette.textMuted, fontSize: 12),
-            ),
-            const SizedBox(height: 14),
-            ElevatedButton(
-              onPressed: () {
-                ref.read(sessionControllerProvider.notifier).setStage(AuthStage.active);
-                context.go('/${role.name}');
-              },
-              child: const Text('Simulate approval'),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton(
-              onPressed: () {
-                ref.read(sessionControllerProvider.notifier).setStage(AuthStage.rejected);
-                context.go('/auth/rejected');
-              },
-              child: const Text('Simulate rejection'),
-            ),
           ],
         ],
       ),

@@ -4,13 +4,14 @@ import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/session/account_resolver.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
 import '../widgets/country_code_picker.dart';
 import 'auth_navigation.dart';
 import 'auth_otp_screen.dart';
-import 'otp_config.dart';
+import 'phone_auth.dart';
 import 'user_registration_draft.dart';
 
 /// Phone entry for both the OTP-login path and the phone-verification step
@@ -26,16 +27,12 @@ import 'user_registration_draft.dart';
 /// (`firestore_vendors_provider.dart`, `firestore_users_provider.dart`) —
 /// never the `+91`-prefixed form Firebase itself uses.
 ///
-/// While `kUseDynamicOtp` is off (`otp_config.dart`), "Send OTP" skips
-/// Firebase entirely and just pushes straight to the OTP screen, which
-/// accepts the fixed [kDemoOtp] for any number. Once that flag flips on,
-/// this kicks off real Firebase phone verification instead — `codeSent`
-/// hands the opaque `verificationId` to [AuthOtpScreen] via go_router's
-/// `extra:` (it's not a display value, so a query param would be the wrong
-/// fit). Android's SMS auto-retrieval can skip manual entry entirely
-/// (`verificationCompleted`); when that fires this screen completes the
-/// sign-in itself via [completePhoneAuth] rather than still pushing the OTP
-/// screen.
+/// "Send OTP" starts real Firebase phone verification (`sendPhoneCode`,
+/// `phone_auth.dart`) and hands the opaque `verificationId` to
+/// [AuthOtpScreen] via go_router's `extra:` (it's not a display value, so a
+/// query param would be the wrong fit). Android can verify the number on its
+/// own before a code is even needed; then this screen finishes the sign-in
+/// itself via [completePhoneSignIn] instead of pushing the OTP screen.
 class AuthPhoneScreen extends ConsumerStatefulWidget {
   const AuthPhoneScreen({super.key, this.mode = 'login'});
 
@@ -85,54 +82,43 @@ class _AuthPhoneScreenState extends ConsumerState<AuthPhoneScreen> {
 
     final phone = '${_country.dialCode}$digits';
 
-    if (!kUseDynamicOtp) {
-      setState(() => _sending = false);
+    try {
+      final result = await sendPhoneCode(phone);
       if (!mounted) return;
-      context.push(
-        '/auth/otp?mode=${widget.mode}',
-        extra: OtpScreenArgs(verificationId: null, phoneNumber: phone),
-      );
-      return;
-    }
-
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: phone,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (credential) async {
-        try {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-        } on FirebaseAuthException catch (e) {
+      switch (result) {
+        case SmsCodeSent(:final verificationId, :final resendToken):
+          setState(() => _sending = false);
+          context.push(
+            '/auth/otp?mode=${widget.mode}',
+            extra: OtpScreenArgs(
+              verificationId: verificationId,
+              phoneNumber: phone,
+              resendToken: resendToken,
+            ),
+          );
+        case PhoneVerifiedAutomatically():
+          final outcome = await completePhoneSignIn(context, ref, widget.mode);
           if (!mounted) return;
           setState(() {
             _sending = false;
-            _error = e.message ?? 'Verification failed. Please try again.';
+            if (outcome == PhoneSignInOutcome.noAccount) {
+              _error = 'No account found for this number. Check the number, or register instead.';
+            }
           });
-          return;
-        }
-        if (!mounted) return;
-        await completePhoneAuth(context, ref, widget.mode);
-      },
-      verificationFailed: (e) {
-        if (!mounted) return;
-        setState(() {
-          _sending = false;
-          _error = e.message ?? 'Could not send the code. Please try again.';
-        });
-      },
-      codeSent: (verificationId, resendToken) {
-        if (!mounted) return;
-        setState(() => _sending = false);
-        context.push(
-          '/auth/otp?mode=${widget.mode}',
-          extra: OtpScreenArgs(
-            verificationId: verificationId,
-            phoneNumber: phone,
-            resendToken: resendToken,
-          ),
-        );
-      },
-      codeAutoRetrievalTimeout: (verificationId) {},
-    );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _error = phoneAuthErrorMessage(e);
+      });
+    } on AccountResolutionException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _error = e.message;
+      });
+    }
   }
 
   @override

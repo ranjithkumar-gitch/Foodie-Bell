@@ -4,7 +4,6 @@ import '../../data/models/account.dart';
 import '../../data/providers/cart_provider.dart';
 import '../../data/providers/firestore_addresses_provider.dart';
 import '../../data/providers/firestore_stream_reset.dart';
-import 'session_cache.dart';
 
 enum AuthStage { unauthenticated, pendingApproval, rejected, blocked, active }
 
@@ -37,8 +36,11 @@ class SessionState {
   final Account? account;
 }
 
-/// Mock, in-memory auth/session state — no real backend or tokens. Drives
-/// the router's `redirect:` and every role's Splash/Role-Selector/Logout flow.
+/// The signed-in [Account] and the [AuthStage] it lands on. Drives the
+/// router's `redirect:` and every role's Splash/Logout flow. Only ever filled
+/// from an account the server resolved for a phone-verified Firebase user
+/// (`account_resolver.dart`) — nothing here can pick a role or account by
+/// itself.
 class SessionController extends StateNotifier<SessionState> {
   SessionController(this._ref) : super(const SessionState());
 
@@ -47,18 +49,16 @@ class SessionController extends StateNotifier<SessionState> {
   void selectRole(AppRole role) => state = SessionState(role: role);
 
   /// Existing-account sign-in — phone+OTP for every role reachable in this
-  /// app now (Manager included; Admin is email+password but only ever
-  /// signs in via the separate QuickyAdmin app, never here). The credential
-  /// check always succeeds in this demo, but the resulting stage follows
-  /// the matched account's real [AccountStatus] — a Vendor a Manager
+  /// app (Manager included; Admin is email+password but only ever signs in
+  /// via the separate QuickyAdmin app, never here). The resulting stage
+  /// follows the resolved account's real [AccountStatus] — a Vendor a Manager
   /// created `pendingReview` (see `manager_vendor_create_screen.dart`)
   /// lands on "Account under review" rather than straight into their
   /// dashboard, same as a freshly self-registered Vendor/Driver would via
-  /// [completeRegistration]. [account] must be a real match the caller
-  /// looked up against Firestore (`resolveAccountAcrossRoles`,
-  /// `auth_navigation.dart`) — unlike [completeRegistration], this never
-  /// falls back to a fixed demo identity: a login with no real match is a
-  /// no-op, not a silent sign-in as someone else.
+  /// [completeRegistration]. [account] must be the one the server resolved
+  /// for the verified phone sign-in (`account_resolver.dart`, via
+  /// `completeResolvedLogin` in `auth_navigation.dart`) — a null account is
+  /// a no-op, never a silent sign-in as someone else.
   void completeLogin({Account? account}) {
     final role = state.role;
     if (role == null || account == null) return;
@@ -71,14 +71,14 @@ class SessionController extends StateNotifier<SessionState> {
     if (role == AppRole.user)
       _ref.read(cartProvider.notifier).loadForUser(account.id);
     state = SessionState(role: role, stage: stage, account: account);
-    _cacheSession(account);
   }
 
   /// New-account registration. User/Admin activate immediately; Vendor/Driver
   /// go to pending-approval per the platform's Manager-Code review flow.
-  /// [account] must be a real record the caller just created (e.g. User's
-  /// own Firestore `users` doc — see `auth_terms_screen.dart`) — like
-  /// [completeLogin], this never falls back to a fixed demo identity.
+  /// [account] must be a real record the server just created — like
+  /// [completeLogin], this never falls back to a fixed demo identity. (User
+  /// registration goes through `registerCustomerAccount` and
+  /// [completeLogin] now, so this only serves the wizard case below.)
   /// Vendor/Driver's own "Become a Vendor/Driver" self-registration wizard
   /// doesn't create one yet (it isn't wired to Firestore), so calling this
   /// with no account for those roles is a no-op rather than a fake sign-in.
@@ -97,24 +97,6 @@ class SessionController extends StateNotifier<SessionState> {
     if (role == AppRole.user)
       _ref.read(cartProvider.notifier).loadForUser(resolvedAccount.id);
     state = SessionState(role: role, stage: stage, account: resolvedAccount);
-    _cacheSession(resolvedAccount);
-  }
-
-  /// Persists [account]'s phone (`session_cache.dart`) so a cold start can
-  /// restore this session — the counterpart read lives in
-  /// `splash_screen.dart`. A no-op for a blank phone (shouldn't happen for
-  /// a real account, but cheap insurance against ever caching an empty
-  /// string that could spuriously "match" another blank-phone account).
-  void _cacheSession(Account account) {
-    if (account.phone.isNotEmpty) saveCachedSessionPhone(account.phone);
-  }
-
-  /// Lets the "Account Under Review" screen simulate a Manager approving it,
-  /// since there's no second device/role in this single-app demo.
-  void setStage(AuthStage stage) {
-    final role = state.role;
-    if (role == null) return;
-    state = SessionState(role: role, stage: stage, account: state.account);
   }
 
   /// Re-derives `stage` from a freshly-fetched [account] (same status→stage
@@ -148,9 +130,6 @@ class SessionController extends StateNotifier<SessionState> {
     // previous User's checkout address pre-selected.
     _ref.read(selectedAddressProvider.notifier).state = null;
     state = const SessionState();
-    // Otherwise splash_screen.dart would restore this same session right
-    // back on the next cold start, as if logout had never happened.
-    clearCachedSessionPhone();
   }
 }
 

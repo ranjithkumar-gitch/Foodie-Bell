@@ -31,6 +31,12 @@ class DriverLocationTracker {
   /// [setOnDelivery].
   bool _onDelivery = false;
 
+  /// The deliveries in progress (assigned or picked up). Each report is
+  /// also written onto these orders, which is how their Customers follow
+  /// the Driver — Customers can read their own order, never a Driver's
+  /// record.
+  Set<String> activeOrderIds = const {};
+
   /// The stream only fires after a 10 m move, so a Driver standing still
   /// (waiting at the vendor, at a signal) would otherwise stop writing and
   /// the customer's map would wrongly flag their location as stale. This
@@ -200,6 +206,13 @@ class DriverLocationTracker {
     } catch (e, st) {
       debugPrint('driver_location_tracker: update($driverId) failed: $e\n$st');
     }
+    for (final orderId in activeOrderIds) {
+      try {
+        await updateOrderDriverLocation(orderId, latitude: position.latitude, longitude: position.longitude);
+      } catch (e, st) {
+        debugPrint('driver_location_tracker: order($orderId) update failed: $e\n$st');
+      }
+    }
   }
 }
 
@@ -252,16 +265,20 @@ final _trackedDriverIdProvider = Provider<String?>((ref) {
   return tracked ? account.id : null;
 });
 
-/// True while the signed-in Driver has a delivery in progress (assigned or
-/// picked up) — what switches [DriverLocationTracker] into background mode.
-final _trackedDriverOnDeliveryProvider = Provider<bool>((ref) {
+/// The signed-in Driver's deliveries in progress (assigned or picked up).
+final _trackedActiveOrderIdsProvider = Provider<Set<String>>((ref) {
   final driverId = ref.watch(_trackedDriverIdProvider);
-  if (driverId == null) return false;
+  if (driverId == null) return const {};
   final orders = ref.watch(firestoreOrdersProvider).valueOrNull ?? const [];
-  return orders.any(
-    (o) => o.driverId == driverId && (o.status == OrderStatus.driverAssigned || o.status == OrderStatus.pickedUp),
-  );
+  return {
+    for (final o in orders)
+      if (o.driverId == driverId && (o.status == OrderStatus.driverAssigned || o.status == OrderStatus.pickedUp)) o.id,
+  };
 });
+
+/// True while the signed-in Driver has a delivery in progress — what
+/// switches [DriverLocationTracker] into background mode.
+final _trackedDriverOnDeliveryProvider = Provider<bool>((ref) => ref.watch(_trackedActiveOrderIdsProvider).isNotEmpty);
 
 /// Starts/stops [DriverLocationTracker] as a Driver session begins and ends,
 /// and flips its background mode as deliveries start and finish — called
@@ -274,11 +291,15 @@ void listenForDriverLocationTracking(WidgetRef ref) {
     if (next == null) {
       tracker.stop();
     } else {
+      tracker.activeOrderIds = ref.read(_trackedActiveOrderIdsProvider);
       tracker.start(next).then((_) => tracker.setOnDelivery(ref.read(_trackedDriverOnDeliveryProvider)));
     }
   });
   ref.listen<bool>(_trackedDriverOnDeliveryProvider, (previous, next) {
     if (previous == next) return;
     ref.read(driverLocationTrackerProvider).setOnDelivery(next);
+  });
+  ref.listen<Set<String>>(_trackedActiveOrderIdsProvider, (previous, next) {
+    ref.read(driverLocationTrackerProvider).activeOrderIds = next;
   });
 }

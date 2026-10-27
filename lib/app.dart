@@ -7,6 +7,7 @@ import 'core/notifications/fcm_topics.dart';
 import 'core/notifications/foreground_notification_handler.dart';
 import 'core/router/app_router.dart';
 import 'core/router/exit_confirm_back_button_dispatcher.dart';
+import 'core/session/claim_sync.dart';
 import 'core/theme/app_theme.dart';
 import 'features/driver/driver_location_tracker.dart';
 import 'features/user/home/selected_territory_provider.dart';
@@ -27,6 +28,7 @@ class QuickyApp extends ConsumerWidget {
     listenForAccountTopicSync(ref);
     listenForDriverTerritoryTopicSync(ref);
     listenForDriverLocationTracking(ref);
+    listenForClaimChanges(ref);
     return MaterialApp.router(
       title: 'Quicky',
       scaffoldMessengerKey: rootScaffoldMessengerKey,

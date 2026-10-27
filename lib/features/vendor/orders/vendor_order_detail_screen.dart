@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/providers/order_codes_provider.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
@@ -129,7 +130,7 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Text(order.handoverCode, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 26, letterSpacing: 3)),
+                Text(ref.watch(orderHandoverCodeProvider(order.id)).valueOrNull ?? '····', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 26, letterSpacing: 3)),
               ],
             ),
           ),

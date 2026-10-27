@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
+import '../../../data/providers/kyc_document_url_provider.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
@@ -108,7 +109,7 @@ class _ManagerVendorDetailScreenState extends ConsumerState<ManagerVendorDetailS
     if (account == null) {
       return Scaffold(appBar: AppBar(title: const Text('Vendor')), body: const Center(child: Text('Vendor not found.')));
     }
-    final coverUrl = account.documentUrl(VendorDocumentType.shopFrontPhoto);
+    final coverUrl = account.coverPhotoUrl;
     return Scaffold(
       appBar: AppBar(title: Text(account.name)),
       body: ListView(
@@ -171,7 +172,7 @@ class _ManagerVendorDetailScreenState extends ConsumerState<ManagerVendorDetailS
             _DocumentTile(
               type: type,
               status: account.documentStatus(type),
-              imageUrl: account.documentUrl(type),
+              imageUrl: watchKycDocumentUrl(ref, account.documentPath(type)),
               onChanged: (status) => _setDocumentStatus(account, isFirestoreBacked, type, status),
             ),
           const SizedBox(height: 24),

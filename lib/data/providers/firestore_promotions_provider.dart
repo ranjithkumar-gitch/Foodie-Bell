@@ -97,6 +97,7 @@ Future<void> requestPromotion({
   required String vendorId,
   required String vendorName,
   required String territory,
+  required String? territoryId,
   required DateTime startDate,
   required int durationDays,
   required double price,
@@ -105,8 +106,8 @@ Future<void> requestPromotion({
   String? category,
   String? tagline,
   String? discountLabel,
-}) => promotionsCollection.add(
-  _promotionToDoc(
+}) => promotionsCollection.add({
+  ..._promotionToDoc(
     Promotion(
       id: '',
       vendorId: vendorId,
@@ -123,7 +124,10 @@ Future<void> requestPromotion({
       price: price,
     ),
   ),
-);
+  // The territory whose Manager reviews it (firestore.rules checks it's the
+  // Vendor's own).
+  'territoryId': territoryId,
+});
 
 /// Admin-created promotion (`admin_promotion_create_screen.dart`) — unlike
 /// [requestPromotion] (a Vendor's request, which starts `pending` and waits

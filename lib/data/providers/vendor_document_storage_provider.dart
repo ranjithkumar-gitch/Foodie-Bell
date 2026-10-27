@@ -11,10 +11,13 @@ import '../models/vendor_document.dart';
 Reference _vendorDocumentRef(String vendorId, VendorDocumentType type) =>
     FirebaseStorage.instance.ref('vendor_documents/$vendorId/${type.name}.jpg');
 
-Future<String> uploadVendorDocument(String vendorId, VendorDocumentType type, File file) async {
+/// Uploads a KYC document and returns its Storage [path] — what the vendor
+/// record keeps (see `Account.documentPaths`) — plus a download [url], used
+/// only for the shop-front photo's public storefront copy.
+Future<({String path, String url})> uploadVendorDocument(String vendorId, VendorDocumentType type, File file) async {
   final ref = _vendorDocumentRef(vendorId, type);
   await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
-  return ref.getDownloadURL();
+  return (path: ref.fullPath, url: await ref.getDownloadURL());
 }
 
 Future<void> deleteVendorDocumentFile(String vendorId, VendorDocumentType type) async {

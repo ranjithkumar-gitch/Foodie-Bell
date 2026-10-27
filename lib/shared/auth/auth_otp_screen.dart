@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,17 +7,16 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/session/account_resolver.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/otp_input_field.dart';
 import 'auth_navigation.dart';
-import 'otp_config.dart';
+import 'phone_auth.dart';
 
-/// Passed from [AuthPhoneScreen]/the unified login screen via go_router's
-/// `extra:` — `verificationId` is an opaque Firebase token, not a display
-/// value, so it doesn't belong in a query param. Null while `kUseDynamicOtp`
-/// is off (`otp_config.dart`), since there's no real Firebase verification
-/// happening yet. `phoneNumber`/`resendToken` are needed to re-trigger
-/// `verifyPhoneNumber` on "Resend code" once that's back on.
+/// Passed from the login/phone screens via go_router's `extra:` —
+/// `verificationId` is an opaque Firebase token, not a display value, so it
+/// doesn't belong in a query param. `phoneNumber`/`resendToken` let "Resend
+/// code" re-run `verifyPhoneNumber` as a proper resend.
 class OtpScreenArgs {
   const OtpScreenArgs({
     required this.verificationId,
@@ -24,21 +24,21 @@ class OtpScreenArgs {
     this.resendToken,
   });
 
-  final String? verificationId;
+  final String verificationId;
   final String phoneNumber;
   final int? resendToken;
 }
 
-/// While `kUseDynamicOtp` is off, checks the entered code against the fixed
-/// [kDemoOtp] and completes login/registration directly — no Firebase
-/// credential involved, so `completePhoneAuth` gets the phone number
-/// straight from [OtpScreenArgs] instead of reading
-/// `FirebaseAuth.instance.currentUser`. Once that flag is on, this verifies
-/// against Firebase Auth's real SMS verification instead. Either way,
-/// success either completes login directly (login mode) or hands off to
-/// the Terms gate before registration completes (register mode) — see
-/// [AuthTermsScreen]'s doc comment for why the terms step sits after OTP
-/// rather than before it.
+/// Verifies the SMS code with Firebase Phone Auth, then hands off to
+/// [completePhoneSignIn], which asks the server which account (if any) this
+/// verified number belongs to. Login lands on that account; register mode
+/// goes on to the Terms gate (see [AuthTermsScreen]'s doc comment for why
+/// terms come after OTP) unless the number already has an account.
+///
+/// Android may verify the number on its own (SMS auto-retrieval) while this
+/// screen is up — that sign-in happens in `sendPhoneCode`
+/// (`phone_auth.dart`), and this screen picks it up from
+/// `authStateChanges()` the same as a typed code.
 ///
 /// Bespoke layout, not [AuthHeroScaffold] — mirrors `auth_login_screen.dart`/
 /// `auth_register_screen.dart`'s visual language exactly: `login_bg1.png` +
@@ -64,116 +64,114 @@ class AuthOtpScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
-  late String? _verificationId = widget.args.verificationId;
+  late String _verificationId = widget.args.verificationId;
+  late int? _resendToken = widget.args.resendToken;
+  StreamSubscription<User?>? _authSub;
   String? _error;
   bool _verifying = false;
+  bool _finishing = false;
+
+  /// The code went through but the server couldn't be reached afterwards —
+  /// the verified sign-in is kept, so "Try again" only needs to redo the
+  /// account lookup, not re-enter a (now used) code.
+  bool _canRetryLookup = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null && user.phoneNumber == widget.args.phoneNumber && !_verifying) {
+        _finish();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
 
   Future<void> _onCompleted(String code) async {
+    if (_verifying || _finishing) return;
     setState(() {
       _verifying = true;
       _error = null;
+      _canRetryLookup = false;
     });
-
-    if (!kUseDynamicOtp) {
-      if (code != kDemoOtp) {
-        if (!mounted) return;
-        setState(() {
-          _verifying = false;
-          _error = 'Incorrect code. Please try again.';
-        });
-        return;
-      }
-      if (!mounted) return;
-      await _completePhoneAuth(phoneOverride: widget.args.phoneNumber);
-      return;
-    }
-
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: code,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      await signInWithPhoneCode(_verificationId, code);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
         _verifying = false;
-        _error = e.code == 'invalid-verification-code'
-            ? 'Incorrect code. Please try again.'
-            : (e.message ?? 'Verification failed.');
+        _error = phoneAuthErrorMessage(e);
       });
       return;
     }
-    if (!mounted) return;
-    await _completePhoneAuth();
+    await _finish();
   }
 
-  /// Wraps [completePhoneAuth] so a lookup failure (e.g. the Firestore
-  /// `vendors` query in `auth_navigation.dart`) shows an error and resets
-  /// the spinner instead of leaving the screen stuck on `_verifying: true`
-  /// with no feedback — and, for the unified login screen's path (no role
-  /// pre-picked), so a phone that matches no account anywhere shows a real
-  /// "no account found" error instead of the old role-first flow's
-  /// demo-account fallback (`completePhoneAuth` only returns `false` in
-  /// that one case — see its own doc comment).
-  Future<void> _completePhoneAuth({String? phoneOverride}) async {
+  /// Runs at most once at a time, whichever of a typed code or Android's
+  /// auto-retrieval gets there first.
+  Future<void> _finish() async {
+    if (_finishing || !mounted) return;
+    setState(() {
+      _finishing = true;
+      _verifying = true;
+      _error = null;
+      _canRetryLookup = false;
+    });
     try {
-      final resolved = await completePhoneAuth(
-        context,
-        ref,
-        widget.mode,
-        phoneOverride: phoneOverride,
-      );
-      if (!resolved && mounted) {
-        setState(() {
-          _verifying = false;
-          _error =
-              "No account found for this number. Check the number, or register instead.";
-        });
+      final outcome = await completePhoneSignIn(context, ref, widget.mode);
+      if (outcome == PhoneSignInOutcome.noAccount && mounted) {
+        setState(() => _error = 'No account found for this number. Check the number, or register instead.');
       }
-    } catch (e, st) {
-      debugPrint('completePhoneAuth failed: $e\n$st');
+    } on AccountResolutionException catch (e) {
       if (!mounted) return;
       setState(() {
-        _verifying = false;
-        _error = 'Something went wrong. Please try again.';
+        _error = e.message;
+        _canRetryLookup = true;
       });
+    } catch (e, st) {
+      debugPrint('completePhoneSignIn failed: $e\n$st');
+      if (!mounted) return;
+      setState(() {
+        _error = 'Something went wrong. Please try again.';
+        _canRetryLookup = true;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _finishing = false;
+          _verifying = false;
+        });
+      }
     }
   }
 
   Future<void> _onResend() async {
-    if (!kUseDynamicOtp) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Demo mode — use $kDemoOtp.')));
-      return;
+    setState(() {
+      _error = null;
+      _canRetryLookup = false;
+    });
+    try {
+      final result = await sendPhoneCode(widget.args.phoneNumber, resendToken: _resendToken);
+      if (!mounted) return;
+      switch (result) {
+        case SmsCodeSent(:final verificationId, :final resendToken):
+          setState(() {
+            _verificationId = verificationId;
+            _resendToken = resendToken;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A new code is on its way.')));
+        case PhoneVerifiedAutomatically():
+          await _finish();
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = phoneAuthErrorMessage(e));
     }
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: widget.args.phoneNumber,
-      forceResendingToken: widget.args.resendToken,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (credential) async {
-        try {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-        } on FirebaseAuthException {
-          return;
-        }
-        if (!mounted) return;
-        await _completePhoneAuth();
-      },
-      verificationFailed: (e) {
-        if (!mounted) return;
-        setState(() => _error = e.message ?? 'Could not resend the code.');
-      },
-      codeSent: (verificationId, resendToken) {
-        if (!mounted) return;
-        setState(() {
-          _verificationId = verificationId;
-          _error = null;
-        });
-      },
-      codeAutoRetrievalTimeout: (verificationId) {},
-    );
   }
 
   @override
@@ -411,43 +409,6 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 20),
-                                    if (!kUseDynamicOtp) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: palette.primary.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.info_outline_rounded,
-                                              size: 16,
-                                              color: palette.primary,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Demo mode — use $kDemoOtp.',
-                                              style: TextStyle(
-                                                color: palette.primary,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 12.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 20),
-                                    ],
                                     Center(
                                       child: OtpInputField(
                                         onCompleted: _onCompleted,
@@ -487,6 +448,11 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                           ),
                                         ),
                                       ),
+                                      if (_canRetryLookup && !_verifying)
+                                        TextButton(
+                                          onPressed: _finish,
+                                          child: const Text('Try again'),
+                                        ),
                                     ],
                                   ],
                                 ),

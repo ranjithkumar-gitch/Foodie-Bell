@@ -83,21 +83,21 @@ class AccountsNotifier extends StateNotifier<List<Account>> {
     ];
   }
 
-  /// Mirrors `updateVendorDocumentUrl` for a Vendor account still only in
+  /// Mirrors `updateVendorDocumentPath` for a Vendor account still only in
   /// this local mirror — set once a real upload
   /// (`vendor_document_storage_provider.dart`) succeeds.
-  void updateDocumentUrl(String accountId, VendorDocumentType type, String url) {
+  void updateDocumentPath(String accountId, VendorDocumentType type, String url) {
     state = [
       for (final a in state)
-        if (a.id == accountId) a.copyWith(documentUrls: {...a.documentUrls, type: url}) else a,
+        if (a.id == accountId) a.copyWith(documentPaths: {...a.documentPaths, type: url}) else a,
     ];
   }
 
-  /// Mirrors `clearVendorDocumentUrl` — Vendor deleting their own upload.
-  void clearDocumentUrl(String accountId, VendorDocumentType type) {
+  /// Mirrors `clearVendorDocumentPath` — Vendor deleting their own upload.
+  void clearDocumentPath(String accountId, VendorDocumentType type) {
     state = [
       for (final a in state)
-        if (a.id == accountId) a.copyWith(documentUrls: {...a.documentUrls}..remove(type)) else a,
+        if (a.id == accountId) a.copyWith(documentPaths: {...a.documentPaths}..remove(type)) else a,
     ];
   }
 
@@ -110,21 +110,21 @@ class AccountsNotifier extends StateNotifier<List<Account>> {
     ];
   }
 
-  /// Mirrors `updateVendorDocumentUrl` for a Driver account still only in
+  /// Mirrors `updateVendorDocumentPath` for a Driver account still only in
   /// this local mirror.
-  void updateDriverDocumentUrl(String accountId, DriverDocumentType type, String url) {
+  void updateDriverDocumentPath(String accountId, DriverDocumentType type, String url) {
     state = [
       for (final a in state)
-        if (a.id == accountId) a.copyWith(driverDocumentUrls: {...a.driverDocumentUrls, type: url}) else a,
+        if (a.id == accountId) a.copyWith(driverDocumentPaths: {...a.driverDocumentPaths, type: url}) else a,
     ];
   }
 
-  /// Mirrors `clearVendorDocumentUrl` for a Driver account still only in
+  /// Mirrors `clearVendorDocumentPath` for a Driver account still only in
   /// this local mirror.
-  void clearDriverDocumentUrl(String accountId, DriverDocumentType type) {
+  void clearDriverDocumentPath(String accountId, DriverDocumentType type) {
     state = [
       for (final a in state)
-        if (a.id == accountId) a.copyWith(driverDocumentUrls: {...a.driverDocumentUrls}..remove(type)) else a,
+        if (a.id == accountId) a.copyWith(driverDocumentPaths: {...a.driverDocumentPaths}..remove(type)) else a,
     ];
   }
 
@@ -141,14 +141,14 @@ class AccountsNotifier extends StateNotifier<List<Account>> {
   /// local mirror — one atomic update for the Driver's "Upload"
   /// confirmation, applying every staged document plus consent together
   /// instead of one field at a time.
-  void submitDriverDocuments(String accountId, Map<DriverDocumentType, String> documentUrls, {bool? riskConsentAccepted}) {
-    if (documentUrls.isEmpty && riskConsentAccepted != true) return;
+  void submitDriverDocuments(String accountId, Map<DriverDocumentType, String> documentPaths, {bool? riskConsentAccepted}) {
+    if (documentPaths.isEmpty && riskConsentAccepted != true) return;
     state = [
       for (final a in state)
         if (a.id == accountId)
           a.copyWith(
-            driverDocumentStatuses: {...a.driverDocumentStatuses, for (final type in documentUrls.keys) type: VendorDocumentStatus.submitted},
-            driverDocumentUrls: {...a.driverDocumentUrls, ...documentUrls},
+            driverDocumentStatuses: {...a.driverDocumentStatuses, for (final type in documentPaths.keys) type: VendorDocumentStatus.submitted},
+            driverDocumentPaths: {...a.driverDocumentPaths, ...documentPaths},
             riskConsentAccepted: riskConsentAccepted == true ? true : a.riskConsentAccepted,
           )
         else

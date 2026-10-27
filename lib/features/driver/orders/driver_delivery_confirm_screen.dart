@@ -1,19 +1,21 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/providers/order_codes_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_text_field.dart';
 
-/// Delivery Confirmation (spec §6 item 11): OTP entry compared to this
-/// order's `deliveryOtp` (shown to the User on their own tracking screen),
-/// OR a photo-proof-of-delivery affordance as a fallback when the customer
-/// isn't reachable for the code. Either path performs the `pickedUp ->
-/// delivered` transition this role owns.
+/// Delivery Confirmation (spec §6 item 11): the customer reads the driver
+/// the delivery code shown on their own tracking screen. The server checks
+/// it (`confirmDeliveryCode`) and performs the `pickedUp -> delivered`
+/// transition — the Driver's app never sees the code itself, and there's no
+/// way to mark an order delivered without it. If the customer can't be
+/// reached, the Driver contacts their Manager instead.
 class DriverDeliveryConfirmScreen extends ConsumerStatefulWidget {
   const DriverDeliveryConfirmScreen({super.key, required this.orderId});
 
@@ -25,8 +27,8 @@ class DriverDeliveryConfirmScreen extends ConsumerStatefulWidget {
 
 class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConfirmScreen> {
   final _otpController = TextEditingController();
-  String? _photoFileName;
   String? _error;
+  bool _confirming = false;
 
   @override
   void dispose() {
@@ -34,24 +36,25 @@ class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConf
     super.dispose();
   }
 
-  Future<void> _pickProofPhoto() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 70);
-    if (picked != null) setState(() => _photoFileName = picked.name);
-  }
-
   Future<void> _markDelivered(Order order) async {
-    final otpMatches = _otpController.text.trim() == order.deliveryOtp;
-    if (!otpMatches && _photoFileName == null) {
-      setState(() => _error = 'Enter the delivery OTP, or attach a photo of the handover as proof.');
-      return;
-    }
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _confirming = true;
+    });
     try {
-      await updateOrderStatus(order.id, OrderStatus.delivered);
+      final check = await confirmDeliveryCode(order.id, _otpController.text.trim());
+      if (!mounted) return;
+      if (!check.ok) {
+        setState(() => _error = 'Incorrect code. Ask the customer for the delivery code on their tracking screen.'
+            '${check.attemptsLeft == null ? '' : ' ${check.attemptsLeft} tries left.'}');
+        return;
+      }
     } catch (e, st) {
       if (!mounted) return;
-      setState(() => _error = friendlyError(e, action: 'Confirming delivery', stackTrace: st));
+      setState(() => _error = _codeError(e, action: 'Confirming delivery', stackTrace: st));
       return;
+    } finally {
+      if (mounted) setState(() => _confirming = false);
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Order ${order.id} delivered — nice work!')));
@@ -79,7 +82,7 @@ class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConf
           const SizedBox(height: 16),
           Text('Confirm handover to ${order.userName}', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
-          Text('Ask the customer for their delivery OTP, or attach a photo of the handover if they\'re unavailable.', style: Theme.of(context).textTheme.bodyMedium),
+          Text('Ask the customer for the delivery code on their tracking screen. If they can\'t be reached, contact your Manager.', style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 24),
           AppTextField(
             label: 'Delivery OTP',
@@ -87,37 +90,6 @@ class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConf
             hint: '4-digit code',
             keyboardType: TextInputType.number,
             prefixIcon: Icons.password_rounded,
-          ),
-          const SizedBox(height: 20),
-          Row(children: [Expanded(child: Divider(color: palette.border)), Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text('OR', style: TextStyle(color: palette.textMuted, fontWeight: FontWeight.w700))), Expanded(child: Divider(color: palette.border))]),
-          const SizedBox(height: 20),
-          InkWell(
-            onTap: _pickProofPhoto,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _photoFileName != null ? palette.primaryLight.withValues(alpha: 0.14) : palette.surfaceMuted,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _photoFileName != null ? palette.primary : palette.border),
-              ),
-              child: Row(
-                children: [
-                  Icon(_photoFileName != null ? Icons.check_circle_rounded : Icons.camera_alt_outlined, color: _photoFileName != null ? palette.primary : palette.textSecondary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Photo proof of delivery', style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary)),
-                        const SizedBox(height: 2),
-                        Text(_photoFileName ?? 'Tap to capture a photo', style: TextStyle(fontSize: 12.5, color: _photoFileName != null ? palette.primary : palette.textSecondary), overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 14),
@@ -128,9 +100,13 @@ class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConf
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-          child: ElevatedButton(onPressed: () => _markDelivered(order), child: const Text('Mark Delivered')),
+          child: ElevatedButton(onPressed: _confirming ? null : () => _markDelivered(order), child: const Text('Mark Delivered')),
         ),
       ),
     );
   }
 }
+
+String _codeError(Object e, {required String action, StackTrace? stackTrace}) => e is FirebaseFunctionsException
+    ? (e.message ?? 'Could not confirm. Please try again.')
+    : friendlyError(e, action: action, stackTrace: stackTrace);

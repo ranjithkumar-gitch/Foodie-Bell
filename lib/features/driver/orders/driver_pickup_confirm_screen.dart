@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,13 +6,15 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/providers/order_codes_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_text_field.dart';
 
-/// Active Delivery — Pickup Confirmation (spec §6 item 9): the vendor hands
-/// the driver a handover code at pickup; entering it here (matched against
-/// this specific order's `handoverCode`, NOT the shared demo OTP) performs
-/// the `driverAssigned -> pickedUp` transition this role owns.
+/// Active Delivery — Pickup Confirmation (spec §6 item 9): the vendor reads
+/// the driver this order's handover code at pickup. The code is checked by
+/// the server (`confirmPickupCode`), which also performs the
+/// `driverAssigned -> pickedUp` transition — the Driver's app never sees the
+/// code itself.
 class DriverPickupConfirmScreen extends ConsumerStatefulWidget {
   const DriverPickupConfirmScreen({super.key, required this.orderId});
 
@@ -24,6 +27,7 @@ class DriverPickupConfirmScreen extends ConsumerStatefulWidget {
 class _DriverPickupConfirmScreenState extends ConsumerState<DriverPickupConfirmScreen> {
   final _codeController = TextEditingController();
   String? _error;
+  bool _confirming = false;
 
   @override
   void dispose() {
@@ -32,17 +36,24 @@ class _DriverPickupConfirmScreenState extends ConsumerState<DriverPickupConfirmS
   }
 
   Future<void> _confirm(Order order) async {
-    if (_codeController.text.trim() != order.handoverCode) {
-      setState(() => _error = 'Incorrect code. Ask the vendor for the handover code shown on their order screen.');
-      return;
-    }
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _confirming = true;
+    });
     try {
-      await updateOrderStatus(order.id, OrderStatus.pickedUp);
+      final check = await confirmPickupCode(order.id, _codeController.text.trim());
+      if (!mounted) return;
+      if (!check.ok) {
+        setState(() => _error = 'Incorrect code. Ask the vendor for the handover code shown on their order screen.'
+            '${check.attemptsLeft == null ? '' : ' ${check.attemptsLeft} tries left.'}');
+        return;
+      }
     } catch (e, st) {
       if (!mounted) return;
-      setState(() => _error = friendlyError(e, action: 'Confirming pickup', stackTrace: st));
+      setState(() => _error = _codeError(e, action: 'Confirming pickup', stackTrace: st));
       return;
+    } finally {
+      if (mounted) setState(() => _confirming = false);
     }
     if (!mounted) return;
     context.go('/driver/delivery/${order.id}/navigate-customer');
@@ -89,9 +100,13 @@ class _DriverPickupConfirmScreenState extends ConsumerState<DriverPickupConfirmS
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-          child: ElevatedButton(onPressed: () => _confirm(order), child: const Text('Confirm pickup')),
+          child: ElevatedButton(onPressed: _confirming ? null : () => _confirm(order), child: const Text('Confirm pickup')),
         ),
       ),
     );
   }
 }
+
+String _codeError(Object e, {required String action, StackTrace? stackTrace}) => e is FirebaseFunctionsException
+    ? (e.message ?? 'Could not confirm. Please try again.')
+    : friendlyError(e, action: action, stackTrace: stackTrace);

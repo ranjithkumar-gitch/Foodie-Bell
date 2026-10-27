@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/providers/order_codes_provider.dart';
 import '../../../shared/widgets/order_status_stepper.dart';
 
 /// Handover to Driver (spec §5.10) — display-only. The Vendor mutates
@@ -41,7 +42,7 @@ class VendorHandoverScreen extends ConsumerWidget {
                 const Text('Read this code to the driver at pickup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 14),
                 Text(
-                  order.handoverCode,
+                  ref.watch(orderHandoverCodeProvider(order.id)).valueOrNull ?? '····',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 44, letterSpacing: 6),
                 ),
               ],

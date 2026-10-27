@@ -55,107 +55,14 @@ TaxCategory _taxCategoryFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc)
   );
 }
 
-/// Starter GST/HSN brackets covering Quicky's four vendor categories —
-/// **typical Indian GST slabs, not a verified reference sheet** (the
-/// `Quicky_HSN_GST_Reference.xlsx` §8 of `GST_HSN_IMPLEMENTATION.md`
-/// points to wasn't available to seed from). Every category has a
-/// `'general'` row as the fallback [suggestTaxCategory] resolves to when
-/// nothing more specific matches. Admin should review/correct these on the
-/// Tax Category Manager screen before relying on them for real invoicing.
-const _defaultTaxCategories = [
-  TaxCategory(
-    id: 'food_general',
-    name: 'Food — Standard Restaurant',
-    parentCategory: VendorCategory.food,
-    subCategory: 'general',
-    hsnCode: '9963',
-    gstRate: 5,
-    itcAvailable: false,
-  ),
-  TaxCategory(
-    id: 'food_packaged',
-    name: 'Food — Packaged & Branded Items',
-    parentCategory: VendorCategory.food,
-    subCategory: 'packaged',
-    hsnCode: '2106',
-    gstRate: 12,
-  ),
-  TaxCategory(
-    id: 'pharmacy_general',
-    name: 'Pharmacy — General Medicines',
-    parentCategory: VendorCategory.pharmacy,
-    subCategory: 'general',
-    hsnCode: '3004',
-    gstRate: 12,
-  ),
-  TaxCategory(
-    id: 'pharmacy_essential',
-    name: 'Pharmacy — Essential/Life-saving Drugs',
-    parentCategory: VendorCategory.pharmacy,
-    subCategory: 'essential',
-    hsnCode: '3004',
-    gstRate: 5,
-  ),
-  TaxCategory(
-    id: 'pharmacy_wellness',
-    name: 'Pharmacy — Wellness & Cosmetics',
-    parentCategory: VendorCategory.pharmacy,
-    subCategory: 'wellness',
-    hsnCode: '3304',
-    gstRate: 18,
-  ),
-  TaxCategory(
-    id: 'kirana_general',
-    name: 'Kirana — Unbranded Staples',
-    parentCategory: VendorCategory.kirana,
-    subCategory: 'general',
-    hsnCode: '1006',
-    gstRate: 0,
-    itcAvailable: false,
-  ),
-  TaxCategory(
-    id: 'kirana_packaged',
-    name: 'Kirana — Branded & Packaged Grocery',
-    parentCategory: VendorCategory.kirana,
-    subCategory: 'packaged',
-    hsnCode: '2106',
-    gstRate: 5,
-  ),
-  TaxCategory(
-    id: 'kirana_snacks',
-    name: 'Kirana — Packaged Branded Snacks',
-    parentCategory: VendorCategory.kirana,
-    subCategory: 'snacks',
-    hsnCode: '1905',
-    gstRate: 12,
-  ),
-  TaxCategory(
-    id: 'vegetables_general',
-    name: 'Vegetables & Fruits — Fresh Produce',
-    parentCategory: VendorCategory.vegetables,
-    subCategory: 'general',
-    hsnCode: '0709',
-    gstRate: 0,
-    itcAvailable: false,
-  ),
-];
-
-Future<void> _seedDefaultTaxCategoriesIfMissing() async {
-  final existing = await taxCategoriesCollection.limit(1).get();
-  if (existing.docs.isNotEmpty) return;
-  final batch = FirebaseFirestore.instance.batch();
-  for (final category in _defaultTaxCategories) {
-    batch.set(taxCategoriesCollection.doc(category.id), _taxCategoryToDoc(category));
-  }
-  await batch.commit();
-}
-
 /// Every GST/HSN tax bracket, live — Admin's Tax Category Manager reads
 /// this directly; Add/Edit Product screens filter it client-side to the
 /// product's own [VendorCategory] for suggestions/the picker.
-final firestoreTaxCategoriesProvider = StreamProvider<List<TaxCategory>>((ref) async* {
-  await _seedDefaultTaxCategoriesIfMissing();
-  yield* taxCategoriesCollection.snapshots().map((snapshot) {
+///
+/// Seeded and edited only by the Super Admin (QuickyAdmin) — this app just
+/// reads them.
+final firestoreTaxCategoriesProvider = StreamProvider<List<TaxCategory>>((ref) {
+  return taxCategoriesCollection.snapshots().map((snapshot) {
     final categories = snapshot.docs.map(_taxCategoryFromDoc).toList();
     categories.sort((a, b) {
       final byParent = a.parentCategory.index.compareTo(b.parentCategory.index);

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/session/account_resolver.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
@@ -15,16 +16,16 @@ import '../widgets/country_code_picker.dart';
 import '../widgets/glossy_surface.dart';
 import 'auth_navigation.dart';
 import 'auth_otp_screen.dart';
-import 'otp_config.dart';
+import 'phone_auth.dart';
 
 /// The app's one and only entry point — a single phone number field, no
 /// role picked up front and no password anywhere: every role, Manager
-/// included, signs in by phone + OTP now (Manager used to be email +
-/// password — see [resolveAccountAcrossRoles]'s doc comment for how its
-/// lookup joined the others). Role is inferred from whichever real account
-/// the entered phone actually matches (`resolveAccountAcrossRoles`/
-/// `completePhoneAuth`, `auth_navigation.dart`) — the same cross-role
-/// lookup `splash_screen.dart` uses to restore a session across restarts.
+/// included, signs in by phone + OTP (Manager used to be email +
+/// password). The role is never picked here or inferred from the typed
+/// number: once Firebase has verified the number, the server works out
+/// which account it belongs to (`completePhoneSignIn`,
+/// `auth_navigation.dart`) — the same lookup `splash_screen.dart` uses to
+/// restore a session across restarts.
 /// There used to be a `/role-selector` screen that made you choose
 /// User/Vendor/Driver/Manager *before* ever seeing a credential field, and
 /// this screen's own "Register"/"choose role manually" links routed there
@@ -102,61 +103,43 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
 
     final phone = '${_country.dialCode}$digits';
 
-    if (!kUseDynamicOtp) {
-      setState(() => _submitting = false);
+    try {
+      final result = await sendPhoneCode(phone);
       if (!mounted) return;
-      context.push(
-        '/auth/otp?mode=login',
-        extra: OtpScreenArgs(verificationId: null, phoneNumber: phone),
-      );
-      return;
-    }
-
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: phone,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (credential) async {
-        try {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-        } on FirebaseAuthException catch (e) {
+      switch (result) {
+        case SmsCodeSent(:final verificationId, :final resendToken):
+          setState(() => _submitting = false);
+          context.push(
+            '/auth/otp?mode=login',
+            extra: OtpScreenArgs(
+              verificationId: verificationId,
+              phoneNumber: phone,
+              resendToken: resendToken,
+            ),
+          );
+        case PhoneVerifiedAutomatically():
+          final outcome = await completePhoneSignIn(context, ref, 'login');
           if (!mounted) return;
           setState(() {
             _submitting = false;
-            _error = e.message ?? 'Verification failed. Please try again.';
+            if (outcome == PhoneSignInOutcome.noAccount) {
+              _error = 'No account found for this number. Check the number, or register instead.';
+            }
           });
-          return;
-        }
-        if (!mounted) return;
-        final resolved = await completePhoneAuth(context, ref, 'login');
-        if (!resolved && mounted) {
-          setState(() {
-            _submitting = false;
-            _error =
-                'No account found for this number. Check the number, or register instead.';
-          });
-        }
-      },
-      verificationFailed: (e) {
-        if (!mounted) return;
-        setState(() {
-          _submitting = false;
-          _error = e.message ?? 'Could not send the code. Please try again.';
-        });
-      },
-      codeSent: (verificationId, resendToken) {
-        if (!mounted) return;
-        setState(() => _submitting = false);
-        context.push(
-          '/auth/otp?mode=login',
-          extra: OtpScreenArgs(
-            verificationId: verificationId,
-            phoneNumber: phone,
-            resendToken: resendToken,
-          ),
-        );
-      },
-      codeAutoRetrievalTimeout: (verificationId) {},
-    );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = phoneAuthErrorMessage(e);
+      });
+    } on AccountResolutionException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.message;
+      });
+    }
   }
 
   @override

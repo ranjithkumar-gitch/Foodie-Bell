@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
+import '../models/account.dart';
+
 /// Per-vendor, per-day "cash reconciled" checkpoint for Manager's Daily
 /// Settlement (10 PM Reconciliation, spec §7.9) — replaces the old
 /// screen-local `Set<String>` (`manager_daily_settlement_screen.dart`,
@@ -17,19 +20,24 @@ String _dateKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-${dat
 
 String reconciliationDocId(String vendorId, DateTime date) => '${vendorId}_${_dateKey(date)}';
 
-/// Every reconciliation checkpoint recorded network-wide, live — the screen
-/// filters this client-side (`{vendorId}_{today}` membership) the same way
-/// other flat collections in this app are filtered by caller-side fields.
+/// Reconciliation checkpoints in the signed-in Manager's territory, live —
+/// the screen checks `{vendorId}_{today}` membership against this.
 final firestoreReconciledSettlementsProvider = StreamProvider<Set<String>>((ref) {
-  return settlementReconciliationsCollection.snapshots().map((snapshot) => snapshot.docs.map((d) => d.id).toSet());
+  final territoryId = ref.watch(accessScopeProvider.select((s) => s?.role == AppRole.manager ? s?.territoryId : null));
+  if (territoryId == null) return Stream.value(const {});
+  return settlementReconciliationsCollection
+      .where('territoryId', isEqualTo: territoryId)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.map((d) => d.id).toSet());
 });
 
-Future<void> setSettlementReconciled(String vendorId, DateTime date, {required bool reconciled, String? managerId}) {
+Future<void> setSettlementReconciled(String vendorId, DateTime date, {required bool reconciled, String? managerId, String? territoryId}) {
   final docId = reconciliationDocId(vendorId, date);
   if (reconciled) {
     return settlementReconciliationsCollection.doc(docId).set({
       'vendorId': vendorId,
       'managerId': managerId,
+      'territoryId': territoryId,
       'date': Timestamp.fromDate(DateTime(date.year, date.month, date.day)),
       'reconciledAt': FieldValue.serverTimestamp(),
     });

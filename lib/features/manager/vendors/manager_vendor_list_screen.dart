@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
-import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
 import '../../../shared/widgets/app_network_image.dart';
@@ -93,7 +92,7 @@ class _VendorTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.colors;
     final meta = _statusMeta(account);
-    final coverUrl = account.documentUrl(VendorDocumentType.shopFrontPhoto);
+    final coverUrl = account.coverPhotoUrl;
     return Material(
       color: palette.surface,
       borderRadius: BorderRadius.circular(14),

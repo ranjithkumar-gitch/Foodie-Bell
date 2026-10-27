@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
-import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_reviews_provider.dart';
@@ -45,7 +44,7 @@ class VendorAccountCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
-    final coverUrl = account.documentUrl(VendorDocumentType.shopFrontPhoto);
+    final coverUrl = account.coverPhotoUrl;
     final vendorReviews =
         (ref.watch(firestoreReviewsProvider).valueOrNull ?? const [])
             .where((r) => r.vendorId == account.id)

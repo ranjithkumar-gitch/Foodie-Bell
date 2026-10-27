@@ -467,7 +467,7 @@ abstract class AppLocalizations {
   /// No description provided for @paymentUpi.
   ///
   /// In en, this message translates to:
-  /// **'UPI (PhonePe, Google Pay, Paytm)'**
+  /// **'UPI'**
   String get paymentUpi;
 
   /// No description provided for @paymentComingSoon.
@@ -512,29 +512,29 @@ abstract class AppLocalizations {
   /// **'Payment could not be completed. Please try again.'**
   String get paymentFailed;
 
+  /// No description provided for @paymentOrderSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your payment went through, but we couldn\'t place the order. Please contact support with payment ID {paymentId}.'**
+  String paymentOrderSaveFailed(Object paymentId);
+
   /// No description provided for @paymentUpiSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Pay the shop directly from your UPI app'**
+  /// **'Pay with GPay, PhonePe, Paytm or any UPI app'**
   String get paymentUpiSubtitle;
 
   /// No description provided for @paymentChooseUpiApp.
   ///
   /// In en, this message translates to:
-  /// **'Pay with'**
+  /// **'Choose a UPI app'**
   String get paymentChooseUpiApp;
 
   /// No description provided for @paymentNoUpiApp.
   ///
   /// In en, this message translates to:
-  /// **'No UPI app found on this phone. Install PhonePe, Google Pay or Paytm, or choose Cash on Delivery.'**
+  /// **'No UPI app found on this phone. Please install one or choose another payment method.'**
   String get paymentNoUpiApp;
-
-  /// No description provided for @paymentUpiPending.
-  ///
-  /// In en, this message translates to:
-  /// **'Your payment is still processing, so the order was not placed. If money was debited, contact support with reference {ref}.'**
-  String paymentUpiPending(Object ref);
 
   /// No description provided for @paymentUpiConfirmTitle.
   ///
@@ -545,14 +545,8 @@ abstract class AppLocalizations {
   /// No description provided for @paymentUpiConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'Check your UPI app. Tap \"Yes, I paid\" only if the payment was successful.'**
+  /// **'We couldn\'t confirm the payment from your UPI app. Tap Yes only if the amount was debited.'**
   String get paymentUpiConfirmMessage;
-
-  /// No description provided for @paymentUpiConfirmYes.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes, I paid'**
-  String get paymentUpiConfirmYes;
 
   /// No description provided for @paymentUpiConfirmNo.
   ///
@@ -560,11 +554,17 @@ abstract class AppLocalizations {
   /// **'No'**
   String get paymentUpiConfirmNo;
 
-  /// No description provided for @paymentOrderSaveFailed.
+  /// No description provided for @paymentUpiConfirmYes.
   ///
   /// In en, this message translates to:
-  /// **'Your payment went through, but we couldn\'t place the order. Please contact support with payment ID {paymentId}.'**
-  String paymentOrderSaveFailed(Object paymentId);
+  /// **'Yes, I paid'**
+  String get paymentUpiConfirmYes;
+
+  /// No description provided for @paymentUpiPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Your payment is pending. We\'ll confirm your order once it completes. Reference: {transactionId}'**
+  String paymentUpiPending(Object transactionId);
 
   /// No description provided for @invoicePaymentPaid.
   ///
@@ -1847,7 +1847,7 @@ abstract class AppLocalizations {
   /// No description provided for @trackReachingShopIn.
   ///
   /// In en, this message translates to:
-  /// **'Reaching shop in {minutes} min'**
+  /// **'Reaching the shop in {minutes} min'**
   String trackReachingShopIn(int minutes);
 
   /// No description provided for @trackDistanceKm.

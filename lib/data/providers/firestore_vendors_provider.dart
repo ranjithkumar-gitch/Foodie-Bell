@@ -34,6 +34,7 @@ Map<String, dynamic> accountToVendorDoc(Account account) => {
   'email': account.email?.toLowerCase(),
   'managerCode': account.managerCode,
   'territory': account.territory,
+  'territoryId': account.territoryId,
   'category': account.category,
   'subCategory': account.subCategory,
   'ownerName': account.ownerName,
@@ -44,7 +45,7 @@ Map<String, dynamic> accountToVendorDoc(Account account) => {
   'documentStatuses': account.documentStatuses.map(
     (type, status) => MapEntry(type.name, status.name),
   ),
-  'documentUrls': account.documentUrls.map(
+  'documentPaths': account.documentPaths.map(
     (type, url) => MapEntry(type.name, url),
   ),
   'status': account.status.name,
@@ -52,12 +53,12 @@ Map<String, dynamic> accountToVendorDoc(Account account) => {
   'upiIds': account.upiIds,
 };
 
-Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-  final data = doc.data();
+Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
   final rawDocumentStatuses =
       data['documentStatuses'] as Map<String, dynamic>? ?? const {};
-  final rawDocumentUrls =
-      data['documentUrls'] as Map<String, dynamic>? ?? const {};
+  final rawDocumentPaths =
+      data['documentPaths'] as Map<String, dynamic>? ?? const {};
   return Account(
     id: doc.id,
     role: AppRole.vendor,
@@ -66,6 +67,7 @@ Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     email: data['email'] as String?,
     managerCode: data['managerCode'] as String?,
     territory: data['territory'] as String?,
+    territoryId: data['territoryId'] as String?,
     category: data['category'] as String?,
     subCategory: data['subCategory'] as String?,
     ownerName: data['ownerName'] as String?,
@@ -80,11 +82,12 @@ Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
             rawDocumentStatuses[type.name] as String,
           ),
     },
-    documentUrls: {
+    documentPaths: {
       for (final type in VendorDocumentType.values)
-        if (rawDocumentUrls[type.name] != null)
-          type: rawDocumentUrls[type.name] as String,
+        if (rawDocumentPaths[type.name] != null)
+          type: rawDocumentPaths[type.name] as String,
     },
+    coverPhotoUrl: data['coverPhotoUrl'] as String?,
     status: AccountStatus.values.byName(data['status'] as String? ?? 'active'),
     isOpen: data['isOpen'] as bool? ?? true,
     upiIds: (data['upiIds'] as List<dynamic>? ?? const []).cast<String>(),
@@ -128,19 +131,15 @@ Future<void> softDeleteVendor(String vendorId) => vendorsCollection
     .doc(vendorId)
     .update({'deletedAt': FieldValue.serverTimestamp()});
 
-/// One-shot lookup for phone-login/session-resolution (`auth_navigation.dart`,
-/// `splash_screen.dart`) — a Vendor a Manager created only lives in
-/// Firestore, not the in-memory `mockAccountsProvider` which resets on
-/// restart. Mirrors `findFirestoreManagerByEmail`'s reasoning, phone-keyed
-/// since Vendor logs in by phone rather than email.
-Future<Account?> findFirestoreVendorByPhone(String phone) async {
-  final normalized = phone.replaceFirst(RegExp(r'^\+91'), '');
-  final snapshot = await vendorsCollection
-      .where('phone', isEqualTo: normalized)
-      .limit(1)
-      .get();
-  if (snapshot.docs.isEmpty) return null;
-  return _accountFromDoc(snapshot.docs.first);
+/// One-shot read of a single Vendor account by doc id — what
+/// `account_resolver.dart` loads once the `resolveSession` Cloud Function
+/// has said which account a verified phone sign-in belongs to. A direct
+/// document read, which the per-account Firestore rules allow for the
+/// account's own owner.
+Future<Account?> findFirestoreVendorById(String id) async {
+  final snapshot = await vendorsCollection.doc(id).get();
+  if (!snapshot.exists) return null;
+  return _accountFromDoc(snapshot);
 }
 
 /// Merges Firestore-persisted vendors with any in-memory mock ones
@@ -233,13 +232,21 @@ Future<void> updateVendorDocumentStatus(
   'documentStatuses.${type.name}': status.name,
 });
 
-Future<void> updateVendorDocumentUrl(
+/// Records an uploaded KYC document by its Storage [path]. The shop-front
+/// photo doubles as the public storefront picture, so its download URL
+/// ([coverPhotoUrl]) is copied to the vendor's public `coverPhotoUrl` too.
+Future<void> updateVendorDocumentPath(
   String vendorId,
   VendorDocumentType type,
-  String url,
-) => vendorsCollection.doc(vendorId).update({'documentUrls.${type.name}': url});
+  String path, {
+  String? coverPhotoUrl,
+}) => vendorsCollection.doc(vendorId).update({
+  'documentPaths.${type.name}': path,
+  if (type == VendorDocumentType.shopFrontPhoto && coverPhotoUrl != null) 'coverPhotoUrl': coverPhotoUrl,
+});
 
-Future<void> clearVendorDocumentUrl(String vendorId, VendorDocumentType type) =>
+Future<void> clearVendorDocumentPath(String vendorId, VendorDocumentType type) =>
     vendorsCollection.doc(vendorId).update({
-      'documentUrls.${type.name}': FieldValue.delete(),
+      'documentPaths.${type.name}': FieldValue.delete(),
+      if (type == VendorDocumentType.shopFrontPhoto) 'coverPhotoUrl': FieldValue.delete(),
     });

@@ -11,10 +11,12 @@ import '../models/driver_document.dart';
 Reference _driverDocumentRef(String driverId, DriverDocumentType type) =>
     FirebaseStorage.instance.ref('driver_documents/$driverId/${type.name}.jpg');
 
+/// Uploads a KYC document and returns its Storage path — what the driver
+/// record keeps (see `Account.driverDocumentPaths`), never a download URL.
 Future<String> uploadDriverDocument(String driverId, DriverDocumentType type, File file) async {
   final ref = _driverDocumentRef(driverId, type);
   await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
-  return ref.getDownloadURL();
+  return ref.fullPath;
 }
 
 Future<void> deleteDriverDocumentFile(String driverId, DriverDocumentType type) async {

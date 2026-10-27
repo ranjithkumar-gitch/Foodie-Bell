@@ -210,7 +210,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paymentCodSubtitle => 'Pay when your order arrives';
 
   @override
-  String get paymentUpi => 'UPI (PhonePe, Google Pay, Paytm)';
+  String get paymentUpi => 'UPI';
 
   @override
   String get paymentComingSoon => 'Coming soon';
@@ -237,36 +237,37 @@ class AppLocalizationsEn extends AppLocalizations {
       'Payment could not be completed. Please try again.';
 
   @override
-  String get paymentUpiSubtitle => 'Pay the shop directly from your UPI app';
+  String paymentOrderSaveFailed(Object paymentId) {
+    return 'Your payment went through, but we couldn\'t place the order. Please contact support with payment ID $paymentId.';
+  }
 
   @override
-  String get paymentChooseUpiApp => 'Pay with';
+  String get paymentUpiSubtitle =>
+      'Pay with GPay, PhonePe, Paytm or any UPI app';
+
+  @override
+  String get paymentChooseUpiApp => 'Choose a UPI app';
 
   @override
   String get paymentNoUpiApp =>
-      'No UPI app found on this phone. Install PhonePe, Google Pay or Paytm, or choose Cash on Delivery.';
-
-  @override
-  String paymentUpiPending(Object ref) {
-    return 'Your payment is still processing, so the order was not placed. If money was debited, contact support with reference $ref.';
-  }
+      'No UPI app found on this phone. Please install one or choose another payment method.';
 
   @override
   String get paymentUpiConfirmTitle => 'Did your payment go through?';
 
   @override
   String get paymentUpiConfirmMessage =>
-      'Check your UPI app. Tap \"Yes, I paid\" only if the payment was successful.';
-
-  @override
-  String get paymentUpiConfirmYes => 'Yes, I paid';
+      'We couldn\'t confirm the payment from your UPI app. Tap Yes only if the amount was debited.';
 
   @override
   String get paymentUpiConfirmNo => 'No';
 
   @override
-  String paymentOrderSaveFailed(Object paymentId) {
-    return 'Your payment went through, but we couldn\'t place the order. Please contact support with payment ID $paymentId.';
+  String get paymentUpiConfirmYes => 'Yes, I paid';
+
+  @override
+  String paymentUpiPending(Object transactionId) {
+    return 'Your payment is pending. We\'ll confirm your order once it completes. Reference: $transactionId';
   }
 
   @override
@@ -1003,7 +1004,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String trackReachingShopIn(int minutes) {
-    return 'Reaching shop in $minutes min';
+    return 'Reaching the shop in $minutes min';
   }
 
   @override

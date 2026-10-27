@@ -3,9 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../core/session/session_cache.dart';
-import '../../../core/session/session_controller.dart';
+import '../../../core/session/account_resolver.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/auth/auth_navigation.dart';
 import '../../../shared/widgets/branded_logo.dart';
@@ -42,26 +42,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     });
   }
 
-  /// Firebase Auth persists sign-in across app restarts — if a user is
-  /// still signed in, resolve which Account they are (role-agnostic —
-  /// [resolveAccountAcrossRoles], `auth_navigation.dart`, shared with the
-  /// unified login screen's own cross-role lookup) and skip straight to
-  /// their role's home.
+  /// Shown when a still-signed-in session couldn't be restored for a
+  /// reason that may pass (offline, server busy) — the sign-in is kept and
+  /// the person can retry, rather than being logged out by a flaky network.
+  String? _restoreError;
+
+  /// Firebase Auth persists sign-in across app restarts. A phone-verified
+  /// user is restored by asking the server which account they are
+  /// (`resolveSignedInAccount`, the same lookup login uses) — never from
+  /// anything stored on the device.
   ///
-  /// That persisted credential's own phone/email is usually enough to
-  /// resolve from — except while `kUseDynamicOtp` is off (`otp_config.dart`),
-  /// where `completePhoneAuth` signs in *anonymously* instead of with a
-  /// real phone credential (its own doc comment explains why). That
-  /// anonymous session is just as real and persisted, but carries no
-  /// phone/email of its own — so falls back to whichever phone last
-  /// completed login/registration (`session_cache.dart`, written by
-  /// `SessionController.completeLogin`/`completeRegistration`, cleared on
-  /// logout) rather than treating "no phone on the credential" as "nobody's
-  /// signed in".
-  ///
-  /// No match at all (from either source) means there's nothing left to
-  /// restore — sign out rather than leave a dangling
-  /// authenticated-but-unknown state.
+  /// Anything else still signed in (an anonymous session or a cached phone
+  /// number from builds that used the demo OTP) is cleared and sent to
+  /// login.
   ///
   /// Guards on `Firebase.apps.isNotEmpty` first: widget tests pump this
   /// screen without ever calling `main()`, so Firebase is never
@@ -69,49 +62,65 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// channel mocks just to exercise the splash screen in a test, and is
   /// cheap insurance in production too if init ever fails ahead of this.
   Future<void> _route() async {
-    final user = Firebase.apps.isNotEmpty
-        ? FirebaseAuth.instance.currentUser
-        : null;
-    // Blank, not just null, counts as "nothing to resolve from" — an
-    // anonymous credential's phoneNumber/email come back as empty strings
-    // here, not null, so a null-only check never noticed there was really
-    // nothing there and went on to look up an Account by an empty string
-    // (never matches anything) instead of falling through to the cache
-    // below.
-    var phone = _blankToNull(user?.phoneNumber);
-    final email = _blankToNull(user?.email);
-    if (phone == null && email == null) {
-      phone = await loadCachedSessionPhone();
-    }
-    if (!mounted) return;
-    if (phone != null || email != null) {
-      final match = await resolveAccountAcrossRoles(
-        ref,
-        phone: phone,
-        email: email,
-      );
-      if (!mounted) return;
-      if (match != null) {
-        ref.read(sessionControllerProvider.notifier).selectRole(match.role);
-        ref
-            .read(sessionControllerProvider.notifier)
-            .completeLogin(account: match);
-        if (!mounted) return;
-        routeByStage(
-          context,
-          match.role,
-          ref.read(sessionControllerProvider).stage,
-        );
-        return;
+    if (_restoreError != null) setState(() => _restoreError = null);
+    final user = Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
+    await _clearLegacySessionPhone();
+    if (user != null) {
+      final isPhoneUser = !user.isAnonymous && user.providerData.any((p) => p.providerId == PhoneAuthProvider.PROVIDER_ID);
+      if (!isPhoneUser) {
+        await FirebaseAuth.instance.signOut();
+      } else {
+        try {
+          final account = await resolveSignedInAccount();
+          if (!mounted) return;
+          if (account != null) {
+            completeResolvedLogin(context, ref, account);
+            return;
+          }
+          await FirebaseAuth.instance.signOut();
+        } on FirebaseAuthException catch (e) {
+          // The Firebase user itself is gone or disabled — nothing to keep.
+          if (const {'user-disabled', 'user-not-found', 'user-token-expired', 'invalid-user-token'}.contains(e.code)) {
+            await FirebaseAuth.instance.signOut();
+          } else {
+            _showRestoreError("We couldn't reach the server. Check your connection and try again.");
+            return;
+          }
+        } on AccountResolutionException catch (e) {
+          if (e.isNetwork) {
+            _showRestoreError(e.message);
+            return;
+          }
+          await FirebaseAuth.instance.signOut();
+        } catch (e, st) {
+          debugPrint('Session restore failed: $e\n$st');
+          _showRestoreError("We couldn't restore your session. Please try again.");
+          return;
+        }
       }
-      if (user != null) await FirebaseAuth.instance.signOut();
-      await clearCachedSessionPhone();
     }
     if (!mounted) return;
     context.go('/auth/login');
   }
 
-  String? _blankToNull(String? s) => (s == null || s.isEmpty) ? null : s;
+  void _showRestoreError(String message) {
+    if (mounted) setState(() => _restoreError = message);
+  }
+
+  Future<void> _signInAgain() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    context.go('/auth/login');
+  }
+
+  /// Older builds stored the last signed-in phone number here and restored a
+  /// session from it alone; that's no longer trusted, so it's just removed.
+  Future<void> _clearLegacySessionPhone() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('session_phone');
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -161,6 +170,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (_restoreError != null) ...[
+                    const SizedBox(height: 28),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        _restoreError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(onPressed: _route, child: const Text('Try again')),
+                    TextButton(
+                      onPressed: _signInAgain,
+                      child: const Text('Sign in with a different number', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
                 ],
               ),
             ),

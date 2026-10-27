@@ -31,8 +31,8 @@ Map<String, dynamic> accountToUserDoc(Account account) => {
   'languageCode': account.languageCode,
 };
 
-Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-  final data = doc.data();
+Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
   return Account(
     id: doc.id,
     role: AppRole.user,
@@ -67,14 +67,15 @@ final firestoreUsersProvider = StreamProvider<List<Account>>((ref) {
   });
 });
 
-/// One-shot lookup for phone-login/session-resolution
-/// (`auth_navigation.dart`, `splash_screen.dart`) — mirrors
-/// `findFirestoreVendorByPhone`/`findFirestoreDriverByPhone`.
-Future<Account?> findFirestoreUserByPhone(String phone) async {
-  final normalized = phone.replaceFirst(RegExp(r'^\+91'), '');
-  final snapshot = await usersCollection.where('phone', isEqualTo: normalized).limit(1).get();
-  if (snapshot.docs.isEmpty) return null;
-  return _accountFromDoc(snapshot.docs.first);
+/// One-shot read of a single User account by doc id — what
+/// `account_resolver.dart` loads once the `resolveSession` Cloud Function
+/// has said which account a verified phone sign-in belongs to. A direct
+/// document read, which the per-account Firestore rules allow for the
+/// account's own owner.
+Future<Account?> findFirestoreUserById(String id) async {
+  final snapshot = await usersCollection.doc(id).get();
+  if (!snapshot.exists) return null;
+  return _accountFromDoc(snapshot);
 }
 
 /// User editing their own name/email/avatar (`user_profile_edit_screen.dart`).

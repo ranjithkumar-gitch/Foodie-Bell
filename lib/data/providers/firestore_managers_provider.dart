@@ -17,22 +17,20 @@ CollectionReference<Map<String, dynamic>> get managersCollection =>
 Map<String, dynamic> accountToManagerDoc(Account account) => {
   'name': account.name,
   'phone': account.phone,
-  // Lowercased so `findFirestoreManagerByEmail`'s query (Firestore has no
-  // case-insensitive match) reliably finds it regardless of how the email
-  // was capitalized when typed on the "Add Manager" form.
+  // Lowercased so it compares reliably (Firestore has no case-insensitive
+  // match) regardless of how the email was capitalized when typed on the
+  // "Add Manager" form.
   'email': account.email?.toLowerCase(),
   'managerCode': account.managerCode,
   'territory': account.territory,
+  'territoryId': account.territoryId,
   'territoryFee': account.territoryFee,
   'status': account.status.name,
   'avatarUrl': account.avatarUrl,
-  'bankAccountHolder': account.bankAccountHolder,
-  'bankAccountNumber': account.bankAccountNumber,
-  'bankIfsc': account.bankIfsc,
 };
 
-Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-  final data = doc.data();
+Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
   return Account(
     id: doc.id,
     role: AppRole.manager,
@@ -41,13 +39,11 @@ Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     email: data['email'] as String?,
     managerCode: data['managerCode'] as String?,
     territory: data['territory'] as String?,
+    territoryId: data['territoryId'] as String?,
     territoryFee: (data['territoryFee'] as num?)?.toDouble() ?? 200000,
     status: AccountStatus.values.byName(data['status'] as String? ?? 'active'),
     avatarUrl: data['avatarUrl'] as String?,
     deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
-    bankAccountHolder: data['bankAccountHolder'] as String?,
-    bankAccountNumber: data['bankAccountNumber'] as String?,
-    bankIfsc: data['bankIfsc'] as String?,
   );
 }
 
@@ -90,44 +86,30 @@ Future<void> updateManagerBankDetails(
   required String accountHolder,
   required String accountNumber,
   required String ifsc,
-}) => managersCollection.doc(managerId).update({
+}) => _managerBankDoc(managerId).set({
   'bankAccountHolder': accountHolder,
   'bankAccountNumber': accountNumber,
   'bankIfsc': ifsc,
-});
+}, SetOptions(merge: true));
 
-/// One-shot lookup for `splash_screen.dart` session restore, and for any
-/// Manager whose Firebase Auth session still carries an email (accounts
-/// provisioned before Manager login switched to phone+OTP, or Admin ever
-/// signing in this same way) — a Manager created in a *previous* session
-/// only lives in Firestore, not the in-memory `mockAccountsProvider` (which
-/// resets on restart), so session-resolution needs a direct query fallback
-/// rather than relying on `firestoreManagersProvider`'s stream having
-/// already been watched and populated by some other screen. Not used by
-/// the sign-in screen itself anymore — see [findFirestoreManagerByPhone].
-Future<Account?> findFirestoreManagerByEmail(String email) async {
-  final normalized = email.trim().toLowerCase();
-  final snapshot = await managersCollection
-      .where('email', isEqualTo: normalized)
-      .limit(1)
-      .get();
-  if (snapshot.docs.isEmpty) return null;
-  return _accountFromDoc(snapshot.docs.first);
-}
+/// Bank/payout details live in `managers/{id}/private/bank` — readable only
+/// by that Manager and the Super Admin — rather than on the Manager's own
+/// doc, which every role reads for support contact details.
+DocumentReference<Map<String, dynamic>> _managerBankDoc(String managerId) =>
+    managersCollection.doc(managerId).collection('private').doc('bank');
 
-/// Manager's phone-keyed counterpart to [findFirestoreManagerByEmail] —
-/// the unified sign-in screen (`auth_login_screen.dart`) now takes only a
-/// phone number for every role, Manager included, matching how
-/// Vendor/Driver/User already log in (see `findFirestoreVendorByPhone`'s
-/// doc comment). Manager's own Firestore doc has carried a `phone` field
-/// since it was first created (`accountToManagerDoc` above), so no backfill
-/// was needed to support this.
-Future<Account?> findFirestoreManagerByPhone(String phone) async {
-  final normalized = phone.replaceFirst(RegExp(r'^\+91'), '');
-  final snapshot = await managersCollection
-      .where('phone', isEqualTo: normalized)
-      .limit(1)
-      .get();
-  if (snapshot.docs.isEmpty) return null;
-  return _accountFromDoc(snapshot.docs.first);
+/// One-shot read of a single Manager account by doc id — what
+/// `account_resolver.dart` loads once the `resolveSession` Cloud Function
+/// has said which account a verified phone sign-in belongs to. A direct
+/// document read, which the per-account Firestore rules allow for the
+/// account's own owner.
+Future<Account?> findFirestoreManagerById(String id) async {
+  final snapshot = await managersCollection.doc(id).get();
+  if (!snapshot.exists) return null;
+  final bank = (await _managerBankDoc(id).get()).data() ?? const <String, dynamic>{};
+  return _accountFromDoc(snapshot).copyWith(
+    bankAccountHolder: bank['bankAccountHolder'] as String?,
+    bankAccountNumber: bank['bankAccountNumber'] as String?,
+    bankIfsc: bank['bankIfsc'] as String?,
+  );
 }

@@ -21,7 +21,7 @@ final userLocaleProvider = Provider<Locale>((ref) {
 /// Persists the chosen language for the signed-in User and refreshes the
 /// session immediately — every User session is a real Firestore-backed
 /// account (login only ever resolves one, see `auth_navigation.dart`'s
-/// `resolveAccountAcrossRoles`), so this always writes to their own doc.
+/// `account_resolver.dart`), so this always writes to their own doc.
 Future<void> setUserAppLanguage(WidgetRef ref, String languageCode) async {
   final account = ref.read(sessionControllerProvider).account;
   if (account == null) return;

@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; 
+
 import 'app.dart';
 import 'core/branding/branding_controller.dart';
 import 'core/notifications/foreground_notification_handler.dart';
@@ -14,6 +17,13 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Debug builds can't pass Play Integrity (not installed from Play, and
+  // emulators fail the device check), which Firebase phone auth uses on
+  // Android before sending an SMS. Use its reCAPTCHA check there instead —
+  // still a real verification. Release builds keep Play Integrity.
+  if (kDebugMode && defaultTargetPlatform == TargetPlatform.android) {
+    await FirebaseAuth.instance.setSettings(forceRecaptchaFlow: true);
+  }
   // Load the last-known occasion theme before the first frame, so it's
   // already applied instead of flashing default branding while
   // brandThemeStreamProvider connects to Firestore.

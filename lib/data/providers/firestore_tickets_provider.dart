@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
 import '../models/account.dart';
 import '../models/ticket.dart';
 
@@ -49,15 +50,19 @@ SupportTicket _ticketFromDoc(String id, Map<String, dynamic> data) =>
       closedAt: (data['closedAt'] as Timestamp?)?.toDate(),
     );
 
-/// Every support ticket on the platform, live — every role's screen filters
-/// this client-side by its own field, same convention as
-/// `firestorePromotionsProvider`/`firestoreCouponsProvider`.
+/// The signed-in account's support tickets: the ones it raised, plus — for
+/// a Manager — the ones addressed to it. Those are the only tickets
+/// `firestore.rules` lets anyone but the Super Admin read.
 final firestoreTicketsProvider = StreamProvider<List<SupportTicket>>((ref) {
-  return ticketsCollection.snapshots().map(
-    (snapshot) => [
-      for (final doc in snapshot.docs) _ticketFromDoc(doc.id, doc.data()),
-    ],
+  final scope = ref.watch(accessScopeProvider);
+  if (scope == null) return Stream.value(const []);
+  Stream<List<SupportTicket>> run(Query<Map<String, dynamic>> query) => query.snapshots().map(
+    (snapshot) => [for (final doc in snapshot.docs) _ticketFromDoc(doc.id, doc.data())],
   );
+  return mergeQueryStreams([
+    run(ticketsCollection.where('raisedById', isEqualTo: scope.accountId)),
+    if (scope.role == AppRole.manager) run(ticketsCollection.where('recipientId', isEqualTo: scope.accountId)),
+  ], (ticket) => ticket.id);
 });
 
 /// A single ticket, live — used by the ticket-chat screen and its per-role

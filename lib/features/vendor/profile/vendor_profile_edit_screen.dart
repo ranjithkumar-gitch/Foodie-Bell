@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
-import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
 import '../../../shared/error_reporting.dart';
@@ -194,9 +193,7 @@ class _VendorProfileEditScreenState
     final liveAccount = account == null
         ? null
         : ref.watch(liveVendorAccountProvider(account.id)) ?? account;
-    final shopFrontPhotoUrl = liveAccount?.documentUrl(
-      VendorDocumentType.shopFrontPhoto,
-    );
+    final shopFrontPhotoUrl = liveAccount?.coverPhotoUrl;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Store Profile')),

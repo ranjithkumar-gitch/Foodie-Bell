@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/vendor.dart';
-import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../shared/auth/logout_confirmation_sheet.dart';
 import '../../../shared/widgets/app_network_image.dart';
@@ -32,7 +31,7 @@ class VendorProfileScreen extends ConsumerWidget {
     final account = sessionAccount == null ? null : ref.watch(liveVendorAccountProvider(sessionAccount.id)) ?? sessionAccount;
     final vendorId = ref.watch(currentVendorIdProvider);
     final vendor = ref.watch(currentVendorProvider);
-    final shopFrontPhotoUrl = account?.documentUrl(VendorDocumentType.shopFrontPhoto);
+    final shopFrontPhotoUrl = account?.coverPhotoUrl;
 
     return Scaffold(
       appBar: AppBar(

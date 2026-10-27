@@ -92,6 +92,8 @@ class Order {
     required this.total,
     required this.placedAt,
     required this.rebatePercent,
+    this.territoryId,
+    this.deliveryAddressFull,
     this.deliveryAddressId,
     this.deliveryLatitude,
     this.deliveryLongitude,
@@ -100,8 +102,9 @@ class Order {
     this.driverId,
     this.driverName,
     this.driverPhone,
-    this.handoverCode = '4821',
-    this.deliveryOtp = '7734',
+    this.driverLatitude,
+    this.driverLongitude,
+    this.driverLocationUpdatedAt,
     this.cancelReason,
     this.codPaymentReceived = false,
     this.couponCode,
@@ -157,11 +160,24 @@ class Order {
   final double total;
   final DateTime placedAt;
 
-  /// Handed to the Driver by the Vendor at pickup, confirmed by Driver's app.
-  final String handoverCode;
+  /// The Vendor's territory, copied on at placement (`firestore.rules`
+  /// checks it matches) — what a Manager's and a Driver's access to the
+  /// order is scoped by.
+  final String? territoryId;
 
-  /// Shown to the User during tracking, confirmed by Driver at drop-off.
-  final String deliveryOtp;
+  /// The delivery address written out in full at placement, so the Vendor
+  /// and Driver never need to read the Customer's private address book.
+  /// Null on orders placed before this was recorded.
+  final String? deliveryAddressFull;
+
+  /// The assigned Driver's last reported position
+  /// (`driver_location_tracker.dart`), kept on the order itself so the
+  /// Customer can follow their own delivery without being able to read any
+  /// Driver's record. The pickup and delivery codes aren't on the order at
+  /// all — see `order_codes_provider.dart`.
+  final double? driverLatitude;
+  final double? driverLongitude;
+  final DateTime? driverLocationUpdatedAt;
 
   /// % of order value routed to the Manager, negotiated 10-20 band (spec §5.5, §7.11).
   final double rebatePercent;
@@ -243,13 +259,16 @@ class Order {
     total: total,
     placedAt: placedAt,
     rebatePercent: rebatePercent,
+    territoryId: territoryId,
+    deliveryAddressFull: deliveryAddressFull,
     statusTimestamps: statusTimestamps,
     status: status ?? this.status,
     driverId: driverId ?? this.driverId,
     driverName: driverName ?? this.driverName,
     driverPhone: driverPhone ?? this.driverPhone,
-    handoverCode: handoverCode,
-    deliveryOtp: deliveryOtp,
+    driverLatitude: driverLatitude,
+    driverLongitude: driverLongitude,
+    driverLocationUpdatedAt: driverLocationUpdatedAt,
     cancelReason: cancelReason ?? this.cancelReason,
     codPaymentReceived: codPaymentReceived ?? this.codPaymentReceived,
     couponCode: couponCode,

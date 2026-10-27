@@ -1,8 +1,8 @@
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
+import '../models/account.dart';
 import '../models/order.dart';
 import 'firestore_coupons_provider.dart';
 
@@ -45,6 +45,7 @@ OrderLineItem _lineItemFromMap(Map<String, dynamic> data) => OrderLineItem(
 /// `ListOrderRequest` to `accepted`, instead of duplicating this mapping.
 Map<String, dynamic> orderToDoc(Order order) => {
   'vendorId': order.vendorId,
+  'territoryId': order.territoryId,
   'vendorName': order.vendorName,
   'userId': order.userId,
   'userName': order.userName,
@@ -55,6 +56,7 @@ Map<String, dynamic> orderToDoc(Order order) => {
   'items': order.items.map(_lineItemToMap).toList(),
   'status': order.status.name,
   'deliveryAddressLabel': order.deliveryAddressLabel,
+  'deliveryAddressFull': order.deliveryAddressFull,
   'deliveryAddressId': order.deliveryAddressId,
   'deliveryLatitude': order.deliveryLatitude,
   'deliveryLongitude': order.deliveryLongitude,
@@ -66,8 +68,6 @@ Map<String, dynamic> orderToDoc(Order order) => {
   'total': order.total,
   'placedAt': Timestamp.fromDate(order.placedAt),
   'statusTimestamps': order.statusTimestamps.map((status, at) => MapEntry(status.name, Timestamp.fromDate(at))),
-  'handoverCode': order.handoverCode,
-  'deliveryOtp': order.deliveryOtp,
   'rebatePercent': order.rebatePercent,
   'cancelReason': order.cancelReason,
   'codPaymentReceived': order.codPaymentReceived,
@@ -104,8 +104,11 @@ Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
     for (final entry in (data['statusTimestamps'] as Map<String, dynamic>? ?? const {}).entries)
       if (OrderStatus.values.any((s) => s.name == entry.key)) OrderStatus.values.byName(entry.key): (entry.value as Timestamp).toDate(),
   },
-  handoverCode: data['handoverCode'] as String? ?? '4821',
-  deliveryOtp: data['deliveryOtp'] as String? ?? '7734',
+  territoryId: data['territoryId'] as String?,
+  deliveryAddressFull: data['deliveryAddressFull'] as String?,
+  driverLatitude: (data['driverLatitude'] as num?)?.toDouble(),
+  driverLongitude: (data['driverLongitude'] as num?)?.toDouble(),
+  driverLocationUpdatedAt: (data['driverLocationUpdatedAt'] as Timestamp?)?.toDate(),
   rebatePercent: (data['rebatePercent'] as num?)?.toDouble() ?? 0,
   cancelReason: data['cancelReason'] as String?,
   codPaymentReceived: data['codPaymentReceived'] as bool? ?? false,
@@ -115,10 +118,33 @@ Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
   paidAt: (data['paidAt'] as Timestamp?)?.toDate(),
 );
 
-/// Every order on the platform, live — every role's screen filters this
-/// client-side by its own field, same as the old `mockOrdersProvider` list.
+/// The orders the signed-in account may see, live — exactly what
+/// `firestore.rules` allows for its role (screens still filter further on
+/// their own fields):
+///  - Customer: their own orders.
+///  - Vendor: orders placed with them.
+///  - Driver: deliveries assigned to them, plus — once approved — open
+///    offers (Vendor-accepted, unassigned) in their territory.
+///  - Manager: every order in their territory.
 final firestoreOrdersProvider = StreamProvider<List<Order>>((ref) {
-  return ordersCollection.snapshots().map((snapshot) => [for (final doc in snapshot.docs) _orderFromDoc(doc.id, doc.data())]);
+  final scope = ref.watch(accessScopeProvider);
+  if (scope == null) return Stream.value(const []);
+  Stream<List<Order>> run(Query<Map<String, dynamic>> query) =>
+      query.snapshots().map((snapshot) => [for (final doc in snapshot.docs) _orderFromDoc(doc.id, doc.data())]);
+  final territoryId = scope.territoryId;
+  return switch (scope.role) {
+    AppRole.user => run(ordersCollection.where('userId', isEqualTo: scope.accountId)),
+    AppRole.vendor => run(ordersCollection.where('vendorId', isEqualTo: scope.accountId)),
+    AppRole.driver => mergeQueryStreams([
+      run(ordersCollection.where('driverId', isEqualTo: scope.accountId)),
+      if (scope.isActive && territoryId != null)
+        run(ordersCollection
+            .where('territoryId', isEqualTo: territoryId)
+            .where('status', isEqualTo: OrderStatus.vendorAccepted.name)),
+    ], (order) => order.id),
+    AppRole.manager => territoryId == null ? Stream.value(const []) : run(ordersCollection.where('territoryId', isEqualTo: territoryId)),
+    AppRole.admin => Stream.value(const []),
+  };
 });
 
 /// A single order, live — used by screens that navigate straight to one
@@ -137,18 +163,6 @@ final orderByIdProvider = StreamProvider.family<Order?, String>((ref, orderId) {
 /// negligible for this app's traffic, so no atomic counter/transaction is
 /// needed.
 String generateOrderId() => 'ORD-${DateTime.now().millisecondsSinceEpoch % 1000000}';
-
-final _orderCodeRandom = Random();
-
-/// A random 4-digit code for [Order.handoverCode]/[Order.deliveryOtp] —
-/// every order placement site (`checkout_payment_screen.dart`,
-/// `vendor_order_queue_screen.dart`'s photo-order handoff) calls this once
-/// per code so the two never collide with each other on the same order, and
-/// no two orders ever share the same handover/delivery code. [Order]'s
-/// `'4821'`/`'7734'` constructor defaults exist only as a fallback for
-/// orders placed before this existed — a live placement should never rely
-/// on them.
-String generateOrderCode() => (1000 + _orderCodeRandom.nextInt(9000)).toString();
 
 Future<void> createOrder(Order order) => ordersCollection.doc(order.id).set(orderToDoc(order));
 
@@ -188,6 +202,16 @@ Future<void> updateOrderStatus(String orderId, OrderStatus status, {String? driv
   'driverName': ?driverName,
   'driverPhone': ?driverPhone,
 });
+
+/// The assigned Driver's position, mirrored onto their order
+/// (`driver_location_tracker.dart`) so its Customer can follow the delivery
+/// (`DriverLiveMap`) without reading the Driver's own record.
+Future<void> updateOrderDriverLocation(String orderId, {required double latitude, required double longitude}) =>
+    ordersCollection.doc(orderId).update({
+      'driverLatitude': latitude,
+      'driverLongitude': longitude,
+      'driverLocationUpdatedAt': FieldValue.serverTimestamp(),
+    });
 
 Future<void> cancelOrder(String orderId, String reason) => ordersCollection.doc(orderId).update({
   'status': OrderStatus.cancelled.name,

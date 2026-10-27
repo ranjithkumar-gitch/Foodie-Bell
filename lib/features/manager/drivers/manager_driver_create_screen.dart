@@ -74,6 +74,7 @@ class _ManagerDriverCreateScreenState
       email: email.isEmpty ? null : email,
       managerCode: manager.managerCode,
       territory: manager.territory,
+      territoryId: manager.territoryId,
       status: AccountStatus.pendingReview,
     );
 
@@ -104,6 +105,7 @@ class _ManagerDriverCreateScreenState
       email: email.isEmpty ? null : email,
       managerCode: manager.managerCode,
       territory: manager.territory,
+      territoryId: manager.territoryId,
       status: AccountStatus.pendingReview,
     );
     ref.read(mockAccountsProvider.notifier).addAccount(account);

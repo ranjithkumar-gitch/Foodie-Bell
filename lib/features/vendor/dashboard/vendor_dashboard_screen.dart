@@ -6,7 +6,6 @@ import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/models/vendor.dart';
-import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
@@ -42,9 +41,7 @@ class VendorDashboardScreen extends ConsumerWidget {
         ? null
         : ref.watch(liveVendorAccountProvider(sessionAccount.id)) ??
               sessionAccount;
-    final shopFrontPhotoUrl = account?.documentUrl(
-      VendorDocumentType.shopFrontPhoto,
-    );
+    final shopFrontPhotoUrl = account?.coverPhotoUrl;
     final vendorId = ref.watch(currentVendorIdProvider);
     final vendor = ref.watch(currentVendorProvider);
     final orders = (ref.watch(firestoreOrdersProvider).valueOrNull ?? const [])

@@ -230,10 +230,16 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
       }
     }
 
+    // The order carries its Vendor's territory (Firestore rules check the
+    // two match) — it's what a Manager's and Driver's access is scoped by.
+    final territoryId = ref.read(liveVendorAccountProvider(vendorId))?.territoryId ??
+        (await findFirestoreVendorById(vendorId))?.territoryId;
+    if (!mounted) return;
     final placedAt = DateTime.now();
     final order = Order(
       id: orderId,
       vendorId: vendorId,
+      territoryId: territoryId,
       vendorName: vendorName,
       userId: userId,
       userName: session.account?.name ?? 'You',
@@ -241,6 +247,7 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
       items: [for (final item in cart.items) _lineItemFromCartItem(item, taxCategories)],
       deliveryAddressLabel: address?.shortLabel ?? 'Saved address',
       deliveryAddressId: address?.id,
+      deliveryAddressFull: address == null ? null : fullAddressText(address),
       deliveryLatitude: address?.latitude,
       deliveryLongitude: address?.longitude,
       paymentMethod: _payment,
@@ -254,8 +261,6 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
       rebatePercent: rebatePercent,
       couponCode: coupon?.code,
       couponDiscount: cart.couponDiscount,
-      handoverCode: generateOrderCode(),
-      deliveryOtp: generateOrderCode(),
       paymentId: paymentId,
       paidAt: paymentId == null ? null : placedAt,
     );

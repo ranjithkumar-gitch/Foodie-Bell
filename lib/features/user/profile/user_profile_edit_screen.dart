@@ -24,8 +24,7 @@ import '../../../shared/widgets/document_source_sheet.dart';
 ///
 /// A signed-in User's account always lives in the real `users` Firestore
 /// collection (`auth_terms_screen.dart`) — login only ever resolves a real,
-/// Firestore-backed account (`auth_navigation.dart`'s
-/// `resolveAccountAcrossRoles`) — so updates always go there
+/// Firestore-backed account (`account_resolver.dart`) — so updates always go there
 /// (`updateUserProfile`).
 class UserProfileEditScreen extends ConsumerStatefulWidget {
   const UserProfileEditScreen({super.key});

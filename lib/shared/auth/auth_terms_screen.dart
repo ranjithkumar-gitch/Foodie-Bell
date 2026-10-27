@@ -1,12 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/session/account_resolver.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
-import '../../data/providers/firestore_users_provider.dart';
 import '../error_reporting.dart';
 import 'auth_navigation.dart';
 import 'user_registration_draft.dart';
@@ -70,14 +69,28 @@ class _AuthTermsScreenState extends ConsumerState<AuthTermsScreen> {
         _error = null;
       });
       final draft = ref.read(userRegistrationDraftProvider);
+      // The server creates the account from the *verified* phone number in
+      // this session's ID token (not `draft.phone`, which was only typed),
+      // always as a User, and hands back the existing account instead if
+      // this number already has one.
       try {
-        final docRef = await usersCollection.add({
-          ...accountToUserDoc(Account(id: '', role: AppRole.user, name: draft.name, phone: draft.phone, email: draft.email)),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        final account = Account(id: docRef.id, role: AppRole.user, name: draft.name, phone: draft.phone, email: draft.email);
-        notifier.completeRegistration(account: account);
+        final registration = await registerCustomerAccount(name: draft.name, email: draft.email);
         ref.read(userRegistrationDraftProvider.notifier).reset();
+        if (!mounted) return;
+        if (registration.alreadyRegistered) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("This number already has an account — you're signed in to it.")),
+          );
+        }
+        completeResolvedLogin(context, ref, registration.account);
+        return;
+      } on AccountResolutionException catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _submitting = false;
+          _error = e.message;
+        });
+        return;
       } catch (e, st) {
         if (!mounted) return;
         setState(() {
@@ -86,8 +99,6 @@ class _AuthTermsScreenState extends ConsumerState<AuthTermsScreen> {
         });
         return;
       }
-      if (!mounted) return;
-      setState(() => _submitting = false);
     } else {
       notifier.completeRegistration();
     }

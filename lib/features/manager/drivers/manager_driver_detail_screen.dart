@@ -7,6 +7,7 @@ import '../../../data/models/account.dart';
 import '../../../data/models/driver_document.dart';
 import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
+import '../../../data/providers/kyc_document_url_provider.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
@@ -176,7 +177,7 @@ class _ManagerDriverDetailScreenState extends ConsumerState<ManagerDriverDetailS
             _DocumentTile(
               type: type,
               status: account.driverDocumentStatus(type),
-              imageUrl: account.driverDocumentUrl(type),
+              imageUrl: watchKycDocumentUrl(ref, account.driverDocumentPath(type)),
               onChanged: (status) => _setDocumentStatus(account, isFirestoreBacked, type, status),
             ),
           const SizedBox(height: 20),

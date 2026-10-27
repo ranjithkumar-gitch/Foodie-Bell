@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../core/session/access_scope.dart';
+import '../models/account.dart';
 import '../models/address.dart';
 import '../models/order.dart';
 import 'firestore_addresses_provider.dart';
@@ -52,27 +54,33 @@ Address? _bestMatch(List<Address> saved, String orderLabel) {
 }
 
 /// Resolves [order]'s drop-off from the best source available, in order:
-///  1. the saved address by id (`Order.deliveryAddressId`) — read live, so
-///     a pin the User adds to that address after ordering still counts;
-///  2. for older orders without an id, the User's saved addresses (fetched
-///     by `userId`), best match first — see [_bestMatch];
+///  1. for the order's own Customer only — the only one `firestore.rules`
+///     lets read their address book — the saved address by id
+///     (`Order.deliveryAddressId`), read live so a pin added after ordering
+///     still counts, else (older orders without an id) their best-matching
+///     saved address — see [_bestMatch];
+///  2. the full address written onto the order at placement
+///     (`Order.deliveryAddressFull`) — what the Vendor and Driver go by;
 ///  3. position: the order's own snapshot, else that address's
-///     latitude/longitude, else its typed street address looked up on
-///     the map.
+///     latitude/longitude, else the full address looked up on the map.
 /// Call from a widget's build (it watches providers).
 OrderDropOff watchOrderDropOff(WidgetRef ref, Order order) {
+  final viewerIsCustomer = ref.watch(
+    accessScopeProvider.select((s) => s?.role == AppRole.user && s?.accountId == order.userId),
+  );
   Address? address;
-  final addressId = order.deliveryAddressId;
-  if (addressId != null) {
-    address = ref.watch(addressByIdProvider(addressId)).valueOrNull;
+  if (viewerIsCustomer) {
+    final addressId = order.deliveryAddressId;
+    if (addressId != null) {
+      address = ref.watch(addressByIdProvider(addressId)).valueOrNull;
+    }
+    if (address == null) {
+      final saved = ref.watch(firestoreAddressesProvider(order.userId)).valueOrNull ?? const <Address>[];
+      address = _bestMatch(saved, order.deliveryAddressLabel);
+    }
   }
-  if (address == null) {
-    // Older orders without an id: every address this User has saved
-    // (`addresses` where userId == order.userId), best match first.
-    final saved = ref.watch(firestoreAddressesProvider(order.userId)).valueOrNull ?? const <Address>[];
-    address = _bestMatch(saved, order.deliveryAddressLabel);
-  }
-  final fullAddress = address == null ? order.deliveryAddressLabel : fullAddressText(address);
+  final writtenOut = address == null ? order.deliveryAddressFull : fullAddressText(address);
+  final fullAddress = writtenOut ?? order.deliveryAddressLabel;
 
   if (order.deliveryLatitude != null && order.deliveryLongitude != null) {
     return (
@@ -85,8 +93,8 @@ OrderDropOff watchOrderDropOff(WidgetRef ref, Order order) {
   if (address?.latitude != null && address?.longitude != null) {
     return (position: LatLng(address!.latitude!, address.longitude!), pinned: true, address: address, fullAddress: fullAddress);
   }
-  // Only the full saved address is worth geocoding — the order's short
+  // Only a full written-out address is worth geocoding — the order's short
   // "Home · line1" label alone is too vague to place reliably.
-  final geocoded = address == null ? null : ref.watch(geocodedAddressProvider(fullAddress)).valueOrNull;
+  final geocoded = writtenOut == null ? null : ref.watch(geocodedAddressProvider(writtenOut)).valueOrNull;
   return (position: geocoded, pinned: false, address: address, fullAddress: fullAddress);
 }

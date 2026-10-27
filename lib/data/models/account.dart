@@ -36,6 +36,7 @@ class Account {
     this.managerCode,
     this.rejectionReason,
     this.territory,
+    this.territoryId,
     this.territoryFee = 200000,
     this.category,
     this.subCategory,
@@ -45,9 +46,10 @@ class Account {
     this.longitude,
     this.rebatePercent = 15,
     this.documentStatuses = const {},
-    this.documentUrls = const {},
+    this.documentPaths = const {},
+    this.coverPhotoUrl,
     this.driverDocumentStatuses = const {},
-    this.driverDocumentUrls = const {},
+    this.driverDocumentPaths = const {},
     this.riskConsentAccepted = false,
     this.isOnline = false,
     this.isOpen = true,
@@ -73,7 +75,14 @@ class Account {
   final String? rejectionReason;
 
   /// Manager-only: the territory/pincode cluster Admin assigned on creation.
+  /// Vendor/Driver: the territory they operate in. Display name only —
+  /// [territoryId] is what access control keys off.
   final String? territory;
+
+  /// Manager/Vendor/Driver: the `territories` doc id they belong to — the
+  /// same value the server puts in the account's `territoryId` claim, which
+  /// Firestore rules scope a Manager's (and a Driver's offers') access by.
+  final String? territoryId;
 
   /// Manager-only: the one-time territory/location fee Admin set for this
   /// Manager on `manager_create_screen.dart` — defaults to ₹2,00,000 there
@@ -114,12 +123,18 @@ class Account {
   /// see [documentStatus].
   final Map<VendorDocumentType, VendorDocumentStatus> documentStatuses;
 
-  /// Vendor-only: download URL for each document that's been actually
-  /// uploaded to Storage (`vendor_document_storage_provider.dart`) — keyed
-  /// the same as [documentStatuses], but only populated once a document has
-  /// gone through a real pick/crop/upload rather than just been marked
-  /// required/not-required.
-  final Map<VendorDocumentType, String> documentUrls;
+  /// Vendor-only: Storage *path* of each document that's actually been
+  /// uploaded (`vendor_document_storage_provider.dart`) — keyed the same as
+  /// [documentStatuses]. Paths, not download URLs: a download URL works for
+  /// anyone who has it, while a path only resolves to one for someone
+  /// `storage.rules` lets read the file (the Vendor, their territory's
+  /// Manager, the Super Admin) — see `KycImage`.
+  final Map<VendorDocumentType, String> documentPaths;
+
+  /// Vendor-only: public storefront photo shown to Customers — a copy of the
+  /// shop-front document's download URL, kept separate so the KYC document
+  /// itself can stay private.
+  final String? coverPhotoUrl;
 
   /// Driver-only: same Required/Not Required/Submitted checklist as
   /// [documentStatuses], but keyed by [DriverDocumentType] — Manager sets
@@ -127,9 +142,9 @@ class Account {
   /// `driver_document_checklist.dart`).
   final Map<DriverDocumentType, VendorDocumentStatus> driverDocumentStatuses;
 
-  /// Driver-only: download URL for each submitted document, mirrors
-  /// [documentUrls] (`driver_document_storage_provider.dart`).
-  final Map<DriverDocumentType, String> driverDocumentUrls;
+  /// Driver-only: Storage path of each submitted document, mirrors
+  /// [documentPaths] (`driver_document_storage_provider.dart`).
+  final Map<DriverDocumentType, String> driverDocumentPaths;
 
   /// Driver-only: explicit acknowledgment that driving carries inherent
   /// risk and they're taking up the work willingly, without pressure —
@@ -187,7 +202,7 @@ class Account {
 
   VendorDocumentStatus documentStatus(VendorDocumentType type) => documentStatuses[type] ?? VendorDocumentStatus.required;
 
-  String? documentUrl(VendorDocumentType type) => documentUrls[type];
+  String? documentPath(VendorDocumentType type) => documentPaths[type];
 
   /// True once every document Manager marked required has been submitted —
   /// Manager Vendor Detail surfaces this as "Ready to Activate" while the
@@ -196,7 +211,7 @@ class Account {
 
   VendorDocumentStatus driverDocumentStatus(DriverDocumentType type) => driverDocumentStatuses[type] ?? VendorDocumentStatus.required;
 
-  String? driverDocumentUrl(DriverDocumentType type) => driverDocumentUrls[type];
+  String? driverDocumentPath(DriverDocumentType type) => driverDocumentPaths[type];
 
   /// True once every driver document is submitted and risk consent has been
   /// given — Manager Driver Detail surfaces this as "Ready to Activate"
@@ -216,9 +231,11 @@ class Account {
     String? rejectionReason,
     double? rebatePercent,
     Map<VendorDocumentType, VendorDocumentStatus>? documentStatuses,
-    Map<VendorDocumentType, String>? documentUrls,
+    Map<VendorDocumentType, String>? documentPaths,
+    String? coverPhotoUrl,
+    String? territoryId,
     Map<DriverDocumentType, VendorDocumentStatus>? driverDocumentStatuses,
-    Map<DriverDocumentType, String>? driverDocumentUrls,
+    Map<DriverDocumentType, String>? driverDocumentPaths,
     bool? riskConsentAccepted,
     bool? isOnline,
     bool? isOpen,
@@ -238,6 +255,7 @@ class Account {
     managerCode: managerCode,
     rejectionReason: rejectionReason ?? this.rejectionReason,
     territory: territory,
+    territoryId: territoryId ?? this.territoryId,
     territoryFee: territoryFee,
     category: category,
     subCategory: subCategory,
@@ -247,9 +265,10 @@ class Account {
     longitude: longitude ?? this.longitude,
     rebatePercent: rebatePercent ?? this.rebatePercent,
     documentStatuses: documentStatuses ?? this.documentStatuses,
-    documentUrls: documentUrls ?? this.documentUrls,
+    documentPaths: documentPaths ?? this.documentPaths,
+    coverPhotoUrl: coverPhotoUrl ?? this.coverPhotoUrl,
     driverDocumentStatuses: driverDocumentStatuses ?? this.driverDocumentStatuses,
-    driverDocumentUrls: driverDocumentUrls ?? this.driverDocumentUrls,
+    driverDocumentPaths: driverDocumentPaths ?? this.driverDocumentPaths,
     riskConsentAccepted: riskConsentAccepted ?? this.riskConsentAccepted,
     isOnline: isOnline ?? this.isOnline,
     isOpen: isOpen ?? this.isOpen,

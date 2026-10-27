@@ -209,7 +209,7 @@ class AppLocalizationsTe extends AppLocalizations {
   String get paymentCodSubtitle => 'మీ ఆర్డర్ వచ్చినప్పుడు చెల్లించండి';
 
   @override
-  String get paymentUpi => 'UPI (PhonePe, Google Pay, Paytm)';
+  String get paymentUpi => 'UPI';
 
   @override
   String get paymentComingSoon => 'త్వరలో వస్తుంది';
@@ -236,37 +236,37 @@ class AppLocalizationsTe extends AppLocalizations {
       'చెల్లింపు పూర్తి కాలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.';
 
   @override
-  String get paymentUpiSubtitle =>
-      'మీ UPI యాప్ నుండి నేరుగా షాప్‌కు చెల్లించండి';
+  String paymentOrderSaveFailed(Object paymentId) {
+    return 'మీ చెల్లింపు పూర్తయింది, కానీ ఆర్డర్ చేయలేకపోయాము. దయచేసి పేమెంట్ ID $paymentIdతో సపోర్ట్‌ను సంప్రదించండి.';
+  }
 
   @override
-  String get paymentChooseUpiApp => 'దీనితో చెల్లించండి';
+  String get paymentUpiSubtitle =>
+      'GPay, PhonePe, Paytm లేదా ఏదైనా UPI యాప్‌తో చెల్లించండి';
+
+  @override
+  String get paymentChooseUpiApp => 'UPI యాప్‌ను ఎంచుకోండి';
 
   @override
   String get paymentNoUpiApp =>
-      'ఈ ఫోన్‌లో UPI యాప్ లేదు. PhonePe, Google Pay లేదా Paytm ఇన్‌స్టాల్ చేయండి, లేదా క్యాష్ ఆన్ డెలివరీ ఎంచుకోండి.';
-
-  @override
-  String paymentUpiPending(Object ref) {
-    return 'మీ చెల్లింపు ఇంకా ప్రాసెస్ అవుతోంది, కాబట్టి ఆర్డర్ చేయబడలేదు. డబ్బు కట్ అయితే, రిఫరెన్స్ $ref తో సపోర్ట్‌ను సంప్రదించండి.';
-  }
+      'ఈ ఫోన్‌లో UPI యాప్ కనిపించలేదు. దయచేసి ఒకటి ఇన్‌స్టాల్ చేయండి లేదా వేరే చెల్లింపు పద్ధతిని ఎంచుకోండి.';
 
   @override
   String get paymentUpiConfirmTitle => 'మీ చెల్లింపు పూర్తయిందా?';
 
   @override
   String get paymentUpiConfirmMessage =>
-      'మీ UPI యాప్‌లో చూడండి. చెల్లింపు విజయవంతమైతే మాత్రమే \"అవును, చెల్లించాను\" నొక్కండి.';
-
-  @override
-  String get paymentUpiConfirmYes => 'అవును, చెల్లించాను';
+      'మీ UPI యాప్ నుండి చెల్లింపును నిర్ధారించలేకపోయాము. మొత్తం డెబిట్ అయితేనే అవును నొక్కండి.';
 
   @override
   String get paymentUpiConfirmNo => 'లేదు';
 
   @override
-  String paymentOrderSaveFailed(Object paymentId) {
-    return 'మీ చెల్లింపు పూర్తయింది, కానీ ఆర్డర్ చేయలేకపోయాము. దయచేసి పేమెంట్ ID $paymentIdతో సపోర్ట్‌ను సంప్రదించండి.';
+  String get paymentUpiConfirmYes => 'అవును, చెల్లించాను';
+
+  @override
+  String paymentUpiPending(Object transactionId) {
+    return 'మీ చెల్లింపు పెండింగ్‌లో ఉంది. అది పూర్తయిన తర్వాత మీ ఆర్డర్‌ను నిర్ధారిస్తాము. రిఫరెన్స్: $transactionId';
   }
 
   @override

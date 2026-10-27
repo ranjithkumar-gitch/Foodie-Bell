@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
+import '../models/account.dart';
 import '../models/list_order_request.dart';
 import '../models/order.dart';
 import 'firestore_orders_provider.dart' show ordersCollection, orderToDoc;
@@ -60,12 +62,18 @@ ListOrderRequest _requestFromData(String id, Map<String, dynamic> data) {
   );
 }
 
-/// Every photo-order request network-wide — the User side filters to its
-/// own `userId`, the Vendor side to its own `vendorId`, same as
-/// [firestoreReviewsProvider]/`firestoreOrdersProvider`.
+/// The signed-in account's photo-order requests — a Customer's own, or
+/// those sent to a Vendor — the only ones `firestore.rules` lets each read.
 final firestoreListOrderRequestsProvider =
     StreamProvider<List<ListOrderRequest>>((ref) {
-      return listOrderRequestsCollection.snapshots().map((snapshot) {
+      final scope = ref.watch(accessScopeProvider);
+      final field = switch (scope?.role) {
+        AppRole.user => 'userId',
+        AppRole.vendor => 'vendorId',
+        _ => null,
+      };
+      if (scope == null || field == null) return Stream.value(const []);
+      return listOrderRequestsCollection.where(field, isEqualTo: scope.accountId).snapshots().map((snapshot) {
         final requests = snapshot.docs.map(_requestFromDoc).toList();
         final createdAtById = {
           for (final doc in snapshot.docs)
@@ -139,6 +147,8 @@ Future<void> acceptListOrderRequestAndCreateOrder({
     'receiptImageUrl': receiptImageUrl,
     'orderId': order.id,
   });
-  batch.set(ordersCollection.doc(order.id), orderToDoc(order));
+  // `listOrderRequestId` is how firestore.rules ties this Vendor-created
+  // order back to the request it's accepting.
+  batch.set(ordersCollection.doc(order.id), {...orderToDoc(order), 'listOrderRequestId': requestId});
   await batch.commit();
 }

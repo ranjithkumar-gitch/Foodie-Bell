@@ -7,13 +7,13 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/session/access_scope.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/coupon.dart';
 import '../../../data/models/product.dart';
 import '../../../data/models/promotion.dart';
-import '../../../data/models/vendor_document.dart';
 import '../../../data/promotion_plans.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_products_provider.dart';
@@ -144,6 +144,7 @@ class _PromotionsTab extends ConsumerWidget {
         vendorId: vendorId,
         vendorName: vendorName,
         territory: territory,
+        territoryId: ref.read(accessScopeProvider)?.territoryId,
         startDate: result.startDate,
         durationDays: result.durationDays,
         price: result.price,
@@ -235,9 +236,7 @@ class _PromotionsTab extends ConsumerWidget {
                         vendorId: account.id,
                         vendorName: account.name,
                         territory: account.territory ?? '',
-                        vendorPhotoUrl: account.documentUrl(
-                          VendorDocumentType.shopFrontPhoto,
-                        ),
+                        vendorPhotoUrl: account.coverPhotoUrl,
                         category: account.category,
                       ),
                 icon: const Icon(Icons.add_rounded),

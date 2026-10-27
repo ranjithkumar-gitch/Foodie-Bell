@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
 import '../models/account.dart';
 import '../models/driver_document.dart';
 import '../models/driver_location.dart';
@@ -26,17 +27,18 @@ Map<String, dynamic> accountToDriverDoc(Account account) => {
   'email': account.email?.toLowerCase(),
   'managerCode': account.managerCode,
   'territory': account.territory,
+  'territoryId': account.territoryId,
   'documentStatuses': account.driverDocumentStatuses.map((type, status) => MapEntry(type.name, status.name)),
-  'documentUrls': account.driverDocumentUrls.map((type, url) => MapEntry(type.name, url)),
+  'documentPaths': account.driverDocumentPaths.map((type, url) => MapEntry(type.name, url)),
   'riskConsentAccepted': account.riskConsentAccepted,
   'isOnline': account.isOnline,
   'status': account.status.name,
 };
 
-Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-  final data = doc.data();
+Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
   final rawDocumentStatuses = data['documentStatuses'] as Map<String, dynamic>? ?? const {};
-  final rawDocumentUrls = data['documentUrls'] as Map<String, dynamic>? ?? const {};
+  final rawDocumentPaths = data['documentPaths'] as Map<String, dynamic>? ?? const {};
   return Account(
     id: doc.id,
     role: AppRole.driver,
@@ -45,13 +47,14 @@ Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     email: data['email'] as String?,
     managerCode: data['managerCode'] as String?,
     territory: data['territory'] as String?,
+    territoryId: data['territoryId'] as String?,
     driverDocumentStatuses: {
       for (final type in DriverDocumentType.values)
         if (rawDocumentStatuses[type.name] != null) type: VendorDocumentStatus.values.byName(rawDocumentStatuses[type.name] as String),
     },
-    driverDocumentUrls: {
+    driverDocumentPaths: {
       for (final type in DriverDocumentType.values)
-        if (rawDocumentUrls[type.name] != null) type: rawDocumentUrls[type.name] as String,
+        if (rawDocumentPaths[type.name] != null) type: rawDocumentPaths[type.name] as String,
     },
     riskConsentAccepted: data['riskConsentAccepted'] as bool? ?? false,
     isOnline: data['isOnline'] as bool? ?? false,
@@ -59,17 +62,34 @@ Account _accountFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
   );
 }
 
+/// The Driver accounts the signed-in account may see: a Manager's whole
+/// territory, or a Driver's own record — nobody else can read drivers
+/// (Customers follow their Driver through the order instead). Newest first,
+/// sorted client-side so no composite index is needed.
 final firestoreDriversProvider = StreamProvider<List<Account>>((ref) {
-  return driversCollection.orderBy('createdAt', descending: true).snapshots().map((snapshot) => snapshot.docs.map(_accountFromDoc).toList());
+  final scope = ref.watch(accessScopeProvider);
+  if (scope == null) return Stream.value(const []);
+  final territoryId = scope.territoryId;
+  if (scope.role == AppRole.driver) {
+    return driversCollection.doc(scope.accountId).snapshots().map((doc) => doc.exists ? [_accountFromDoc(doc)] : const []);
+  }
+  if (scope.role != AppRole.manager || territoryId == null) return Stream.value(const []);
+  return driversCollection.where('territoryId', isEqualTo: territoryId).snapshots().map((snapshot) {
+    final createdAt = {for (final doc in snapshot.docs) doc.id: doc.data()['createdAt'] as Timestamp?};
+    return snapshot.docs.map(_accountFromDoc).toList()
+      ..sort((a, b) => (createdAt[b.id]?.millisecondsSinceEpoch ?? 0).compareTo(createdAt[a.id]?.millisecondsSinceEpoch ?? 0));
+  });
 });
 
-/// One-shot lookup for phone-login/session-resolution (`auth_navigation.dart`,
-/// `splash_screen.dart`) — mirrors `findFirestoreVendorByPhone`.
-Future<Account?> findFirestoreDriverByPhone(String phone) async {
-  final normalized = phone.replaceFirst(RegExp(r'^\+91'), '');
-  final snapshot = await driversCollection.where('phone', isEqualTo: normalized).limit(1).get();
-  if (snapshot.docs.isEmpty) return null;
-  return _accountFromDoc(snapshot.docs.first);
+/// One-shot read of a single Driver account by doc id — what
+/// `account_resolver.dart` loads once the `resolveSession` Cloud Function
+/// has said which account a verified phone sign-in belongs to. A direct
+/// document read, which the per-account Firestore rules allow for the
+/// account's own owner.
+Future<Account?> findFirestoreDriverById(String id) async {
+  final snapshot = await driversCollection.doc(id).get();
+  if (!snapshot.exists) return null;
+  return _accountFromDoc(snapshot);
 }
 
 /// Merges Firestore-persisted drivers with any in-memory mock ones, deduped
@@ -107,11 +127,11 @@ Future<void> updateDriverStatus(String driverId, AccountStatus status, {String? 
 Future<void> updateDriverDocumentStatus(String driverId, DriverDocumentType type, VendorDocumentStatus status) =>
     driversCollection.doc(driverId).update({'documentStatuses.${type.name}': status.name});
 
-Future<void> updateDriverDocumentUrl(String driverId, DriverDocumentType type, String url) =>
-    driversCollection.doc(driverId).update({'documentUrls.${type.name}': url});
+Future<void> updateDriverDocumentPath(String driverId, DriverDocumentType type, String url) =>
+    driversCollection.doc(driverId).update({'documentPaths.${type.name}': url});
 
-Future<void> clearDriverDocumentUrl(String driverId, DriverDocumentType type) =>
-    driversCollection.doc(driverId).update({'documentUrls.${type.name}': FieldValue.delete()});
+Future<void> clearDriverDocumentPath(String driverId, DriverDocumentType type) =>
+    driversCollection.doc(driverId).update({'documentPaths.${type.name}': FieldValue.delete()});
 
 Future<void> updateDriverConsent(String driverId, bool accepted) =>
     driversCollection.doc(driverId).update({'riskConsentAccepted': accepted});
@@ -152,16 +172,16 @@ final driverLocationProvider = StreamProvider.family<DriverLocation?, String>((r
 
 /// One atomic write for the Driver's own "Upload" confirmation
 /// (`driver_document_checklist.dart`) — every document the Driver staged
-/// locally (already uploaded to Storage by the caller, [documentUrls] keyed
+/// locally (already uploaded to Storage by the caller, [documentPaths] keyed
 /// by type) plus risk consent land in the database together, in a single
 /// `update()` call, only once the Driver explicitly confirms. Nothing here
 /// fires until that tap — picking/cropping a photo only stages it in
 /// memory, it doesn't touch Firestore.
-Future<void> submitDriverDocuments(String driverId, Map<DriverDocumentType, String> documentUrls, {bool? riskConsentAccepted}) {
+Future<void> submitDriverDocuments(String driverId, Map<DriverDocumentType, String> documentPaths, {bool? riskConsentAccepted}) {
   final updates = <String, dynamic>{
-    for (final entry in documentUrls.entries) ...{
+    for (final entry in documentPaths.entries) ...{
       'documentStatuses.${entry.key.name}': VendorDocumentStatus.submitted.name,
-      'documentUrls.${entry.key.name}': entry.value,
+      'documentPaths.${entry.key.name}': entry.value,
     },
     if (riskConsentAccepted == true) 'riskConsentAccepted': true,
   };

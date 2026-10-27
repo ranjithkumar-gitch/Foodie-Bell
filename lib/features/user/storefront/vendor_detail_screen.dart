@@ -8,7 +8,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/coupon.dart';
 import '../../../data/models/product.dart';
-import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/cart_provider.dart';
 import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_categories_provider.dart';
@@ -276,7 +275,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
             .firstOrNull
             ?.name ??
         account.category;
-    final coverUrl = account.documentUrl(VendorDocumentType.shopFrontPhoto);
+    final coverUrl = account.coverPhotoUrl;
     final vendorReviews =
         (ref.watch(firestoreReviewsProvider).valueOrNull ?? const [])
             .where((r) => r.vendorId == account.id)

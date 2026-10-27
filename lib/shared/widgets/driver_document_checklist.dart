@@ -11,6 +11,7 @@ import '../../data/models/driver_document.dart';
 import '../../data/models/vendor_document.dart';
 import '../../data/providers/driver_document_storage_provider.dart';
 import '../../data/providers/firestore_drivers_provider.dart';
+import '../../data/providers/kyc_document_url_provider.dart';
 import '../../data/providers/mock_accounts_provider.dart';
 import 'app_network_image.dart';
 import 'document_source_sheet.dart';
@@ -104,10 +105,10 @@ class _DriverDocumentChecklistState extends ConsumerState<DriverDocumentChecklis
     try {
       await deleteDriverDocumentFile(widget.account.id, type);
       if (widget.isFirestoreBacked) {
-        await clearDriverDocumentUrl(widget.account.id, type);
+        await clearDriverDocumentPath(widget.account.id, type);
         await updateDriverDocumentStatus(widget.account.id, type, VendorDocumentStatus.required);
       } else {
-        ref.read(mockAccountsProvider.notifier).clearDriverDocumentUrl(widget.account.id, type);
+        ref.read(mockAccountsProvider.notifier).clearDriverDocumentPath(widget.account.id, type);
         ref.read(mockAccountsProvider.notifier).updateDriverDocumentStatus(widget.account.id, type, VendorDocumentStatus.required);
       }
     } catch (_) {
@@ -142,17 +143,17 @@ class _DriverDocumentChecklistState extends ConsumerState<DriverDocumentChecklis
     if (!_hasPendingChanges || _uploading) return;
     setState(() => _uploading = true);
     try {
-      final urls = <DriverDocumentType, String>{};
+      final paths = <DriverDocumentType, String>{};
       await Future.wait(
         _stagedFiles.entries.map((entry) async {
-          urls[entry.key] = await uploadDriverDocument(widget.account.id, entry.key, entry.value);
+          paths[entry.key] = await uploadDriverDocument(widget.account.id, entry.key, entry.value);
         }),
       );
       final consent = _consentStaged && !widget.account.riskConsentAccepted ? true : null;
       if (widget.isFirestoreBacked) {
-        await submitDriverDocuments(widget.account.id, urls, riskConsentAccepted: consent);
+        await submitDriverDocuments(widget.account.id, paths, riskConsentAccepted: consent);
       } else {
-        ref.read(mockAccountsProvider.notifier).submitDriverDocuments(widget.account.id, urls, riskConsentAccepted: consent);
+        ref.read(mockAccountsProvider.notifier).submitDriverDocuments(widget.account.id, paths, riskConsentAccepted: consent);
       }
       if (!mounted) return;
       setState(() {
@@ -184,7 +185,7 @@ class _DriverDocumentChecklistState extends ConsumerState<DriverDocumentChecklis
           _DocumentTile(
             type: type,
             status: widget.account.driverDocumentStatus(type),
-            persistedUrl: widget.account.driverDocumentUrl(type),
+            persistedUrl: watchKycDocumentUrl(ref, widget.account.driverDocumentPath(type)),
             stagedFile: _stagedFiles[type],
             deleting: _deleting.contains(type),
             busy: _uploading,
