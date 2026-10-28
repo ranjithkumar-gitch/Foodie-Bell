@@ -1,10 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
+import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../driver_session.dart';
@@ -33,10 +36,10 @@ DateTime _dayOf(DateTime d) => DateTime(d.year, d.month, d.day);
 /// Earnings Dashboard (spec §6 item 13), laid out like the Swiggy/Zomato
 /// partner apps: a Today / This week / This month switch over one big
 /// earnings figure (with deliveries and cash collected), a last-7-days
-/// earnings chart, weekly payouts, and every delivery grouped by day — all
-/// derived from this driver's own real delivered orders at the flat
-/// ₹20/delivery rate. There's no settlement backend to mark a week "Paid"
-/// vs pending against, so no payout status is invented here.
+/// earnings chart, weekly payouts, and every delivery grouped by day. The
+/// figures are the server's per-day totals (`earnings_daily`, one document
+/// per settlement day — "today" is the settlement day, as on the daily
+/// statement); the delivery list is read a page at a time.
 class DriverEarningsScreen extends ConsumerStatefulWidget {
   const DriverEarningsScreen({super.key});
 
@@ -49,7 +52,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
 
   _Period _period = _Period.today;
 
-  List<({String period, double amount, int count})> _weeklyHistory(List<Order> delivered, DateTime now) {
+  List<({String period, double amount, int count})> _weeklyHistory(List<EarningsDay> days, DateTime now) {
     final thisMonday = _dayOf(now).subtract(Duration(days: now.weekday - 1));
     String label(DateTime d) => '${d.day} ${_months[d.month - 1]}';
     return [
@@ -57,9 +60,10 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
         () {
           final weekStart = thisMonday.subtract(Duration(days: 7 * w));
           final weekEnd = weekStart.add(const Duration(days: 7));
-          final count = delivered.where((o) => !_deliveredAt(o).isBefore(weekStart) && _deliveredAt(o).isBefore(weekEnd)).length;
+          final inWeek = days.where((d) => !d.date.isBefore(weekStart) && d.date.isBefore(weekEnd));
+          final count = inWeek.fold<int>(0, (s, d) => s + d.orders);
           final period = w == 0 ? 'This week' : '${label(weekStart)} – ${label(weekEnd.subtract(const Duration(days: 1)))}';
-          return (period: period, amount: count * kDriverFlatPayout, count: count);
+          return (period: period, amount: inWeek.fold<double>(0, (s, d) => s + d.earnings), count: count);
         }(),
     ].where((w) => w.count > 0 || w.period == 'This week').toList();
   }
@@ -68,43 +72,53 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
   Widget build(BuildContext context) {
     final palette = context.colors;
     final driver = ref.watch(currentDriverAccountProvider);
-    final orders = ref.watch(firestoreOrdersProvider).valueOrNull ?? const [];
-    final now = DateTime.now();
-    final today = _dayOf(now);
-
-    final delivered = orders.where((o) => o.driverId == driver.id && o.status == OrderStatus.delivered).toList()
-      ..sort((a, b) => _deliveredAt(b).compareTo(_deliveredAt(a)));
+    // Six weeks of per-day totals covers the month, the 7-day chart and the
+    // weekly payouts.
+    final days = ref.watch(myEarningsDaysProvider(42)).valueOrNull ?? const <EarningsDay>[];
+    final cutoff = ref.watch(settlementCutoffProvider).valueOrNull ?? 22 * 60;
+    final today = DateTime.parse(currentSettlementDay(cutoffMinutes: cutoff));
+    final now = today;
 
     final periodStart = switch (_period) {
       _Period.today => today,
       _Period.week => today.subtract(Duration(days: now.weekday - 1)),
       _Period.month => DateTime(now.year, now.month),
     };
-    final inPeriod = delivered.where((o) => !_deliveredAt(o).isBefore(periodStart)).toList();
-    final cashCollected = inPeriod
-        .where((o) => o.isCod && o.codPaymentReceived)
-        .fold<double>(0, (sum, o) => sum + o.total);
+    final inPeriod = days.where((d) => !d.date.isBefore(periodStart)).toList();
+    final periodEarnings = inPeriod.fold<double>(0, (s, d) => s + d.earnings);
+    final periodDeliveries = inPeriod.fold<int>(0, (s, d) => s + d.orders);
+    // The cash actually recorded on COD deliveries. It is owed to the
+    // Manager in full; the delivery fee comes back in settlement.
+    final cashCollected = inPeriod.fold<double>(0, (s, d) => s + d.codCollected);
 
     // Last 7 days, oldest → today, for the chart.
+    final byDate = {for (final d in days) d.date: d};
     final last7 = [
       for (var i = 6; i >= 0; i--)
         () {
           final day = today.subtract(Duration(days: i));
-          final count = delivered.where((o) => _dayOf(_deliveredAt(o)) == day).length;
-          return (day: day, amount: count * kDriverFlatPayout);
+          return (day: day, amount: byDate[day]?.earnings ?? 0.0);
         }(),
     ];
 
-    final payoutHistory = _weeklyHistory(delivered, now);
+    final payoutHistory = _weeklyHistory(days, now);
 
-    // Every delivery, grouped under a day header.
+    // Every delivery, newest first, a page at a time, grouped under a day header.
+    final history = ref.watch(orderHistoryProvider(OrderHistoryFilter.delivered));
+    final delivered = [
+      for (final o in history.orders)
+        if (o.driverId == driver.id) o,
+    ]..sort((a, b) => _deliveredAt(b).compareTo(_deliveredAt(a)));
     final byDay = <DateTime, List<Order>>{};
     for (final o in delivered) {
       byDay.putIfAbsent(_dayOf(_deliveredAt(o)), () => []).add(o);
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Earnings')),
+      appBar: AppBar(
+        title: const Text('Earnings'),
+        actions: [IconButton(icon: const Icon(Icons.account_balance_wallet_outlined), tooltip: 'Settlement payments', onPressed: () => context.push('/driver/settlement-payments'))],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         children: [
@@ -121,8 +135,8 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
           const SizedBox(height: 16),
           _HeroEarnings(
             periodLabel: _period.label,
-            amount: inPeriod.length * kDriverFlatPayout,
-            deliveries: inPeriod.length,
+            amount: periodEarnings,
+            deliveries: periodDeliveries,
             cashCollected: cashCollected,
           ),
           const SizedBox(height: 22),
@@ -185,7 +199,9 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
           const SizedBox(height: 24),
           Text('Delivery breakdown', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
           const SizedBox(height: 12),
-          if (delivered.isEmpty)
+          if (delivered.isEmpty && history.loading)
+            const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+          else if (delivered.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 12),
               child: EmptyState(
@@ -199,7 +215,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
               _DayHeader(
                 day: entry.key,
                 today: today,
-                total: entry.value.length * kDriverFlatPayout,
+                total: driverEarningsOf(entry.value),
                 count: entry.value.length,
               ),
               const SizedBox(height: 8),
@@ -220,6 +236,15 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
               ),
               const SizedBox(height: 16),
             ],
+          if (history.hasMore && delivered.isNotEmpty)
+            Center(
+              child: OutlinedButton(
+                onPressed: history.loading
+                    ? null
+                    : () => ref.read(orderHistoryProvider(OrderHistoryFilter.delivered).notifier).loadMore(),
+                child: Text(history.loading ? 'Loading…' : 'Show more deliveries'),
+              ),
+            ),
         ],
       ),
     );
@@ -267,7 +292,7 @@ class _HeroEarnings extends StatelessWidget {
             children: [
               _HeroStat(icon: Icons.inventory_2_rounded, value: '$deliveries', label: deliveries == 1 ? 'Delivery' : 'Deliveries'),
               _HeroStat(icon: Icons.payments_rounded, value: AppFormat.currency(cashCollected), label: 'Cash collected'),
-              _HeroStat(icon: Icons.sell_rounded, value: AppFormat.currency(kDriverFlatPayout), label: 'Per delivery'),
+              _HeroStat(icon: Icons.sell_rounded, value: deliveries == 0 ? '—' : AppFormat.currency(amount / deliveries), label: 'Avg per delivery'),
             ],
           ),
         ],
@@ -508,7 +533,7 @@ class _DeliveryRow extends StatelessWidget {
             ),
           ),
           CurrencyText(
-            kDriverFlatPayout,
+            driverEarningOf(order),
             style: TextStyle(fontWeight: FontWeight.w600, color: palette.success),
           ),
         ],

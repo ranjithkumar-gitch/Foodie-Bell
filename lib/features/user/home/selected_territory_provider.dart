@@ -23,6 +23,15 @@ Territory? resolveDefaultTerritory(List<Territory> territories) {
   return territories.firstWhere((t) => t.name == defaultTerritoryName, orElse: () => territories.first);
 }
 
+/// The ID of the territory a User is browsing — their pick, else the
+/// default. Storefront queries (vendors, products, coupons, promotions,
+/// trending) are scoped to it by `territoryId`, never by display name.
+final browsingTerritoryIdProvider = Provider<String?>((ref) {
+  final picked = ref.watch(selectedTerritoryProvider);
+  if (picked != null) return picked.id;
+  return resolveDefaultTerritory(ref.watch(firestoreTerritoriesProvider).valueOrNull ?? const [])?.id;
+});
+
 /// The last-picked territory id loaded from local storage at startup
 /// (`main.dart`, before `runApp`) — overridden via `ProviderScope`, same
 /// pattern as `cachedBrandThemeProvider`. Only consumed by

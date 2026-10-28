@@ -27,6 +27,7 @@ import 'registration/vendor_rebate_terms_screen.dart';
 import 'reviews/vendor_reviews_screen.dart';
 import 'support/vendor_help_screen.dart';
 import 'support/vendor_ticket_chat_screen.dart';
+import '../../shared/settlement_payments_screen.dart';
 
 /// Vendor's full route set (spec §5). Registration (items 1-5) lives under
 /// `/vendor/register/...` and is reachable pre-auth, per `sessionRedirect`'s
@@ -166,6 +167,11 @@ List<RouteBase> get vendorRoutes => [
     path: '/vendor/earnings',
     name: 'vendorEarnings',
     builder: (context, state) => const VendorEarningsScreen(),
+  ),
+  GoRoute(
+    path: '/vendor/settlement-payments',
+    name: 'vendorSettlementPayments',
+    builder: (context, state) => const SettlementPaymentsScreen(),
   ),
   GoRoute(
     path: '/vendor/promotions',

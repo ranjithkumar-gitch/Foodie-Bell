@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,23 +35,18 @@ const kAllUsersTopic = 'all_users';
 /// Send Notification picker doesn't need to re-derive this scheme.
 String topicForTerritory(String territoryId) => 'territory_$territoryId';
 
-/// Every role's own personal topic — subscribed on login, unsubscribed on
-/// logout (see [listenForAccountTopicSync]), and what the order-lifecycle
-/// Cloud Function (`onOrderStatusChange`, `QuickyAdmin/functions/index.js`)
-/// targets for a specific User/Vendor/Manager/Driver recipient.
-String topicForAccount(String accountId) => 'account_$accountId';
+/// The old personal topic. Personal notifications now go to this device's
+/// registered token ([listenForDeviceTokenSync]) — anyone who guessed an
+/// account ID could subscribe to its topic — so it is only unsubscribed
+/// from, to clean up installs that subscribed before.
+String legacyTopicForAccount(String accountId) => 'account_$accountId';
 
-/// Every active Driver in [territoryName] — subscribed to by Drivers while
-/// active (see [listenForDriverTerritoryTopicSync]), and what
-/// `onOrderStatusChange` targets for the "notify every available Driver"
-/// fan-out at the `vendorAccepted` step.
-///
-/// FCM topic names only allow `[a-zA-Z0-9-_.~%]` — `Account.territory` is a
-/// free-text display name (e.g. `"Chityal, Nalgonda"`, comma and space
-/// included), so it's sanitized first. Must match the same sanitization in
-/// `onOrderStatusChange`'s JS, or the two sides never land on the same
-/// topic string.
-String topicForActiveDrivers(String territoryName) => 'drivers_${sanitizeTopicSegment(territoryName)}';
+/// Every active Driver in a territory, by territory ID — subscribed to by
+/// Drivers while active (see [listenForDriverTerritoryTopicSync]), and what
+/// `onOrderStatusChange` (QuickyAdmin `functions/notifications.js`) pings
+/// when a shop accepts an order. The message names only the shop; the
+/// offer itself is read from Firestore under the rules.
+String topicForActiveDrivers(String territoryId) => 'drivers_${sanitizeTopicSegment(territoryId)}';
 
 final _unsafeTopicChars = RegExp(r'[^a-zA-Z0-9\-_.~%]');
 
@@ -132,21 +130,54 @@ final currentAccountIdProvider = Provider<String?>((ref) {
   return session.account!.id;
 });
 
-/// Wired once at the app root, alongside [listenForTopicSync] — subscribes
-/// to [topicForAccount] on login, unsubscribes on logout, for every role.
-void listenForAccountTopicSync(WidgetRef ref) {
-  ref.listen<String?>(currentAccountIdProvider, (previous, next) {
+final _functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
+
+StreamSubscription<String>? _tokenRefresh;
+
+Future<void> _registerToken(String? token) async {
+  if (token == null) return;
+  try {
+    final platform = kIsWeb ? 'web' : (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android');
+    await _functions.httpsCallable('registerDevice').call<void>({'token': token, 'platform': platform});
+  } catch (e, st) {
+    debugPrint('fcm: registerDevice failed: $e\n$st');
+  }
+}
+
+/// Wired once at the app root, alongside [listenForTopicSync]. On sign-in
+/// (every role) files this device's FCM token under the account on the
+/// server (`registerDevice`, which takes the account from the verified
+/// sign-in, never from the app), and again whenever FCM rotates the token.
+/// On sign-out deletes the token on the device, so nothing more is
+/// delivered to it; the server drops the dead token on its next send.
+void listenForDeviceTokenSync(WidgetRef ref) {
+  ref.listen<String?>(currentAccountIdProvider, (previous, next) async {
     if (previous == next) return;
-    if (previous != null) unsubscribeFromTopic(topicForAccount(previous));
-    if (next != null) subscribeToTopic(topicForAccount(next));
+    if (previous != null) {
+      await _tokenRefresh?.cancel();
+      _tokenRefresh = null;
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (e, st) {
+        debugPrint('fcm: deleteToken failed: $e\n$st');
+      }
+    }
+    if (next != null) {
+      unsubscribeFromTopic(legacyTopicForAccount(next));
+      try {
+        await _registerToken(await FirebaseMessaging.instance.getToken());
+      } catch (e, st) {
+        debugPrint('fcm: getToken failed: $e\n$st');
+      }
+      _tokenRefresh ??= FirebaseMessaging.instance.onTokenRefresh.listen(_registerToken);
+    }
   });
 }
 
-/// The Driver's own territory while actively signed in as an active Driver
-/// — null otherwise, including for every other role. Drilled from the
-/// session's own [Account.territory] (denormalized onto the Driver's own
-/// record at creation, see `manager_driver_create_screen.dart`) rather than
-/// a live Firestore lookup — same login/logout-only granularity as
+/// The Driver's own territory ID while actively signed in as an active
+/// Driver — null otherwise, including for every other role. Drilled from
+/// the session's own [Account.territoryId] rather than a live Firestore
+/// lookup — same login/logout-only granularity as
 /// [currentTopicTerritoryProvider], not reactive to a Manager suspending
 /// this Driver mid-session (an accepted simplification: that already routes
 /// them out of the normal Driver flow via `AuthStage.blocked`, so a
@@ -155,7 +186,7 @@ void listenForAccountTopicSync(WidgetRef ref) {
 final currentDriverTerritoryProvider = Provider<String?>((ref) {
   final session = ref.watch(sessionControllerProvider);
   if (session.role != AppRole.driver || session.account == null || session.stage != AuthStage.active) return null;
-  return session.account!.territory;
+  return session.account!.territoryId;
 });
 
 /// Wired once at the app root, alongside the others — keeps a Driver's

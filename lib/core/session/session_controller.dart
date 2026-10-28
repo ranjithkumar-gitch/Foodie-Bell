@@ -67,7 +67,7 @@ class SessionController extends StateNotifier<SessionState> {
     // before this sign-in — reset them so none carries a stale
     // permission-denied error into this new, valid session (see
     // `firestore_stream_reset.dart`'s doc comment).
-    resetFirestoreStreams(_ref);
+    _ref.read(firestoreStreamResetProvider)();
     if (role == AppRole.user)
       _ref.read(cartProvider.notifier).loadForUser(account.id);
     state = SessionState(role: role, stage: stage, account: account);
@@ -93,7 +93,7 @@ class SessionController extends StateNotifier<SessionState> {
           ? AccountStatus.pendingReview
           : AccountStatus.active,
     );
-    resetFirestoreStreams(_ref);
+    _ref.read(firestoreStreamResetProvider)();
     if (role == AppRole.user)
       _ref.read(cartProvider.notifier).loadForUser(resolvedAccount.id);
     state = SessionState(role: role, stage: stage, account: resolvedAccount);
@@ -122,7 +122,7 @@ class SessionController extends StateNotifier<SessionState> {
     // The just-revoked auth token would otherwise leave any still-alive
     // Firestore listener erroring out with permission-denied for the rest
     // of this app session (see `firestore_stream_reset.dart`).
-    resetFirestoreStreams(_ref);
+    _ref.read(firestoreStreamResetProvider)();
     // Clears the in-memory cart only — the Firestore doc stays, so it's
     // there to restore next time this same account logs back in.
     _ref.read(cartProvider.notifier).clearLocal();

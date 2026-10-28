@@ -4,13 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/order_codes_provider.dart';
-import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/storage_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/order_status_stepper.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../vendor_session.dart';
+import 'vendor_order_actions.dart';
 
 String _rateLabel(double rate) => rate == rate.roundToDouble() ? rate.toStringAsFixed(0) : rate.toString();
 
@@ -66,12 +68,12 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                           GestureDetector(
                             onTap: () => DocumentViewerScreen.show(
                               context,
-                              imageUrl: item.imageUrl,
+                              source: item.imageUrl,
                               title: item.name,
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: AppNetworkImage(url: item.imageUrl, width: 40, height: 40),
+                              child: StorageImage(source: item.imageUrl, width: 40, height: 40),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -100,14 +102,37 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                     value: -order.couponDiscount,
                     valueColor: palette.success,
                   ),
-                _AmountRow(label: 'Delivery fee', value: order.deliveryFee),
-                _AmountRow(label: 'Platform fee', value: order.platformFee),
-                _AmountRow(label: 'GST', value: order.gstAmount),
+                _AmountRow(label: 'Delivery fee (for the driver)', value: order.deliveryFee),
+                // Quicky's platform fee, when charged: paid by the customer, not the shop's.
+                if (order.platformFee > 0) _AmountRow(label: 'Platform fee (Quicky)', value: order.platformFee),
+                if (order.gstAmount > 0) _AmountRow(label: 'GST', value: order.gstAmount),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [Text('Total', style: Theme.of(context).textTheme.titleMedium), CurrencyText(order.total, style: Theme.of(context).textTheme.titleMedium)],
+                  children: [Text('Customer pays', style: Theme.of(context).textTheme.titleMedium), CurrencyText(order.total, style: Theme.of(context).textTheme.titleMedium)],
                 ),
+                const SizedBox(height: 4),
+                _AmountRow(label: 'Quicky commission (${order.money != null ? '10' : order.rebatePercent.toStringAsFixed(0)}%)', value: -order.rebateAmount),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('You get', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: palette.primary)),
+                    CurrencyText(order.vendorEntitlement, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: palette.primary)),
+                  ],
+                ),
+                if (order.paymentMethod == PaymentMethod.upi) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    switch (order.paymentStatus) {
+                      OrderPaymentStatus.awaitingVerification => 'UPI: check your account for the money, then confirm.',
+                      OrderPaymentStatus.verified => 'UPI payment confirmed by you.',
+                      OrderPaymentStatus.disputed => 'UPI payment is being checked by your Manager.',
+                      OrderPaymentStatus.refundDue => 'You must return this UPI payment to the customer.',
+                      _ => 'UPI payment',
+                    },
+                    style: TextStyle(fontWeight: FontWeight.w700, color: palette.textSecondary, fontSize: 15),
+                  ),
+                ],
               ],
             ),
           ),
@@ -196,19 +221,26 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(foregroundColor: palette.error, side: BorderSide(color: palette.error)),
-                        onPressed: () => updateOrderStatus(order.id, OrderStatus.rejected),
+                        onPressed: () => runVendorAction(context, () => vendorRejectOrder(order.id)),
                         child: const Text('Reject'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (!await ensureVendorReadyToAccept(context, ref)) return;
-                          await updateOrderStatus(order.id, OrderStatus.vendorAccepted);
-                        },
-                        child: const Text('Accept'),
-                      ),
+                      child: order.awaitingUpiVerification
+                          // UPI: check the money is in your account before accepting.
+                          ? ElevatedButton(
+                              onPressed: () => confirmUpiReceived(context, order),
+                              child: const Text('Money received?'),
+                            )
+                          : ElevatedButton(
+                              onPressed: () async {
+                                if (!await ensureVendorReadyToAccept(context, ref)) return;
+                                if (!context.mounted) return;
+                                await runVendorAction(context, () => vendorAcceptOrder(order.id));
+                              },
+                              child: const Text('Accept'),
+                            ),
                     ),
                   ],
                 ),

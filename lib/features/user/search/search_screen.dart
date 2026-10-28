@@ -5,11 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
-import '../../../data/models/order.dart';
-import '../../../data/models/product.dart';
 import '../../../data/providers/firestore_categories_provider.dart';
-import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_products_provider.dart';
+import '../../../data/providers/trending_provider.dart';
 import '../../../data/providers/firestore_recent_searches_provider.dart';
 import '../../../data/providers/firestore_territories_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
@@ -26,7 +24,8 @@ import '../widgets/vendor_account_card.dart';
 /// Search (spec §4.5): vendor search *and* product search within the
 /// currently selected territory (`selectedTerritoryProvider`, shared with
 /// `home_screen.dart`) — searching "idli" surfaces every vendor's idli
-/// product with that vendor's name attached (`allProductsProvider`), not
+/// product with that vendor's name attached (the territory's product index,
+/// `catalogIndexProvider` — each result loads its own image), not
 /// just vendors whose own business name matches. Both run over real,
 /// Manager-approved Vendor accounts (`firestoreVendorsProvider`) instead of
 /// the mock `MockVendors` catalogue. Product results only include ones a
@@ -37,11 +36,10 @@ import '../widgets/vendor_account_card.dart';
 /// "Recent searches" is real per-User data now (`firestore_recent_searches_provider.dart`,
 /// same one-doc-per-user shape as the cart) — it survives logout/app
 /// restart instead of resetting to a hardcoded starter list every time this
-/// screen opens. "Trending" is computed from real order history
-/// (`firestoreOrdersProvider`) — the product names ordered most across
-/// every User on the platform, not a hand-picked list — falling back to a
-/// small static list only when there's no order history yet to compute
-/// from (a fresh install/empty platform).
+/// screen opens. "Trending" is the territory's most-ordered dishes this
+/// week (`trendingDishesProvider`, computed by the server from delivered
+/// orders — no customer reads anyone's orders), falling back to a small
+/// static list until there are any.
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
@@ -63,22 +61,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     l10n.searchFallbackMilkshake,
   ];
 
-  /// Product names ordered most often across every User on the platform,
-  /// most-ordered first — counted by total quantity across every order's
-  /// line items regardless of status, since even a since-cancelled/rejected
-  /// order still reflects what someone wanted. Falls back to a small static
-  /// list only when there's no order history at all yet to compute from.
-  List<String> _trendingTerms(List<Order> orders, AppLocalizations l10n) {
-    final counts = <String, int>{};
-    for (final order in orders) {
-      for (final item in order.items) {
-        counts.update(item.name, (c) => c + item.quantity, ifAbsent: () => item.quantity);
-      }
-    }
-    if (counts.isEmpty) return _fallbackTrending(l10n);
-    final names = counts.keys.toList()..sort((a, b) => counts[b]!.compareTo(counts[a]!));
-    return names.take(6).toList();
-  }
+  List<String> _trendingTerms(List<String> dishes, AppLocalizations l10n) =>
+      dishes.isEmpty ? _fallbackTrending(l10n) : dishes.take(6).toList();
 
   String get _query => _controller.text.trim().toLowerCase();
 
@@ -153,8 +137,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildSuggestions(BuildContext context) {
-    final orders = ref.watch(firestoreOrdersProvider).valueOrNull ?? const [];
-    final trending = _trendingTerms(orders, context.l10n);
+    final territoryId = ref.watch(browsingTerritoryIdProvider);
+    final dishes = territoryId == null ? const <String>[] : ref.watch(trendingDishesProvider(territoryId)).valueOrNull ?? const <String>[];
+    final trending = _trendingTerms(dishes, context.l10n);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       children: [
@@ -192,7 +177,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final categoriesAsync = ref.watch(activeCategoriesProvider);
     final categories = categoriesAsync.valueOrNull ?? const [];
     final vendorsAsync = ref.watch(firestoreVendorsProvider);
-    final productsAsync = ref.watch(allProductsProvider);
+    final productsAsync = selectedTerritory == null
+        ? const AsyncValue<List<CatalogEntry>>.data([])
+        : ref.watch(catalogIndexProvider(selectedTerritory.id));
 
     if (vendorsAsync.isLoading || productsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -209,7 +196,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     final vendors = allVendors
         .where((a) => a.status == AccountStatus.active)
-        .where((a) => selectedTerritory == null || a.territory == selectedTerritory.name)
+        .where((a) => selectedTerritory == null || a.territoryId == selectedTerritory.id)
         .where((a) => a.name.toLowerCase().contains(_query) || (a.ownerName?.toLowerCase().contains(_query) ?? false))
         .toList();
 
@@ -218,15 +205,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // whose vendor is closed/inactive/outside the territory with no way to
     // act on it, and matching by product name alone would show it even
     // when the vendor themselves marked it out of stock.
-    final productResults = (productsAsync.value ?? const [])
-        .where((r) => r.product.name.toLowerCase().contains(_query) && r.product.inStock)
-        .map((r) => (product: r.product, vendor: vendorById[r.vendorId]))
+    final productResults = (productsAsync.value ?? const <CatalogEntry>[])
+        .where((e) => e.name.toLowerCase().contains(_query) && e.inStock)
+        .map((e) => (product: e, vendor: vendorById[e.vendorId]))
         .where(
           (r) =>
               r.vendor != null &&
               r.vendor!.status == AccountStatus.active &&
               r.vendor!.isOpen &&
-              (selectedTerritory == null || r.vendor!.territory == selectedTerritory.name),
+              (selectedTerritory == null || r.vendor!.territoryId == selectedTerritory.id),
         )
         .toList();
 
@@ -278,16 +265,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 /// from several vendors at once. Tapping opens that vendor's storefront
 /// (rather than adding to cart inline) so the User goes through the same
 /// in-stock/open state and multi-vendor-cart confirmation the storefront
-/// itself already handles.
-class _ProductResultTile extends StatelessWidget {
+/// itself already handles. The image is loaded per result, only for the
+/// results actually built on screen.
+class _ProductResultTile extends ConsumerWidget {
   const _ProductResultTile({required this.product, required this.vendorName, required this.onTap});
-  final Product product;
+  final CatalogEntry product;
   final String vendorName;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
+    final imageUrl = ref.watch(productByIdProvider(product.productId)).valueOrNull?.imageUrl ?? '';
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
@@ -296,7 +285,7 @@ class _ProductResultTile extends StatelessWidget {
         decoration: BoxDecoration(color: palette.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: palette.border)),
         child: Row(
           children: [
-            AppNetworkImage(url: product.imageUrl, width: 60, height: 60, borderRadius: BorderRadius.circular(12)),
+            AppNetworkImage(url: imageUrl, width: 60, height: 60, borderRadius: BorderRadius.circular(12)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

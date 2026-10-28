@@ -13,7 +13,6 @@ import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_categories_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_products_provider.dart';
-import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/error_reporting.dart';
@@ -45,7 +44,7 @@ bool supportsListOrdering(Account account) {
 /// sub-category — now backed by the real, Manager-approved Vendor `Account`
 /// (`firestoreVendorsProvider`) and that vendor's real catalogue
 /// (`vendorProductsProvider`) instead of the mock `Vendor`/`MockVendors`
-/// model. Rating is real too (`firestoreReviewsProvider`, spec §4.15) —
+/// model. Rating is real too (server-kept on the vendor record, spec §4.15) —
 /// tapping it opens the public reviews list every User can see, not just
 /// this vendor's own "Reviews & Ratings" screen. No delivery-time/distance
 /// shown — that data doesn't exist on a real vendor account.
@@ -276,15 +275,8 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
             ?.name ??
         account.category;
     final coverUrl = account.coverPhotoUrl;
-    final vendorReviews =
-        (ref.watch(firestoreReviewsProvider).valueOrNull ?? const [])
-            .where((r) => r.vendorId == account.id)
-            .toList();
-    final reviewCount = vendorReviews.length;
-    final averageRating = reviewCount == 0
-        ? 0.0
-        : vendorReviews.map((r) => r.vendorRating).reduce((a, b) => a + b) /
-              reviewCount;
+    final reviewCount = account.ratingCount;
+    final averageRating = reviewCount == 0 ? 0.0 : account.ratingAverage ?? 0.0;
     final distanceKm = vendorDistanceKm(
       account,
       ref.watch(devicePositionProvider).valueOrNull,

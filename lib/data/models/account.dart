@@ -59,6 +59,8 @@ class Account {
     this.bankAccountNumber,
     this.bankIfsc,
     this.upiIds = const [],
+    this.ratingAverage,
+    this.ratingCount = 0,
   });
 
   final String id;
@@ -197,6 +199,12 @@ class Account {
   /// Vendor can't accept orders until they add one (`ensureVendorUpiSetUp`).
   final List<String> upiIds;
 
+  /// Average review rating (1–5) and how many reviews it is from — kept on
+  /// the Vendor/Driver record by the server (`onReviewWritten`), so screens
+  /// never download the reviews to average them. Null until the first review.
+  final double? ratingAverage;
+  final int ratingCount;
+
   /// The UPI ID payments go to, or null when none is set.
   String? get primaryUpiId => upiIds.isEmpty ? null : upiIds.first;
 
@@ -278,5 +286,7 @@ class Account {
     bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
     bankIfsc: bankIfsc ?? this.bankIfsc,
     upiIds: upiIds ?? this.upiIds,
+    ratingAverage: ratingAverage,
+    ratingCount: ratingCount,
   );
 }

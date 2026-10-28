@@ -77,7 +77,9 @@ GlobalProduct _globalProductFromDoc(
 /// [globalProductsByCategoryProvider] rather than a separate query, since
 /// the whole collection is small enough to watch in one shot and this keeps
 /// both live without needing a composite index.
-final globalProductsProvider = StreamProvider<List<GlobalProduct>>((ref) {
+/// Disposed when the Global Catalogue screen closes, so vendors do not keep
+/// listening to it in the background.
+final globalProductsProvider = StreamProvider.autoDispose<List<GlobalProduct>>((ref) {
   return globalProductsCollection.snapshots().map((snapshot) {
     final products = snapshot.docs.map(_globalProductFromDoc).toList();
     products.sort((a, b) {
@@ -93,7 +95,7 @@ final globalProductsProvider = StreamProvider<List<GlobalProduct>>((ref) {
 /// This vendor's own category slice of the Global Catalogue — what
 /// `vendor_global_catalogue_screen.dart`'s "Copy to my catalogue" list shows.
 final globalProductsByCategoryProvider =
-    Provider.family<List<GlobalProduct>, VendorCategory>((ref, category) {
+    Provider.autoDispose.family<List<GlobalProduct>, VendorCategory>((ref, category) {
       final all = ref.watch(globalProductsProvider).valueOrNull ?? const [];
       return all.where((p) => p.category == category).toList();
     });

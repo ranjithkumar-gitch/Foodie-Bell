@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/time_ago.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../vendor_session.dart';
 
 /// Reviews & Ratings received (spec §5.18) — real, live reviews
-/// (`firestoreReviewsProvider`) filtered to this vendor's id, so a Vendor
+/// (`vendorReviewsProvider`, the latest ones) for this vendor, so a Vendor
 /// can see exactly who rated which order (`Review.userName`/`orderId`).
 class VendorReviewsScreen extends ConsumerWidget {
   const VendorReviewsScreen({super.key});
@@ -17,10 +18,11 @@ class VendorReviewsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final vendorId = ref.watch(currentVendorIdProvider);
-    final reviewsAsync = ref.watch(firestoreReviewsProvider);
-    final reviews = (reviewsAsync.valueOrNull ?? const []).where((r) => r.vendorId == vendorId).toList();
+    final reviewsAsync = ref.watch(vendorReviewsProvider(vendorId));
+    final reviews = reviewsAsync.valueOrNull ?? const [];
 
-    final average = reviews.isEmpty ? 0.0 : reviews.map((r) => r.vendorRating).reduce((a, b) => a + b) / reviews.length;
+    // Over every review (server-kept), not just the latest shown.
+    final average = ref.watch(liveVendorAccountProvider(vendorId))?.ratingAverage ?? 0.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reviews & Ratings')),

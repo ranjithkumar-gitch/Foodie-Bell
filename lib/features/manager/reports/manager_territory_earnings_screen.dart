@@ -4,9 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../data/models/order.dart';
-import '../../../data/providers/firestore_orders_provider.dart';
-import '../../../data/providers/firestore_vendors_provider.dart';
+import '../../../data/providers/earnings_provider.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../manager_session.dart';
 
@@ -54,23 +53,18 @@ class _ManagerTerritoryEarningsScreenState extends ConsumerState<ManagerTerritor
   Widget build(BuildContext context) {
     final palette = context.colors;
     final managerAccount = ref.watch(currentManagerAccountProvider);
-    final vendorIds = (ref.watch(firestoreVendorsProvider).valueOrNull ?? const []).where((v) => v.territory == managerAccount.territory).map((v) => v.id).toSet();
-    final delivered = (ref.watch(firestoreOrdersProvider).valueOrNull ?? const [])
-        .where((o) => vendorIds.contains(o.vendorId) && o.status == OrderStatus.delivered)
-        .toList();
-
-    // All-time real rebate captured in this territory — the numerator for
-    // payback progress against the one-time territory fee.
-    final earnedSoFar = delivered.fold<double>(0, (sum, o) => sum + o.rebateAmount);
+    // The Manager's 60% of the commission, all time — what pays back the
+    // territory fee — from the server's running total.
+    final earnedSoFar = ref.watch(myEarningsTotalsProvider).valueOrNull?.earnings ?? 0;
     final paybackProgress = (earnedSoFar / managerAccount.territoryFee).clamp(0.0, 1.0);
 
-    // Real last-7-calendar-day rebate trend (today inclusive), each day's
-    // total summed from that day's delivered orders.
-    final today = DateTime.now();
-    final last7Days = [for (var i = 6; i >= 0; i--) DateTime(today.year, today.month, today.day).subtract(Duration(days: i))];
+    // Last 7 settlement days (today inclusive), from the server's per-day figures.
+    final cutoff = ref.watch(settlementCutoffProvider).valueOrNull ?? 22 * 60;
+    final today = DateTime.parse(currentSettlementDay(cutoffMinutes: cutoff));
+    final last7Days = [for (var i = 6; i >= 0; i--) today.subtract(Duration(days: i))];
+    final days = ref.watch(myEarningsDaysProvider(7)).valueOrNull ?? const <EarningsDay>[];
     final rebateByDay = [
-      for (final day in last7Days)
-        delivered.where((o) => _isSameDay(o.placedAt, day)).fold<double>(0, (sum, o) => sum + o.rebateAmount),
+      for (final day in last7Days) days.where((d) => _isSameDay(d.date, day)).fold<double>(0, (sum, d) => sum + d.earnings),
     ];
     final weeklyTotal = rebateByDay.fold<double>(0, (sum, v) => sum + v);
     final projectedMonthly = (weeklyTotal / 7) * _scenario.monthlyMultiplier;

@@ -60,8 +60,13 @@ dependencies:
   geolocator: ^14.1.1
   geocoding: ^5.0.0
   cloud_functions: ^5.1.6
+  firebase_app_check: ^0.3.2+10
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  # End-to-end tests on a device against the Firebase emulators
+  # (integration_test/README.md).
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to

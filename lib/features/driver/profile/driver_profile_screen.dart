@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/providers/firestore_reviews_provider.dart';
+import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../shared/auth/logout_confirmation_sheet.dart';
 import '../registration/driver_registration_controller.dart' show DriverVehicleTypeX;
 import 'driver_profile_controller.dart';
@@ -19,10 +19,10 @@ class DriverProfileScreen extends ConsumerWidget {
     final palette = context.colors;
     final account = ref.watch(sessionControllerProvider.select((s) => s.account));
     final vehicle = ref.watch(driverProfileProvider);
-    final myReviews = (ref.watch(firestoreReviewsProvider).valueOrNull ?? const [])
-        .where((r) => r.driverId == account?.id && r.driverRating != null)
-        .toList();
-    final averageRating = myReviews.isEmpty ? 0.0 : myReviews.map((r) => r.driverRating!).reduce((a, b) => a + b) / myReviews.length;
+    // Kept by the server from this driver's reviews (`drivers/{id}.rating`).
+    final driverRecord = account == null ? null : ref.watch(liveDriverAccountProvider(account.id));
+    final averageRating = driverRecord?.ratingAverage ?? 0.0;
+    final reviewCount = driverRecord?.ratingCount ?? 0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -43,13 +43,13 @@ class DriverProfileScreen extends ConsumerWidget {
                       Text(account?.name ?? 'Driver', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
                       const SizedBox(height: 3),
                       Text('+91 ${account?.phone ?? ''}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.9))),
-                      if (myReviews.isNotEmpty) ...[
+                      if (reviewCount > 0) ...[
                         const SizedBox(height: 6),
                         Row(
                           children: [
                             const Icon(Icons.star_rounded, color: Colors.white, size: 16),
                             const SizedBox(width: 4),
-                            Text('${averageRating.toStringAsFixed(1)} (${myReviews.length})', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                            Text('${averageRating.toStringAsFixed(1)} ($reviewCount)', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5)),
                           ],
                         ),
                       ],

@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/widgets/currency_text.dart';
+import '../../../shared/widgets/upi_payment_card.dart';
 
 /// Order Placed / Confirmation (spec §4.11).
 class OrderSuccessScreen extends ConsumerWidget {
@@ -29,7 +31,7 @@ class OrderSuccessScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: palette.background,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(28),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -50,7 +52,20 @@ class OrderSuccessScreen extends ConsumerWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: palette.textSecondary),
               ),
+              if (order.platformFee > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '${context.l10n.pricePlatformFee}: ${AppFormat.currency(order.platformFee)}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: palette.textMuted, fontSize: 13),
+                ),
+              ],
               const SizedBox(height: 28),
+              // A UPI order waits for the Customer to pay the shop and the
+              // shop to confirm it, so that comes first.
+              if (order.paymentMethod == PaymentMethod.upi && order.status == OrderStatus.placed)
+                UpiPaymentCard(order: order)
+              else
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(color: palette.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: palette.border)),

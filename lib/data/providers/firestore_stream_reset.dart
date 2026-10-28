@@ -13,7 +13,7 @@ import 'firestore_orders_provider.dart';
 import 'firestore_products_provider.dart';
 import 'firestore_promotions_provider.dart';
 import 'firestore_reviews_provider.dart';
-import 'firestore_settlement_reconciliation_provider.dart';
+import 'settlement_provider.dart';
 import 'firestore_tax_categories_provider.dart';
 import 'firestore_territories_provider.dart';
 import 'firestore_ticket_chat_provider.dart';
@@ -37,6 +37,14 @@ import 'firestore_vendors_provider.dart';
 /// every session-boundary transition (`completeLogin`, `completeRegistration`,
 /// `logout`) so each stream gets torn down and rebuilt fresh under
 /// whatever auth token is actually current the next time it's watched.
+///
+/// Called through [firestoreStreamResetProvider], never with the session
+/// controller's own `ref`: most of these streams depend on the session
+/// (via `accessScopeProvider`), and Riverpod refuses — a
+/// `CircularDependencyError` in debug builds, which aborted every login —
+/// to let a provider invalidate something that depends on it.
+final firestoreStreamResetProvider = Provider<void Function()>((ref) => () => resetFirestoreStreams(ref));
+
 void resetFirestoreStreams(Ref ref) {
   ref.invalidate(firestoreAddressesProvider);
   ref.invalidate(firestoreManagersProvider);
@@ -47,11 +55,17 @@ void resetFirestoreStreams(Ref ref) {
   ref.invalidate(firestoreCategoriesProvider);
   ref.invalidate(globalProductsProvider);
   ref.invalidate(vendorProductsProvider);
-  ref.invalidate(firestoreOrdersProvider);
+  ref.invalidate(activeOrdersProvider);
+  ref.invalidate(todaysOrdersProvider);
+  ref.invalidate(orderHistoryProvider);
+  ref.invalidate(driverPositionProvider);
   ref.invalidate(orderByIdProvider);
-  ref.invalidate(firestoreReviewsProvider);
+  ref.invalidate(vendorReviewsProvider);
+  ref.invalidate(driverReviewsProvider);
+  ref.invalidate(reviewForOrderProvider);
   ref.invalidate(firestorePromotionsProvider);
-  ref.invalidate(firestoreReconciledSettlementsProvider);
+  ref.invalidate(territoryStatementsProvider);
+  ref.invalidate(myTransfersProvider);
   ref.invalidate(firestoreCouponsProvider);
   ref.invalidate(firestoreListOrderRequestsProvider);
   ref.invalidate(listOrderRequestByIdProvider);

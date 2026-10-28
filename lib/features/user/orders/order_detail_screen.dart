@@ -11,12 +11,13 @@ import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../data/providers/order_codes_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/error_reporting.dart';
-import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/storage_image.dart';
 import '../../../shared/widgets/branded_logo.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/driver_live_map.dart';
 import '../../../shared/widgets/order_status_stepper.dart';
+import '../../../shared/widgets/upi_payment_card.dart';
 import '../translation/translated_text.dart';
 import 'order_tracking_widgets.dart';
 
@@ -78,20 +79,21 @@ class OrderDetailScreen extends ConsumerWidget {
       );
     }
     final isActive = !order.status.isTerminal;
-    final reviews = ref.watch(firestoreReviewsProvider).valueOrNull ?? const [];
-    Review? myReview;
-    for (final r in reviews) {
-      if (r.orderId == order.id) {
-        myReview = r;
-        break;
-      }
-    }
+    final Review? myReview = ref.watch(reviewForOrderProvider(order.id)).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(title: Text(order.id)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
+          // UPI: pay the shop, wait for the shop to confirm, or a refund owed.
+          if (order.paymentMethod == PaymentMethod.upi &&
+              (order.status == OrderStatus.placed ||
+                  const {OrderPaymentStatus.disputed, OrderPaymentStatus.refundDue, OrderPaymentStatus.unpaidCancelled, OrderPaymentStatus.failed}
+                      .contains(order.paymentStatus))) ...[
+            UpiPaymentCard(order: order),
+            const SizedBox(height: 16),
+          ],
           if (isActive) ...[
             // One bordered card for the whole live-tracking block (map +
             // status + driver contact), the delivery OTP folded into its
@@ -275,13 +277,13 @@ class OrderDetailScreen extends ConsumerWidget {
                           GestureDetector(
                             onTap: () => DocumentViewerScreen.show(
                               context,
-                              imageUrl: item.imageUrl,
+                              source: item.imageUrl,
                               title: item.name,
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: AppNetworkImage(
-                                url: item.imageUrl,
+                              child: StorageImage(
+                                source: item.imageUrl,
                                 width: 40,
                                 height: 40,
                               ),
@@ -338,8 +340,9 @@ class OrderDetailScreen extends ConsumerWidget {
                     valueColor: palette.success,
                   ),
                 _PriceRow(context.l10n.priceDeliveryFee, order.deliveryFee),
-                _PriceRow(context.l10n.pricePlatformFee, order.platformFee),
-                _PriceRow(context.l10n.priceGst, order.gstAmount),
+                // Only older orders carry these; new orders have neither.
+                if (order.platformFee > 0) _PriceRow(context.l10n.pricePlatformFee, order.platformFee),
+                if (order.gstAmount > 0) _PriceRow(context.l10n.priceGst, order.gstAmount),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 10),
                   child: Divider(),

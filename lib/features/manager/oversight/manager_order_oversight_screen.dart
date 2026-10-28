@@ -4,13 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
-import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/mock_map_view.dart';
 import '../../../shared/widgets/order_status_timestamp.dart';
 import '../../../shared/widgets/status_chip.dart';
-import '../manager_session.dart';
 
 /// Order Oversight (spec §7.14) — READ-ONLY. A live-looking list/map of
 /// active orders in this territory. Deliberately watches
@@ -32,11 +30,12 @@ class ManagerOrderOversightScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
-    final managerAccount = ref.watch(currentManagerAccountProvider);
-    final vendorIds = (ref.watch(firestoreVendorsProvider).valueOrNull ?? const []).where((v) => v.territory == managerAccount.territory).map((v) => v.id).toSet();
-    final orders = (ref.watch(firestoreOrdersProvider).valueOrNull ?? const []).where((o) => vendorIds.contains(o.vendorId)).toList()
+    // In-progress orders live (queried by territory ID); finished ones a
+    // page at a time, newest first.
+    final activeOrders = (ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[]).toList()
       ..sort((a, b) => b.placedAt.compareTo(a.placedAt));
-    final activeOrders = orders.where((o) => !o.status.isTerminal).toList();
+    final history = ref.watch(orderHistoryProvider(OrderHistoryFilter.finished));
+    final orders = [...activeOrders, ...history.orders.where((o) => o.status.isTerminal)];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Order Oversight')),
@@ -58,6 +57,15 @@ class ManagerOrderOversightScreen extends ConsumerWidget {
             const EmptyState(icon: Icons.delivery_dining_outlined, title: 'No orders yet', subtitle: 'Orders from vendors in your territory will show up here.')
           else
             for (final order in orders) _OrderTile(order: order, meta: _statusMeta(order.status)),
+          if (history.hasMore && orders.isNotEmpty)
+            Center(
+              child: OutlinedButton(
+                onPressed: history.loading
+                    ? null
+                    : () => ref.read(orderHistoryProvider(OrderHistoryFilter.finished).notifier).loadMore(),
+                child: Text(history.loading ? 'Loading…' : 'Show older orders'),
+              ),
+            ),
         ],
       ),
     );

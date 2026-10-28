@@ -4,30 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/session/access_scope.dart';
 import '../models/account.dart';
 import '../models/order.dart';
-import 'firestore_coupons_provider.dart';
 
-/// The real, persistent order lifecycle — replaces `mockOrdersProvider` as
-/// the single source of truth every role reads/writes a slice of (User
+/// The persistent order lifecycle every role reads a slice of (User
 /// checkout, Vendor accept/reject, Driver assignment/pickup/delivery,
-/// Manager/Admin oversight). One flat `orders` collection, same pattern as
-/// `products`/`vendors` — every role's screen already filters this list
-/// client-side by its own field (`userId`/`vendorId`/`driverId`), so a live,
-/// unfiltered stream mirrors the old shared in-memory list exactly.
+/// Manager/Admin oversight). One flat `orders` collection; each role's
+/// query is scoped to what firestore.rules lets it read (see
+/// [firestoreOrdersProvider]). Writes go through `order_actions.dart`.
 const ordersCollectionPath = 'orders';
 
 CollectionReference<Map<String, dynamic>> get ordersCollection =>
     FirebaseFirestore.instance.collection(ordersCollectionPath);
-
-Map<String, dynamic> _lineItemToMap(OrderLineItem item) => {
-  'productId': item.productId,
-  'name': item.name,
-  'price': item.price,
-  'imageUrl': item.imageUrl,
-  'quantity': item.quantity,
-  'hsnCode': item.hsnCode,
-  'gstRate': item.gstRate,
-  'gstAmount': item.gstAmount,
-};
 
 OrderLineItem _lineItemFromMap(Map<String, dynamic> data) => OrderLineItem(
   productId: data['productId'] as String? ?? '',
@@ -39,43 +25,6 @@ OrderLineItem _lineItemFromMap(Map<String, dynamic> data) => OrderLineItem(
   gstRate: (data['gstRate'] as num?)?.toDouble(),
   gstAmount: (data['gstAmount'] as num?)?.toDouble(),
 );
-
-/// Public so `firestore_list_order_requests_provider.dart` can write a
-/// materialized `Order` into the same `WriteBatch` that transitions a
-/// `ListOrderRequest` to `accepted`, instead of duplicating this mapping.
-Map<String, dynamic> orderToDoc(Order order) => {
-  'vendorId': order.vendorId,
-  'territoryId': order.territoryId,
-  'vendorName': order.vendorName,
-  'userId': order.userId,
-  'userName': order.userName,
-  'userPhone': order.userPhone,
-  'driverId': order.driverId,
-  'driverName': order.driverName,
-  'driverPhone': order.driverPhone,
-  'items': order.items.map(_lineItemToMap).toList(),
-  'status': order.status.name,
-  'deliveryAddressLabel': order.deliveryAddressLabel,
-  'deliveryAddressFull': order.deliveryAddressFull,
-  'deliveryAddressId': order.deliveryAddressId,
-  'deliveryLatitude': order.deliveryLatitude,
-  'deliveryLongitude': order.deliveryLongitude,
-  'paymentMethod': order.paymentMethod.name,
-  'subtotal': order.subtotal,
-  'deliveryFee': order.deliveryFee,
-  'platformFee': order.platformFee,
-  'gstAmount': order.gstAmount,
-  'total': order.total,
-  'placedAt': Timestamp.fromDate(order.placedAt),
-  'statusTimestamps': order.statusTimestamps.map((status, at) => MapEntry(status.name, Timestamp.fromDate(at))),
-  'rebatePercent': order.rebatePercent,
-  'cancelReason': order.cancelReason,
-  'codPaymentReceived': order.codPaymentReceived,
-  'couponCode': order.couponCode,
-  'couponDiscount': order.couponDiscount,
-  'paymentId': order.paymentId,
-  'paidAt': order.paidAt == null ? null : Timestamp.fromDate(order.paidAt!),
-};
 
 Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
   id: id,
@@ -102,7 +51,10 @@ Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
   placedAt: (data['placedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
   statusTimestamps: {
     for (final entry in (data['statusTimestamps'] as Map<String, dynamic>? ?? const {}).entries)
-      if (OrderStatus.values.any((s) => s.name == entry.key)) OrderStatus.values.byName(entry.key): (entry.value as Timestamp).toDate(),
+      // A just-written stamp is a pending server timestamp (null) until the
+      // write is acknowledged — skip it rather than fail the whole order.
+      if (entry.value is Timestamp && OrderStatus.values.any((s) => s.name == entry.key))
+        OrderStatus.values.byName(entry.key): (entry.value as Timestamp).toDate(),
   },
   territoryId: data['territoryId'] as String?,
   deliveryAddressFull: data['deliveryAddressFull'] as String?,
@@ -116,112 +68,219 @@ Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
   couponDiscount: (data['couponDiscount'] as num?)?.toDouble() ?? 0,
   paymentId: data['paymentId'] as String?,
   paidAt: (data['paidAt'] as Timestamp?)?.toDate(),
+  money: OrderMoney.tryParse(data['money']),
+  payment: OrderPayment.tryParse(data['payment']),
+  deliveryIssue: DeliveryIssue.tryParse(data['deliveryIssue']),
 );
 
-/// The orders the signed-in account may see, live — exactly what
-/// `firestore.rules` allows for its role (screens still filter further on
-/// their own fields):
-///  - Customer: their own orders.
-///  - Vendor: orders placed with them.
-///  - Driver: deliveries assigned to them, plus — once approved — open
-///    offers (Vendor-accepted, unassigned) in their territory.
-///  - Manager: every order in their territory.
-final firestoreOrdersProvider = StreamProvider<List<Order>>((ref) {
+List<Order> _ordersOf(QuerySnapshot<Map<String, dynamic>> snapshot) =>
+    [for (final doc in snapshot.docs) _orderFromDoc(doc.id, doc.data())];
+
+/// Statuses of an order still in progress — a small set at any moment,
+/// unlike an account's whole history, so it's what the live listeners read.
+final activeOrderStatusNames = [
+  for (final s in OrderStatus.values)
+    if (!s.isTerminal) s.name,
+];
+
+/// The field that scopes [scope]'s orders, as `firestore.rules` requires:
+/// the account's own orders, or the Manager's territory. Null for roles
+/// with no order list (Super Admin uses QuickyAdmin).
+(String, String)? _orderScopeField(AccessScope scope) => switch (scope.role) {
+  AppRole.user => ('userId', scope.accountId),
+  AppRole.vendor => ('vendorId', scope.accountId),
+  AppRole.driver => ('driverId', scope.accountId),
+  AppRole.manager => scope.territoryId == null ? null : ('territoryId', scope.territoryId!),
+  AppRole.admin => null,
+};
+
+/// Orders still in progress that the signed-in account may see, live:
+///  - Customer / Vendor: their own unfinished orders.
+///  - Driver: their current deliveries, plus — once approved — open offers
+///    (Vendor-accepted, unassigned) in their territory.
+///  - Manager: every unfinished order in their territory.
+/// Finished orders are read a page at a time ([orderHistoryProvider]) and
+/// totals come from the server's read models (`earnings_provider.dart`), so
+/// no screen listens to an account's whole order history (Phase 3).
+final activeOrdersProvider = StreamProvider<List<Order>>((ref) {
   final scope = ref.watch(accessScopeProvider);
   if (scope == null) return Stream.value(const []);
-  Stream<List<Order>> run(Query<Map<String, dynamic>> query) =>
-      query.snapshots().map((snapshot) => [for (final doc in snapshot.docs) _orderFromDoc(doc.id, doc.data())]);
+  final scoped = _orderScopeField(scope);
+  if (scoped == null) return Stream.value(const []);
+  final (field, value) = scoped;
+  final mine = ordersCollection
+      .where(field, isEqualTo: value)
+      .where('status', whereIn: activeOrderStatusNames)
+      .snapshots()
+      .map(_ordersOf);
   final territoryId = scope.territoryId;
-  return switch (scope.role) {
-    AppRole.user => run(ordersCollection.where('userId', isEqualTo: scope.accountId)),
-    AppRole.vendor => run(ordersCollection.where('vendorId', isEqualTo: scope.accountId)),
-    AppRole.driver => mergeQueryStreams([
-      run(ordersCollection.where('driverId', isEqualTo: scope.accountId)),
-      if (scope.isActive && territoryId != null)
-        run(ordersCollection
-            .where('territoryId', isEqualTo: territoryId)
-            .where('status', isEqualTo: OrderStatus.vendorAccepted.name)),
-    ], (order) => order.id),
-    AppRole.manager => territoryId == null ? Stream.value(const []) : run(ordersCollection.where('territoryId', isEqualTo: territoryId)),
-    AppRole.admin => Stream.value(const []),
-  };
+  if (scope.role != AppRole.driver || !scope.isActive || territoryId == null) return mine;
+  return mergeQueryStreams([
+    mine,
+    ordersCollection
+        .where('territoryId', isEqualTo: territoryId)
+        .where('status', isEqualTo: OrderStatus.vendorAccepted.name)
+        .snapshots()
+        .map(_ordersOf),
+  ], (order) => order.id);
+});
+
+/// Today's orders (placed since local midnight) for the signed-in Vendor or
+/// Manager, live while a dashboard is open.
+final todaysOrdersProvider = StreamProvider.autoDispose<List<Order>>((ref) {
+  final scope = ref.watch(accessScopeProvider);
+  final scoped = scope == null ? null : _orderScopeField(scope);
+  if (scoped == null) return Stream.value(const []);
+  final now = DateTime.now();
+  return ordersCollection
+      .where(scoped.$1, isEqualTo: scoped.$2)
+      .where('placedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime(now.year, now.month, now.day)))
+      .orderBy('placedAt', descending: true)
+      .snapshots()
+      .map(_ordersOf);
+});
+
+/// Which part of an account's order history a list shows.
+enum OrderHistoryFilter {
+  all(null),
+  finished(['delivered', 'cancelled', 'rejected']),
+  delivered(['delivered']),
+  cancelled(['cancelled', 'rejected']);
+
+  const OrderHistoryFilter(this.statuses);
+  final List<String>? statuses;
+}
+
+Query<Map<String, dynamic>>? _historyQuery(AccessScope? scope, OrderHistoryFilter filter) {
+  final scoped = scope == null ? null : _orderScopeField(scope);
+  if (scoped == null) return null;
+  var query = ordersCollection.where(scoped.$1, isEqualTo: scoped.$2);
+  final statuses = filter.statuses;
+  if (statuses != null) {
+    query = statuses.length == 1 ? query.where('status', isEqualTo: statuses.single) : query.where('status', whereIn: statuses);
+  }
+  return query;
+}
+
+class OrderHistoryState {
+  const OrderHistoryState({this.orders = const [], this.loading = false, this.hasMore = true, this.error});
+  final List<Order> orders;
+  final bool loading;
+  final bool hasMore;
+  final Object? error;
+
+  OrderHistoryState copyWith({List<Order>? orders, bool? loading, bool? hasMore, Object? error}) =>
+      OrderHistoryState(orders: orders ?? this.orders, loading: loading ?? this.loading, hasMore: hasMore ?? this.hasMore, error: error);
+}
+
+/// The signed-in account's orders, newest first, [pageSize] at a time —
+/// one-time reads, so a long history costs only the pages actually opened.
+class OrderHistoryController extends StateNotifier<OrderHistoryState> {
+  OrderHistoryController(this._query, {this.pageSize = 20}) : super(const OrderHistoryState()) {
+    if (_query == null) {
+      state = const OrderHistoryState(hasMore: false);
+    } else {
+      loadMore();
+    }
+  }
+
+  final Query<Map<String, dynamic>>? _query;
+  final int pageSize;
+  DocumentSnapshot<Map<String, dynamic>>? _last;
+
+  Future<void> loadMore() async {
+    final query = _query;
+    if (query == null || state.loading || !state.hasMore) return;
+    state = state.copyWith(loading: true);
+    try {
+      var page = query.orderBy('placedAt', descending: true).limit(pageSize);
+      if (_last != null) page = page.startAfterDocument(_last!);
+      final snapshot = await page.get();
+      if (!mounted) return;
+      if (snapshot.docs.isNotEmpty) _last = snapshot.docs.last;
+      state = OrderHistoryState(
+        orders: [...state.orders, ..._ordersOf(snapshot)],
+        hasMore: snapshot.docs.length == pageSize,
+      );
+    } catch (e) {
+      if (mounted) state = state.copyWith(loading: false, error: e);
+    }
+  }
+
+  /// Starts again from the newest order (pull to refresh).
+  Future<void> refresh() async {
+    _last = null;
+    state = const OrderHistoryState();
+    await loadMore();
+  }
+}
+
+final orderHistoryProvider =
+    StateNotifierProvider.autoDispose.family<OrderHistoryController, OrderHistoryState, OrderHistoryFilter>((ref, filter) {
+      return OrderHistoryController(_historyQuery(ref.watch(accessScopeProvider), filter));
+    });
+
+/// [history] (one-time pages) with every in-progress order replaced by its
+/// live copy from [active] — so statuses keep moving on a history list —
+/// newest first.
+List<Order> withLiveOrders(List<Order> active, List<Order> history) {
+  final byId = {for (final o in history) o.id: o, for (final o in active) o.id: o};
+  return byId.values.toList()..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+}
+
+/// How many of the signed-in account's orders match [filter] — a server-side
+/// count (one read per 1,000 orders), not a download.
+final orderCountProvider = FutureProvider.autoDispose.family<int, OrderHistoryFilter>((ref, filter) async {
+  final query = _historyQuery(ref.watch(accessScopeProvider), filter);
+  if (query == null) return 0;
+  final result = await query.count().get();
+  return result.count ?? 0;
 });
 
 /// A single order, live — used by screens that navigate straight to one
-/// order (checkout success, order/vendor/driver detail screens) rather than
-/// filtering the full list, so they don't depend on the unfiltered stream
-/// having synced yet.
-final orderByIdProvider = StreamProvider.family<Order?, String>((ref, orderId) {
+/// order (checkout success, order/vendor/driver detail screens). Disposed
+/// when its screen closes.
+final orderByIdProvider = StreamProvider.autoDispose.family<Order?, String>((ref, orderId) {
   return ordersCollection.doc(orderId).snapshots().map((doc) {
     final data = doc.data();
     return data == null ? null : _orderFromDoc(doc.id, data);
   });
 });
 
-/// Generates a short, cosmetic order number ("ORD-482913") used as both the
-/// Firestore doc id and the id shown throughout the UI — collision risk is
-/// negligible for this app's traffic, so no atomic counter/transaction is
-/// needed.
-String generateOrderId() => 'ORD-${DateTime.now().millisecondsSinceEpoch % 1000000}';
+// Orders are created and moved through their lifecycle only by the Cloud
+// Functions (`order_actions.dart`); firestore.rules lets the app write
+// nothing on an order.
 
-Future<void> createOrder(Order order) => ordersCollection.doc(order.id).set(orderToDoc(order));
-
-/// Places an order that redeemed a coupon (`checkout_payment_screen.dart`)
-/// — writes the order and a `couponRedemptions/{couponId}_{userId}` marker
-/// in the same transaction, both keyed off that one deterministic
-/// redemption doc. Firestore serializes concurrent transactions that touch
-/// the same doc, so this is the actual enforcement point for "a coupon can
-/// only be redeemed once per User" (the cart's `hasUserRedeemedCoupon`
-/// check is only an early warning — see its doc comment). Throws
-/// [StateError] if this User already redeemed this coupon.
-Future<void> createOrderWithCoupon(Order order, {required String couponId}) {
-  final redemptionRef = couponRedemptionsCollection.doc('${couponId}_${order.userId}');
-  return FirebaseFirestore.instance.runTransaction((transaction) async {
-    final redemption = await transaction.get(redemptionRef);
-    if (redemption.exists) {
-      throw StateError('You have already used this coupon.');
-    }
-    transaction.set(redemptionRef, {
-      'couponId': couponId,
-      'userId': order.userId,
-      'orderId': order.id,
-      'redeemedAt': Timestamp.now(),
-    });
-    transaction.set(ordersCollection.doc(order.id), orderToDoc(order));
-  });
+/// The assigned Driver's live position (`order_tracking/{orderId}`, opened
+/// and closed by the server). Kept off the order itself so a position
+/// update every few seconds doesn't run the order triggers or resend the
+/// whole order to everyone watching it.
+class DriverPosition {
+  const DriverPosition({required this.latitude, required this.longitude, this.updatedAt});
+  final double latitude;
+  final double longitude;
+  final DateTime? updatedAt;
 }
 
-/// Advances an order's status — also stamps `statusTimestamps.{status}` via
-/// a dotted-field update, so it's recorded without touching any other
-/// status already stamped (each one is set exactly once, the first time
-/// the order reaches it).
-Future<void> updateOrderStatus(String orderId, OrderStatus status, {String? driverId, String? driverName, String? driverPhone}) => ordersCollection.doc(orderId).update({
-  'status': status.name,
-  'statusTimestamps.${status.name}': Timestamp.now(),
-  'driverId': ?driverId,
-  'driverName': ?driverName,
-  'driverPhone': ?driverPhone,
+DocumentReference<Map<String, dynamic>> _trackingDoc(String orderId) =>
+    FirebaseFirestore.instance.collection('order_tracking').doc(orderId);
+
+/// The Driver's position on [orderId], live, for the Customer's map — null
+/// until the first fix (or when no Driver is assigned).
+final driverPositionProvider = StreamProvider.autoDispose.family<DriverPosition?, String>((ref, orderId) {
+  return _trackingDoc(orderId).snapshots().map((doc) {
+    final data = doc.data();
+    final lat = (data?['latitude'] as num?)?.toDouble();
+    final lng = (data?['longitude'] as num?)?.toDouble();
+    if (data == null || data['active'] != true || lat == null || lng == null) return null;
+    return DriverPosition(latitude: lat, longitude: lng, updatedAt: (data['updatedAt'] as Timestamp?)?.toDate());
+  });
 });
 
-/// The assigned Driver's position, mirrored onto their order
-/// (`driver_location_tracker.dart`) so its Customer can follow the delivery
-/// (`DriverLiveMap`) without reading the Driver's own record.
+/// The assigned Driver reporting their position (`driver_location_tracker.dart`).
 Future<void> updateOrderDriverLocation(String orderId, {required double latitude, required double longitude}) =>
-    ordersCollection.doc(orderId).update({
-      'driverLatitude': latitude,
-      'driverLongitude': longitude,
-      'driverLocationUpdatedAt': FieldValue.serverTimestamp(),
+    _trackingDoc(orderId).update({
+      'latitude': latitude,
+      'longitude': longitude,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
-
-Future<void> cancelOrder(String orderId, String reason) => ordersCollection.doc(orderId).update({
-  'status': OrderStatus.cancelled.name,
-  'statusTimestamps.${OrderStatus.cancelled.name}': Timestamp.now(),
-  'cancelReason': reason,
-});
-
-/// Also stamps `paidAt` — the moment the cash changed hands is when a COD
-/// order's payment completed, same as Checkout success is for an online one.
-Future<void> markCodPaymentReceived(String orderId) => ordersCollection.doc(orderId).update({
-  'codPaymentReceived': true,
-  'paidAt': Timestamp.now(),
-});

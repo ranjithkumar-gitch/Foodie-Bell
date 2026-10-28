@@ -7,9 +7,8 @@ import '../../../data/models/account.dart';
 import '../../../data/models/driver_document.dart';
 import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
-import '../../../data/providers/kyc_document_url_provider.dart';
+import '../../../shared/widgets/storage_image.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
-import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/status_chip.dart';
 
@@ -177,7 +176,7 @@ class _ManagerDriverDetailScreenState extends ConsumerState<ManagerDriverDetailS
             _DocumentTile(
               type: type,
               status: account.driverDocumentStatus(type),
-              imageUrl: watchKycDocumentUrl(ref, account.driverDocumentPath(type)),
+              imageUrl: account.driverDocumentPath(type),
               onChanged: (status) => _setDocumentStatus(account, isFirestoreBacked, type, status),
             ),
           const SizedBox(height: 20),
@@ -256,8 +255,8 @@ class _DocumentTile extends StatelessWidget {
                 if (submitted && imageUrl != null)
                   InkWell(
                     borderRadius: BorderRadius.circular(8),
-                    onTap: () => DocumentViewerScreen.show(context, imageUrl: imageUrl!, title: type.label),
-                    child: AppNetworkImage(url: imageUrl!, width: 36, height: 36, borderRadius: BorderRadius.circular(8)),
+                    onTap: () => DocumentViewerScreen.show(context, source: imageUrl!, title: type.label),
+                    child: StorageImage(source: imageUrl!, width: 36, height: 36, borderRadius: BorderRadius.circular(8)),
                   )
                 else
                   Icon(type.icon, color: palette.textSecondary),

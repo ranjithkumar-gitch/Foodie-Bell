@@ -7,8 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/branding/branding_controller.dart';
+import 'core/dev/firebase_emulators.dart';
 import 'core/notifications/foreground_notification_handler.dart';
-import 'core/notifications/local_notifications.dart';  
+import 'core/notifications/local_notifications.dart';
+import 'core/security/app_check.dart';  
 import 'data/providers/brand_theme_cache.dart';  
 import 'data/providers/territory_cache.dart';
 import 'features/user/home/selected_territory_provider.dart';
@@ -17,6 +19,10 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await useFirebaseEmulatorsIfAsked();
+  // The emulators don't check App Check, and a debug token exchange would
+  // reach the real project.
+  if (!usingFirebaseEmulators) await activateAppCheck();
   // Debug builds can't pass Play Integrity (not installed from Play, and
   // emulators fail the device check), which Firebase phone auth uses on
   // Android before sending an SMS. Use its reCAPTCHA check there instead —

@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
 import '../models/account.dart';
 import '../models/vendor_document.dart';
+import '../../features/user/home/selected_territory_provider.dart';
 import 'mock_accounts_provider.dart';
 
 /// Real, persistent Vendor identities created directly by a Manager (see
@@ -92,33 +94,53 @@ Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     isOpen: data['isOpen'] as bool? ?? true,
     upiIds: (data['upiIds'] as List<dynamic>? ?? const []).cast<String>(),
     deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
+    ratingAverage: ((data['rating'] as Map?)?['average'] as num?)?.toDouble(),
+    ratingCount: ((data['rating'] as Map?)?['count'] as num?)?.toInt() ?? 0,
   );
 }
 
+/// The Vendor accounts the signed-in account needs, live, each query scoped
+/// by territory ID (Phase 3 — it used to stream every approved vendor on
+/// the platform to every customer):
+///  - Customer: approved (`active`) vendors in the territory they browse.
+///  - Driver: approved vendors in their own territory (pickup points).
+///  - Vendor: their own record (whatever its status).
+///  - Manager: every vendor in their territory, pending ones included.
 // Sorted client-side rather than via `.orderBy('createdAt')` — Firestore
 // excludes documents that don't have the ordered field set at all (e.g. a
 // vendor doc added by hand in the console without a `createdAt`), which
 // would otherwise silently vanish from every screen that reads this
 // provider. Docs missing it just sort last instead of disappearing.
 final firestoreVendorsProvider = StreamProvider<List<Account>>((ref) {
-  return vendorsCollection.snapshots().map((snapshot) {
-    final accounts = snapshot.docs
-        .map(_accountFromDoc)
-        .where((a) => a.deletedAt == null)
-        .toList();
-    final createdAtById = {
-      for (final doc in snapshot.docs)
-        doc.id: doc.data()['createdAt'] as Timestamp?,
-    };
-    accounts.sort((a, b) {
-      final aTime = createdAtById[a.id];
-      final bTime = createdAtById[b.id];
-      if (aTime == null && bTime == null) return 0;
-      if (aTime == null) return 1;
-      if (bTime == null) return -1;
-      return bTime.compareTo(aTime);
-    });
-    return accounts;
+  final scope = ref.watch(accessScopeProvider);
+  if (scope == null) return Stream.value(const []);
+  Stream<List<(Account, Timestamp?)>> run(Query<Map<String, dynamic>> query) => query.snapshots().map(
+    (snapshot) => [for (final doc in snapshot.docs) (_accountFromDoc(doc), doc.data()['createdAt'] as Timestamp?)],
+  );
+  Stream<List<(Account, Timestamp?)>> approvedIn(String? territoryId) => territoryId == null
+      ? Stream.value(const [])
+      : run(vendorsCollection.where('status', isEqualTo: AccountStatus.active.name).where('territoryId', isEqualTo: territoryId));
+  final territoryId = scope.territoryId;
+  final Stream<List<(Account, Timestamp?)>> vendors = switch (scope.role) {
+    AppRole.user => approvedIn(ref.watch(browsingTerritoryIdProvider)),
+    AppRole.driver => approvedIn(territoryId),
+    AppRole.vendor => vendorsCollection.doc(scope.accountId).snapshots().map(
+      (doc) => doc.exists ? [(_accountFromDoc(doc), doc.data()?['createdAt'] as Timestamp?)] : const <(Account, Timestamp?)>[],
+    ),
+    AppRole.manager => territoryId == null ? Stream.value(const []) : run(vendorsCollection.where('territoryId', isEqualTo: territoryId)),
+    AppRole.admin => Stream.value(const []),
+  };
+  return vendors.map((entries) {
+    final live = entries.where((e) => e.$1.deletedAt == null).toList()
+      ..sort((a, b) {
+        final aTime = a.$2;
+        final bTime = b.$2;
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+    return [for (final e in live) e.$1];
   });
 });
 
@@ -174,7 +196,14 @@ final liveVendorAccountProvider = Provider.family<Account?, String>((ref, id) {
     ref.watch(mockAccountsProvider),
     ref.watch(firestoreVendorsProvider).valueOrNull ?? const [],
   ).where((a) => a.id == id);
-  return matches.isEmpty ? null : matches.first;
+  if (matches.isNotEmpty) return matches.first;
+  // Not in the scoped list (a shop outside the territory being browsed,
+  // opened from an old order): read that one document.
+  return ref.watch(_vendorDocProvider(id)).valueOrNull;
+});
+
+final _vendorDocProvider = StreamProvider.autoDispose.family<Account?, String>((ref, id) {
+  return vendorsCollection.doc(id).snapshots().map((doc) => doc.exists ? _accountFromDoc(doc) : null);
 });
 
 Future<void> updateVendorStatus(

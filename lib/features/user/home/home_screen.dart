@@ -22,8 +22,8 @@ import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_list_order_requests_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_products_provider.dart';
+import '../../../data/providers/trending_provider.dart';
 import '../../../data/providers/firestore_promotions_provider.dart';
-import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../data/providers/firestore_territories_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/order_codes_provider.dart';
@@ -98,26 +98,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     l10n.searchFallbackMilkshake,
   ];
 
-  /// Same computation as Search's own `_trendingTerms` — product names
-  /// ordered most often across every User on the platform, most-ordered
-  /// first, falling back to a small static list only when there's no order
-  /// history yet to compute from.
-  List<String> _trendingTerms(List<Order> orders, AppLocalizations l10n) {
-    final counts = <String, int>{};
-    for (final order in orders) {
-      for (final item in order.items) {
-        counts.update(
-          item.name,
-          (c) => c + item.quantity,
-          ifAbsent: () => item.quantity,
-        );
-      }
-    }
-    if (counts.isEmpty) return _fallbackTrending(l10n);
-    final names = counts.keys.toList()
-      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
-    return names.take(6).toList();
-  }
+  /// Same list as Search's trending row — the territory's most-ordered
+  /// dishes this week (`trendingDishesProvider`, computed by the server),
+  /// falling back to a small static list until there are any.
+  List<String> _trendingTerms(List<String> dishes, AppLocalizations l10n) =>
+      dishes.isEmpty ? _fallbackTrending(l10n) : dishes.take(6).toList();
 
   // viewportFraction < 1 is what gives the peeking-neighbor-card look
   // (Swiggy/Zomato's promo carousel) instead of one full-width card per
@@ -205,30 +190,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     final vendorsAsync = ref.watch(firestoreVendorsProvider);
     final firstName = account?.name.split(' ').first ?? 'there';
-    final allOrders =
-        ref.watch(firestoreOrdersProvider).valueOrNull ?? const [];
     final activeOrders =
-        allOrders
-            .where((o) => o.userId == account?.id && !o.status.isTerminal)
+        (ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[])
+            .where((o) => o.userId == account?.id)
             .toList()
           ..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+    // The selected territory's product index (a few small documents, not
+    // the whole catalogue) — for the trending-dish and Pure Veg filters.
+    final catalog = selectedTerritory == null
+        ? const <CatalogEntry>[]
+        : ref.watch(catalogIndexProvider(selectedTerritory.id)).valueOrNull ?? const <CatalogEntry>[];
     // Trending-dish chips under the Food category — same "most-ordered
     // product names, platform-wide" computation Search's own trending row
     // uses (`search_screen.dart`), just selectable here instead of firing
     // a search: picking one narrows the Food vendor list below to vendors
     // that actually sell it.
-    final trendingTerms = _isFoodCategory
-        ? _trendingTerms(allOrders, context.l10n)
+    final trendingTerms = _isFoodCategory && selectedTerritory != null
+        ? _trendingTerms(ref.watch(trendingDishesProvider(selectedTerritory.id)).valueOrNull ?? const [], context.l10n)
+        : _isFoodCategory
+        ? _fallbackTrending(context.l10n)
         : const <String>[];
     final trendingVendorIds = (_isFoodCategory && _selectedTrendingItem != null)
-        ? (ref.watch(allProductsProvider).valueOrNull ?? const [])
+        ? catalog
               .where(
-                (r) =>
-                    r.product.inStock &&
-                    r.product.name.toLowerCase() ==
+                (e) =>
+                    e.inStock &&
+                    e.name.toLowerCase() ==
                         _selectedTrendingItem!.toLowerCase(),
               )
-              .map((r) => r.vendorId)
+              .map((e) => e.vendorId)
               .toSet()
         : null;
     // Photo-order requests that haven't become a real Order yet (see
@@ -270,7 +260,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           (a) =>
               a.status == AccountStatus.active &&
               (selectedTerritory == null ||
-                  a.territory == selectedTerritory.name),
+                  a.territoryId == selectedTerritory.id),
         )
         .map((a) => a.id)
         .toSet();
@@ -288,33 +278,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .watch(activeBrandThemeProvider)
         ?.dashboardThemeUrl;
     final position = ref.watch(devicePositionProvider).valueOrNull;
-    // Average rating per vendor, computed once here for the "Rated 4.0+"
-    // filter rather than per card.
-    final ratingSums = <String, ({double sum, int count})>{};
-    for (final r in ref.watch(firestoreReviewsProvider).valueOrNull ?? const []) {
-      final prev = ratingSums[r.vendorId];
-      ratingSums[r.vendorId] = (
-        sum: (prev?.sum ?? 0) + r.vendorRating,
-        count: (prev?.count ?? 0) + 1,
-      );
-    }
-    double? ratingOf(String vendorId) {
-      final s = ratingSums[vendorId];
-      return s == null ? null : s.sum / s.count;
-    }
+    // The "Rated 4.0+" filter uses each vendor's server-kept average.
+    double? ratingOf(Account vendor) => vendor.ratingCount == 0 ? null : vendor.ratingAverage;
 
-    // "Pure Veg" = every product the vendor lists is marked veg. Only
-    // watched while that filter is on, so Home doesn't stream the whole
-    // product catalogue just to sit there.
+    // "Pure Veg" = every product the vendor lists is marked veg, from the
+    // territory's product index.
     Set<String>? pureVegVendorIds;
     if (_filterPureVeg) {
       final hasNonVeg = <String>{};
       final hasVeg = <String>{};
-      for (final r in ref.watch(allProductsProvider).valueOrNull ?? const []) {
-        if (r.product.isVeg == true) {
-          hasVeg.add(r.vendorId);
+      for (final e in catalog) {
+        if (e.isVeg) {
+          hasVeg.add(e.vendorId);
         } else {
-          hasNonVeg.add(r.vendorId);
+          hasNonVeg.add(e.vendorId);
         }
       }
       pureVegVendorIds = hasVeg.difference(hasNonVeg);
@@ -323,7 +300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     List<Account> applyQuickFilters(List<Account> vendors) {
       var result = vendors.where((v) {
         if (_filterOpenNow && !v.isOpen) return false;
-        if (_filterRating4 && (ratingOf(v.id) ?? 0) < 4) return false;
+        if (_filterRating4 && (ratingOf(v) ?? 0) < 4) return false;
         if (pureVegVendorIds != null && !pureVegVendorIds.contains(v.id)) {
           return false;
         }
@@ -353,6 +330,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final allVendorsById = {
       for (final v in vendorsAsync.valueOrNull ?? const <Account>[]) v.id: v,
     };
+    // The latest page of delivered orders is enough to pick a few shops.
+    final allOrders = ref.watch(orderHistoryProvider(OrderHistoryFilter.delivered)).orders;
     final pastOrders =
         allOrders
             .where(

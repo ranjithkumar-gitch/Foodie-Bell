@@ -11,9 +11,8 @@ import '../../data/models/driver_document.dart';
 import '../../data/models/vendor_document.dart';
 import '../../data/providers/driver_document_storage_provider.dart';
 import '../../data/providers/firestore_drivers_provider.dart';
-import '../../data/providers/kyc_document_url_provider.dart';
+import 'storage_image.dart';
 import '../../data/providers/mock_accounts_provider.dart';
-import 'app_network_image.dart';
 import 'document_source_sheet.dart';
 import 'document_viewer_screen.dart';
 
@@ -185,13 +184,13 @@ class _DriverDocumentChecklistState extends ConsumerState<DriverDocumentChecklis
           _DocumentTile(
             type: type,
             status: widget.account.driverDocumentStatus(type),
-            persistedUrl: watchKycDocumentUrl(ref, widget.account.driverDocumentPath(type)),
+            persistedUrl: widget.account.driverDocumentPath(type),
             stagedFile: _stagedFiles[type],
             deleting: _deleting.contains(type),
             busy: _uploading,
             onTap: widget.account.driverDocumentStatus(type) == VendorDocumentStatus.notRequired ? null : () => _pick(type),
             onUnstage: () => _unstage(type),
-            onViewPersisted: (url) => DocumentViewerScreen.show(context, imageUrl: url, title: type.label),
+            onViewPersisted: (url) => DocumentViewerScreen.show(context, source: url, title: type.label),
             onViewStaged: (file) => _viewStaged(file, type.label),
             onDeletePersisted: () => _deletePersisted(type),
           ),
@@ -327,7 +326,7 @@ class _DocumentTile extends StatelessWidget {
                 InkWell(
                   borderRadius: BorderRadius.circular(10),
                   onTap: () => onViewPersisted(persistedUrl!),
-                  child: AppNetworkImage(url: persistedUrl!, width: 42, height: 42, borderRadius: BorderRadius.circular(10)),
+                  child: StorageImage(source: persistedUrl!, width: 42, height: 42, borderRadius: BorderRadius.circular(10)),
                 )
               else
                 Container(

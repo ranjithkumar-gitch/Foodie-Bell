@@ -124,5 +124,5 @@ Future<SupportTicket> raiseTicket({
 Future<void> updateTicketStatus(String ticketId, TicketStatus status) =>
     ticketsCollection.doc(ticketId).update({
       'status': status.name,
-      if (status == TicketStatus.closed) 'closedAt': Timestamp.now(),
+      if (status == TicketStatus.closed) 'closedAt': FieldValue.serverTimestamp(),
     });

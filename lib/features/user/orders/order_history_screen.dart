@@ -27,20 +27,20 @@ class OrderHistoryScreen extends ConsumerWidget {
     final userId = ref.watch(
       sessionControllerProvider.select((s) => s.account?.id),
     );
-    final ordersAsync = ref.watch(firestoreOrdersProvider);
+    // Pages of history (newest first, loaded as the list scrolls) with the
+    // in-progress orders kept live.
+    final page = ref.watch(orderHistoryProvider(OrderHistoryFilter.all));
+    final active = ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[];
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.myOrdersTitle)),
-      body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(
-          child: Text(
-            friendlyError(e, action: 'Loading orders', stackTrace: st),
-          ),
-        ),
-        data: (orders) {
-          final allOrders = orders.where((o) => o.userId == userId).toList()
-            ..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+      body: Builder(
+        builder: (context) {
+          final allOrders = withLiveOrders(active, page.orders).where((o) => o.userId == userId).toList();
+          if (allOrders.isEmpty && page.loading) return const Center(child: CircularProgressIndicator());
+          if (allOrders.isEmpty && page.error != null) {
+            return Center(child: Text(friendlyError(page.error!, action: 'Loading orders')));
+          }
           if (allOrders.isEmpty) {
             return EmptyState(
               icon: Icons.receipt_long_rounded,
@@ -48,11 +48,19 @@ class OrderHistoryScreen extends ConsumerWidget {
               subtitle: context.l10n.ordersEmptySubtitle,
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            itemCount: allOrders.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _OrderCard(order: allOrders[i]),
+          return RefreshIndicator(
+            onRefresh: () => ref.read(orderHistoryProvider(OrderHistoryFilter.all).notifier).refresh(),
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              itemCount: allOrders.length + (page.hasMore ? 1 : 0),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, i) {
+                if (i < allOrders.length) return _OrderCard(order: allOrders[i]);
+                // Reaching the end loads the next page.
+                Future.microtask(() => ref.read(orderHistoryProvider(OrderHistoryFilter.all).notifier).loadMore());
+                return const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator()));
+              },
+            ),
           );
         },
       ),

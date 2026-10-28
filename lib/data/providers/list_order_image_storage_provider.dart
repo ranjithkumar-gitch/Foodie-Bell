@@ -3,37 +3,30 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 
 /// Firebase Storage upload for a User's photo-order photos
-/// (`list_order_capture_screen.dart`) — under the User's own folder (which
-/// `storage.rules` limits to them), keyed by vendor id *and* a timestamp
-/// since a User can submit more than one request to the same vendor over
-/// time, each its own Firestore doc. The Vendor sees them through the
-/// request's download URLs.
-Reference _listOrderImageRef(String userId, String vendorId, int index) => FirebaseStorage.instance.ref(
-  'list_order_images/$userId/${vendorId}_${DateTime.now().millisecondsSinceEpoch}_$index.jpg',
-);
-
-Future<String> _uploadListOrderImage(String userId, String vendorId, File file, int index) async {
-  final ref = _listOrderImageRef(userId, vendorId, index);
+/// (`list_order_capture_screen.dart`) and the Vendor's receipt for them.
+///
+/// Both are private to that Customer and that Vendor (`storage.rules`
+/// checks the two ids in the path), so the request keeps Storage *paths*,
+/// not download URLs — screens read them through the rules with
+/// `StorageImage`. Each upload gets a timestamp since a User can send the
+/// same vendor more than one request over time.
+Future<String> _upload(String path, File file) async {
+  final ref = FirebaseStorage.instance.ref(path);
   await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
-  return ref.getDownloadURL();
+  return ref.fullPath;
 }
 
-/// Uploads every photo the User captured for one request, in order.
+/// Uploads every photo the User captured for one request, in order, and
+/// returns their Storage paths.
 Future<List<String>> uploadListOrderImages(String userId, String vendorId, List<File> files) async {
-  final urls = <String>[];
-  for (var i = 0; i < files.length; i++) {
-    urls.add(await _uploadListOrderImage(userId, vendorId, files[i], i));
-  }
-  return urls;
+  final stamp = DateTime.now().millisecondsSinceEpoch;
+  return [
+    for (var i = 0; i < files.length; i++)
+      await _upload('list_order_images/$userId/$vendorId/${stamp}_$i.jpg', files[i]),
+  ];
 }
 
 /// Uploads the Vendor's photo of the receipt taken when they confirm a paid
-/// request (`vendor_order_queue_screen.dart`) — same scheme, separate
-/// prefix so receipts and customer photos never collide.
-Future<String> uploadListOrderReceiptImage(String vendorId, File file) async {
-  final ref = FirebaseStorage.instance.ref(
-    'list_order_receipts/${vendorId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-  );
-  await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
-  return ref.getDownloadURL();
-}
+/// request (`vendor_order_queue_screen.dart`) and returns its Storage path.
+Future<String> uploadListOrderReceiptImage(String vendorId, String userId, File file) =>
+    _upload('list_order_receipts/$vendorId/$userId/${DateTime.now().millisecondsSinceEpoch}.jpg', file);

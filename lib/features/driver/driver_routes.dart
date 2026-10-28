@@ -24,6 +24,7 @@ import 'registration/driver_personal_details_screen.dart';
 import 'registration/driver_vehicle_details_screen.dart';
 import 'support/driver_support_screen.dart';
 import 'support/driver_ticket_chat_screen.dart';
+import '../../shared/settlement_payments_screen.dart';
 
 /// Driver's full route set (spec §6). Registration lives under
 /// `/driver/register/...` and is reachable pre-auth as soon as Driver is
@@ -132,6 +133,7 @@ List<RouteBase> get driverRoutes => [
   GoRoute(path: '/driver/availability', name: 'driverAvailability', builder: (context, state) => const DriverAvailabilityScreen()),
   GoRoute(path: '/driver/notifications', name: 'driverNotifications', builder: (context, state) => const DriverNotificationsScreen()),
   GoRoute(path: '/driver/help', name: 'driverHelp', builder: (context, state) => const DriverSupportScreen()),
+  GoRoute(path: '/driver/settlement-payments', name: 'driverSettlementPayments', builder: (context, state) => const SettlementPaymentsScreen()),
   GoRoute(
     path: '/driver/ticket/:id/chat',
     name: 'driverTicketChat',

@@ -27,25 +27,25 @@ class TransactionHistoryScreen extends ConsumerWidget {
     final userId = ref.watch(
       sessionControllerProvider.select((s) => s.account?.id),
     );
-    final ordersAsync = ref.watch(firestoreOrdersProvider);
+    // Same pages as My Orders (newest first), with in-progress orders live.
+    final page = ref.watch(orderHistoryProvider(OrderHistoryFilter.all));
+    final active = ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[];
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.profileTransactionHistory)),
-      body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(
-          child: Text(
-            friendlyError(e, action: 'Loading transactions', stackTrace: st),
-          ),
-        ),
-        data: (orders) {
+      body: Builder(
+        builder: (context) {
           final paid =
-              orders.where((o) => o.userId == userId && o.isPaid).toList()
+              withLiveOrders(active, page.orders).where((o) => o.userId == userId && o.isPaid).toList()
                 ..sort(
                   (a, b) =>
                       b.paymentCompletedAt.compareTo(a.paymentCompletedAt),
                 );
-          if (paid.isEmpty) {
+          if (paid.isEmpty && page.loading) return const Center(child: CircularProgressIndicator());
+          if (paid.isEmpty && page.error != null) {
+            return Center(child: Text(friendlyError(page.error!, action: 'Loading transactions')));
+          }
+          if (paid.isEmpty && !page.hasMore) {
             return EmptyState(
               icon: Icons.receipt_long_rounded,
               title: context.l10n.transactionsEmptyTitle,
@@ -54,9 +54,14 @@ class TransactionHistoryScreen extends ConsumerWidget {
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            itemCount: paid.length,
+            itemCount: paid.length + (page.hasMore ? 1 : 0),
             separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _TransactionTile(order: paid[i]),
+            itemBuilder: (context, i) {
+              if (i < paid.length) return _TransactionTile(order: paid[i]);
+              // Reaching the end loads the next page.
+              Future.microtask(() => ref.read(orderHistoryProvider(OrderHistoryFilter.all).notifier).loadMore());
+              return const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator()));
+            },
           );
         },
       ),

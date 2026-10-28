@@ -59,6 +59,8 @@ Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     riskConsentAccepted: data['riskConsentAccepted'] as bool? ?? false,
     isOnline: data['isOnline'] as bool? ?? false,
     status: AccountStatus.values.byName(data['status'] as String? ?? 'active'),
+    ratingAverage: ((data['rating'] as Map?)?['average'] as num?)?.toDouble(),
+    ratingCount: ((data['rating'] as Map?)?['count'] as num?)?.toInt() ?? 0,
   );
 }
 

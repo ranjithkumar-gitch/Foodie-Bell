@@ -11,7 +11,7 @@ import '../../../shared/widgets/empty_state.dart';
 /// Public "Ratings & Reviews" for one vendor (spec §4.15) — every User
 /// browsing this vendor's storefront can open this from the rating tap
 /// target on `vendor_detail_screen.dart`, same real data
-/// (`firestoreReviewsProvider`) the vendor's own "Reviews & Ratings" screen
+/// (`vendorReviewsProvider`) the vendor's own "Reviews & Ratings" screen
 /// reads, just without the vendor-only session scoping.
 class VendorPublicReviewsScreen extends ConsumerWidget {
   const VendorPublicReviewsScreen({super.key, required this.vendorId});
@@ -21,10 +21,11 @@ class VendorPublicReviewsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
-    final vendorName = (ref.watch(firestoreVendorsProvider).valueOrNull ?? const []).where((v) => v.id == vendorId).map((v) => v.name).firstOrNull;
-    final reviewsAsync = ref.watch(firestoreReviewsProvider);
-    final reviews = (reviewsAsync.valueOrNull ?? const []).where((r) => r.vendorId == vendorId).toList();
-    final average = reviews.isEmpty ? 0.0 : reviews.map((r) => r.vendorRating).reduce((a, b) => a + b) / reviews.length;
+    final vendor = ref.watch(liveVendorAccountProvider(vendorId));
+    final vendorName = vendor?.name;
+    final reviewsAsync = ref.watch(vendorReviewsProvider(vendorId));
+    final reviews = reviewsAsync.valueOrNull ?? const [];
+    final average = vendor?.ratingAverage ?? 0.0;
 
     return Scaffold(
       appBar: AppBar(title: Text(vendorName ?? context.l10n.reviewsScreenTitleFallback)),
@@ -93,8 +94,4 @@ class VendorPublicReviewsScreen extends ConsumerWidget {
       ),
     );
   }
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

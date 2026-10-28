@@ -5,7 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
 import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
-import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/currency_text.dart';
@@ -21,7 +20,7 @@ import 'vendor_distance.dart';
 /// vendor's pinned shop location and the User's own position are known
 /// (`vendor_distance.dart`), and the offer strip is the vendor's best live
 /// coupon — nothing is fabricated when that data is missing. Rating *is* real
-/// — averaged from [firestoreReviewsProvider] the same way
+/// — the server-kept average on the vendor record, the same one
 /// `vendor_detail_screen.dart` computes it — and only shown once the vendor
 /// has at least one review, rather than showing a fabricated "new" score. A
 /// closed vendor ([Account.isOpen]) gets the same "CLOSED" overlay
@@ -45,14 +44,7 @@ class VendorAccountCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final coverUrl = account.coverPhotoUrl;
-    final vendorReviews =
-        (ref.watch(firestoreReviewsProvider).valueOrNull ?? const [])
-            .where((r) => r.vendorId == account.id)
-            .toList();
-    final averageRating = vendorReviews.isEmpty
-        ? null
-        : vendorReviews.map((r) => r.vendorRating).reduce((a, b) => a + b) /
-              vendorReviews.length;
+    final averageRating = account.ratingCount == 0 ? null : account.ratingAverage;
     final distanceKm = vendorDistanceKm(
       account,
       ref.watch(devicePositionProvider).valueOrNull,

@@ -7,7 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/models/vendor.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
-import '../../../data/providers/firestore_reviews_provider.dart';
+import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../shared/auth/logout_confirmation_sheet.dart';
 import '../../../shared/widgets/app_network_image.dart';
@@ -44,11 +44,12 @@ class VendorDashboardScreen extends ConsumerWidget {
     final shopFrontPhotoUrl = account?.coverPhotoUrl;
     final vendorId = ref.watch(currentVendorIdProvider);
     final vendor = ref.watch(currentVendorProvider);
-    final orders = (ref.watch(firestoreOrdersProvider).valueOrNull ?? const [])
-        .where((o) => o.vendorId == vendorId)
-        .toList();
-
-    final todaysOrders = orders.where((o) => _isToday(o.placedAt)).toList();
+    // Today's orders and the in-progress queue are small live queries; the
+    // money figures are the server's totals (`earnings_provider.dart`).
+    final todaysOrders = [
+      for (final o in ref.watch(todaysOrdersProvider).valueOrNull ?? const <Order>[])
+        if (o.vendorId == vendorId && _isToday(o.placedAt)) o,
+    ];
     final todaysDelivered = todaysOrders.where(
       (o) => o.status == OrderStatus.delivered,
     );
@@ -57,24 +58,15 @@ class VendorDashboardScreen extends ConsumerWidget {
       (sum, o) => sum + o.total,
     );
 
-    final allDelivered = orders.where((o) => o.status == OrderStatus.delivered);
-    final pendingSettlement = allDelivered.fold<double>(
-      0,
-      (sum, o) => sum + (o.total - o.rebateAmount),
-    );
+    final pendingSettlement = ref.watch(myEarningsTotalsProvider).valueOrNull?.earnings ?? 0;
 
-    final liveQueueCount = orders
-        .where((o) => o.status == OrderStatus.placed)
+    final liveQueueCount = (ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[])
+        .where((o) => o.vendorId == vendorId && o.status == OrderStatus.placed)
         .length;
 
-    final vendorReviews =
-        (ref.watch(firestoreReviewsProvider).valueOrNull ?? const [])
-            .where((r) => r.vendorId == vendorId)
-            .toList();
-    final averageRating = vendorReviews.isEmpty
-        ? 0.0
-        : vendorReviews.map((r) => r.vendorRating).reduce((a, b) => a + b) /
-              vendorReviews.length;
+    // Kept by the server from this shop's reviews (`vendors/{id}.rating`).
+    final averageRating = account?.ratingAverage ?? 0.0;
+    final reviewCount = account?.ratingCount ?? 0;
 
     final isOpen = account?.isOpen ?? true;
 
@@ -285,11 +277,11 @@ class VendorDashboardScreen extends ConsumerWidget {
                       ),
                       VerticalDivider(width: 1, color: palette.divider),
                       _Stat(
-                        label: vendorReviews.isEmpty
+                        label: reviewCount == 0
                             ? 'Rating'
-                            : 'Rating (${vendorReviews.length})',
+                            : 'Rating ($reviewCount)',
                         value: Text(
-                          vendorReviews.isEmpty
+                          reviewCount == 0
                               ? '—'
                               : '★ ${averageRating.toStringAsFixed(1)}',
                         ),

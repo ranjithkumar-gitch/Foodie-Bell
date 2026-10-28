@@ -5,9 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
-import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
-import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/mock_map_view.dart';
@@ -37,21 +36,19 @@ class ManagerDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final managerAccount = ref.watch(currentManagerAccountProvider);
-    final vendors = (ref.watch(firestoreVendorsProvider).valueOrNull ?? const []).where((v) => v.territory == managerAccount.territory).toList();
-    final territoryDrivers = (ref.watch(firestoreDriversProvider).valueOrNull ?? const []).where((d) => d.territory == managerAccount.territory).toList();
+    // Both providers are already scoped to this Manager's territory ID.
+    final vendors = ref.watch(firestoreVendorsProvider).valueOrNull ?? const [];
+    final territoryDrivers = ref.watch(firestoreDriversProvider).valueOrNull ?? const [];
     final activeDrivers = territoryDrivers.where((a) => a.status == AccountStatus.active).length;
-    final vendorIds = vendors.map((v) => v.id).toSet();
     final hasVendor = vendors.isNotEmpty;
     final hasDriver = territoryDrivers.isNotEmpty;
 
-    // Seed order data has no live "today" concept in a mock app — every
-    // seeded order under this territory is treated as today's activity for
-    // demo purposes.
-    final territoryOrders = (ref.watch(firestoreOrdersProvider).valueOrNull ?? const []).where((o) => vendorIds.contains(o.vendorId)).toList();
-    final gmvToday = territoryOrders.fold<double>(0, (sum, o) => sum + o.subtotal);
-    final rebatePoolToday = territoryOrders
-        .where((o) => o.status == OrderStatus.delivered)
-        .fold<double>(0, (sum, o) => sum + o.rebateAmount);
+    // Today's delivered value and the Manager's share of today's commission,
+    // from the server's territory figures for the settlement day — no
+    // order downloads.
+    final todayStats = ref.watch(territoryTodayStatsProvider).valueOrNull ?? const TerritoryDayStats({});
+    final gmvToday = todayStats.itemValue;
+    final managerEarningsToday = todayStats.managerShare;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Manager Dashboard')),
@@ -77,7 +74,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
               _KpiCard(label: 'Active Vendors', value: '${vendors.length}', onTap: () => context.go('/manager/vendors')),
               _KpiCard(label: 'Active Drivers', value: '$activeDrivers', onTap: () => context.go('/manager/drivers')),
               _KpiCard(label: "Today's GMV", value: AppFormat.currency(gmvToday)),
-              _KpiCard(label: "Today's Rebate Pool", value: AppFormat.currency(rebatePoolToday)),
+              _KpiCard(label: 'Your earnings today', value: AppFormat.currency(managerEarningsToday)),
             ],
           ),
           const SizedBox(height: 28),

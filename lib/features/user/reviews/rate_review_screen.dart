@@ -18,7 +18,7 @@ import '../../../shared/error_reporting.dart';
 /// `image_picker` (tracks picked filenames only — no real storage backend,
 /// matching the pattern in `driver_upload_tile.dart`). Reached from
 /// `order_detail_screen.dart` for delivered orders that haven't been
-/// reviewed yet. Submits to `firestoreReviewsProvider` — real and visible to
+/// reviewed yet. Submits to the `reviews` collection — real and visible to
 /// the Vendor and every other User browsing that vendor's storefront, not
 /// just this session.
 class RateReviewScreen extends ConsumerStatefulWidget {
@@ -51,7 +51,8 @@ class _RateReviewScreenState extends ConsumerState<RateReviewScreen> {
       _error = null;
     });
     final review = Review(
-      id: 'rev-${DateTime.now().millisecondsSinceEpoch}',
+      // One review per order — firestore.rules only accepts this ID.
+      id: 'rev-${widget.orderId}',
       orderId: widget.orderId,
       userId: account.id,
       userName: account.name,

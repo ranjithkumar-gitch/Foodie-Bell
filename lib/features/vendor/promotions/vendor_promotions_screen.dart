@@ -457,6 +457,7 @@ class _CouponsTab extends ConsumerWidget {
       final coupon = await createCoupon(
         vendorId: vendorId,
         vendorName: vendorName,
+        territoryId: ref.read(accessScopeProvider)?.territoryId,
         discountType: result.discountType,
         discountValue: result.discountValue,
         appliesToAllItems: result.appliesToAllItems,

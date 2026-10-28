@@ -3,6 +3,9 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
+import '../../features/user/home/selected_territory_provider.dart';
+import '../models/account.dart';
 import '../models/coupon.dart';
 
 /// Vendor coupons — one flat `coupons` collection, same pattern as
@@ -58,11 +61,26 @@ Coupon _couponFromDoc(String id, Map<String, dynamic> data) => Coupon(
   createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
 );
 
-/// Every coupon on the platform, live — every role's screen filters this
-/// client-side by its own field, same convention as
-/// `firestorePromotionsProvider`.
+/// The coupons the signed-in account needs, live (Phase 3 — it used to
+/// stream every coupon on the platform):
+///  - Customer: coupons not yet expired in the territory they browse
+///    (screens still check [Coupon.isLiveNow] and the vendor).
+///  - Vendor: their own coupons.
 final firestoreCouponsProvider = StreamProvider<List<Coupon>>((ref) {
-  return couponsCollection.snapshots().map(
+  final scope = ref.watch(accessScopeProvider);
+  Query<Map<String, dynamic>>? query;
+  if (scope?.role == AppRole.vendor) {
+    query = couponsCollection.where('vendorId', isEqualTo: scope!.accountId);
+  } else if (scope?.role == AppRole.user) {
+    final territoryId = ref.watch(browsingTerritoryIdProvider);
+    if (territoryId != null) {
+      query = couponsCollection
+          .where('territoryId', isEqualTo: territoryId)
+          .where('endAt', isGreaterThan: Timestamp.now());
+    }
+  }
+  if (query == null) return Stream.value(const []);
+  return query.snapshots().map(
     (snapshot) => [
       for (final doc in snapshot.docs) _couponFromDoc(doc.id, doc.data()),
     ],
@@ -93,6 +111,7 @@ String generateCouponCode(String vendorName) {
 Future<Coupon> createCoupon({
   required String vendorId,
   required String vendorName,
+  required String? territoryId,
   required CouponDiscountType discountType,
   required double discountValue,
   required bool appliesToAllItems,
@@ -113,7 +132,9 @@ Future<Coupon> createCoupon({
     endAt: endAt,
     createdAt: DateTime.now(),
   );
-  final ref = await couponsCollection.add(_couponToDoc(coupon));
+  // The Vendor's territory, so customers query only their territory's
+  // coupons (firestore.rules requires it to be the Vendor's own).
+  final ref = await couponsCollection.add({..._couponToDoc(coupon), 'territoryId': territoryId});
   return Coupon(
     id: ref.id,
     vendorId: coupon.vendorId,

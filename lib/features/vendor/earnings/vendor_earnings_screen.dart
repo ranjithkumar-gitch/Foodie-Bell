@@ -1,9 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
+import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../vendor_session.dart';
@@ -21,24 +23,29 @@ class VendorEarningsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final vendorId = ref.watch(currentVendorIdProvider);
-    final delivered = (ref.watch(firestoreOrdersProvider).valueOrNull ?? const [])
-        .where((o) => o.vendorId == vendorId && o.status == OrderStatus.delivered)
-        .toList();
+    // All-time totals kept by the server; the order list is read a page at a time.
+    final totals = ref.watch(myEarningsTotalsProvider).valueOrNull ?? const EarningsFigures({});
+    final history = ref.watch(orderHistoryProvider(OrderHistoryFilter.delivered));
+    final delivered = [
+      for (final o in history.orders)
+        if (o.vendorId == vendorId) o,
+    ];
 
-    final grossEarnings = delivered.fold<double>(0, (sum, o) => sum + o.total);
-    final rebateDeducted = delivered.fold<double>(0, (sum, o) => sum + o.rebateAmount);
-    final netEarnings = grossEarnings - rebateDeducted;
-    final cashTotal = delivered.where((o) => o.isCod).fold<double>(0, (sum, o) => sum + o.total);
-    final onlineTotal = delivered.where((o) => !o.isCod).fold<double>(0, (sum, o) => sum + o.total);
+    // Goods only: the delivery fee belongs to the Driver, not the shop.
+    final netEarnings = totals.earnings;
+    final rebateDeducted = totals.commission;
+    final grossEarnings = netEarnings + rebateDeducted;
+    final cashTotal = totals.codTotal;
+    final onlineTotal = totals.upiTotal;
 
-    final byWeekday = List<double>.filled(7, 0);
-    for (final o in delivered) {
-      byWeekday[o.placedAt.weekday - 1] += o.total;
-    }
+    final byWeekday = totals.weekdayTotals;
     final maxY = (byWeekday.reduce((a, b) => a > b ? a : b)).clamp(100, double.infinity) * 1.2;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Earnings & Settlement')),
+      appBar: AppBar(
+        title: const Text('Earnings & Settlement'),
+        actions: [IconButton(icon: const Icon(Icons.account_balance_wallet_outlined), tooltip: 'Settlement payments', onPressed: () => context.push('/vendor/settlement-payments'))],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -112,6 +119,13 @@ class VendorEarningsScreen extends ConsumerWidget {
             Text('No delivered orders yet.', style: TextStyle(color: palette.textMuted))
           else
             for (final order in delivered) _SettlementRow(order: order),
+          if (history.hasMore && delivered.isNotEmpty)
+            TextButton(
+              onPressed: history.loading
+                  ? null
+                  : () => ref.read(orderHistoryProvider(OrderHistoryFilter.delivered).notifier).loadMore(),
+              child: Text(history.loading ? 'Loading…' : 'Show more orders'),
+            ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settlement statement downloaded.'))),
@@ -188,11 +202,11 @@ class _SettlementRow extends StatelessWidget {
                 children: [
                   Text(order.id, style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary)),
                   const SizedBox(height: 2),
-                  Text('Rebate ${order.rebatePercent.toStringAsFixed(0)}% · -${AppFormat.currency(order.rebateAmount)}', style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+                  Text('Commission ${order.money != null ? '10' : order.rebatePercent.toStringAsFixed(0)}% · -${AppFormat.currency(order.rebateAmount)}', style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
                 ],
               ),
             ),
-            CurrencyText(order.total - order.rebateAmount, style: TextStyle(fontWeight: FontWeight.w700, color: palette.primary)),
+            CurrencyText(order.vendorEntitlement, style: TextStyle(fontWeight: FontWeight.w700, color: palette.primary)),
           ],
         ),
       ),

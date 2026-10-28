@@ -111,6 +111,9 @@ class Order {
     this.couponDiscount = 0,
     this.paymentId,
     this.paidAt,
+    this.money,
+    this.payment,
+    this.deliveryIssue,
   });
 
   final String id;
@@ -230,7 +233,43 @@ class Order {
   /// wasn't recorded (orders placed before this was tracked).
   DateTime? statusReachedAt(OrderStatus status) => statusTimestamps[status] ?? (status == OrderStatus.placed ? placedAt : null);
 
-  double get rebateAmount => subtotal * rebatePercent / 100;
+  /// Server money snapshot (Phase 2 orders); null on older orders.
+  final OrderMoney? money;
+
+  /// Payment state (Phase 2 orders); null on older orders.
+  final OrderPayment? payment;
+  final DeliveryIssue? deliveryIssue;
+
+  /// What a Driver was paid per delivery before Phase 2, and the Manager's
+  /// share of the commission then — used only for orders without [money],
+  /// which are reported as they were, never recomputed.
+  static const legacyDriverPayout = 20.0;
+  static const legacyManagerSharePercent = 60.0;
+
+  /// The commission on this order (₹): 10% of the item value after the
+  /// Vendor's coupon, from [money]; older orders keep their stored rebate %.
+  double get rebateAmount => money != null ? money!.commission / 100 : subtotal * rebatePercent / 100;
+
+  /// The territory Manager's 60% of [rebateAmount].
+  double get managerShare => money != null ? money!.managerShare / 100 : rebateAmount * legacyManagerSharePercent / 100;
+
+  /// Quicky's 40% of [rebateAmount] (older orders: the rest of the rebate;
+  /// their separate platform fee is reported on its own).
+  double get quickyShare => money != null ? money!.quickyShare / 100 : rebateAmount - managerShare;
+
+  /// What the Vendor is owed for the goods: item value less commission
+  /// (older orders: subtotal less rebate, plus the GST they remit).
+  double get vendorEntitlement => money != null ? money!.vendorEntitlement / 100 : subtotal - rebateAmount + gstAmount;
+
+  /// What the Driver earns: the whole delivery fee (older orders: the flat
+  /// payout they were promised).
+  double get driverEntitlement => money != null ? money!.driverEntitlement / 100 : (driverId == null ? 0 : legacyDriverPayout);
+
+  OrderPaymentStatus get paymentStatus =>
+      payment?.status ?? (isCod ? (codPaymentReceived ? OrderPaymentStatus.collected : OrderPaymentStatus.payOnDelivery) : OrderPaymentStatus.unknown);
+
+  /// A UPI order the Vendor hasn't yet confirmed the money for.
+  bool get awaitingUpiVerification => paymentStatus == OrderPaymentStatus.awaitingVerification;
 
   Order copyWith({
     OrderStatus? status,
@@ -275,5 +314,124 @@ class Order {
     couponDiscount: couponDiscount,
     paymentId: paymentId,
     paidAt: paidAt,
+    money: money,
+    payment: payment,
+    deliveryIssue: deliveryIssue,
   );
+}
+
+/// An order's money, in paise, worked out by the server when the order was
+/// placed (`placeOrder`, QuickyAdmin `functions/money.js`) and never changed
+/// afterwards. The authority for every amount and split; null on orders
+/// placed before Phase 2, which fall back to the legacy fields (see the
+/// getters on [Order]).
+class OrderMoney {
+  const OrderMoney({
+    required this.itemsSubtotal,
+    required this.couponDiscount,
+    required this.eligibleItemValue,
+    required this.deliveryFee,
+    this.platformFee = 0,
+    required this.customerTotal,
+    required this.commission,
+    required this.managerShare,
+    required this.quickyShare,
+    required this.vendorEntitlement,
+    required this.driverEntitlement,
+  });
+
+  final int itemsSubtotal;
+  final int couponDiscount;
+
+  /// Items after the Vendor's coupon — what the 10% commission is taken on.
+  final int eligibleItemValue;
+  final int deliveryFee;
+
+  /// Quicky's fixed platform fee on this order (0 when it was off), as
+  /// charged at the time — 100% Quicky's, outside the commission base.
+  final int platformFee;
+  final int customerTotal;
+  final int commission;
+  final int managerShare;
+  final int quickyShare;
+  final int vendorEntitlement;
+  final int driverEntitlement;
+
+  static OrderMoney? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    int p(String key) => (raw[key] as num?)?.toInt() ?? 0;
+    return OrderMoney(
+      itemsSubtotal: p('itemsSubtotal'),
+      couponDiscount: p('couponDiscount'),
+      eligibleItemValue: p('eligibleItemValue'),
+      deliveryFee: p('deliveryFee'),
+      platformFee: p('platformFee'),
+      customerTotal: p('customerTotal'),
+      commission: p('commission'),
+      managerShare: p('managerShare'),
+      quickyShare: p('quickyShare'),
+      vendorEntitlement: p('vendorEntitlement'),
+      driverEntitlement: p('driverEntitlement'),
+    );
+  }
+}
+
+/// Where the order's money is, separate from [OrderStatus]:
+///  - UPI: the Customer pays the Vendor directly; the Vendor confirms it
+///    arrived ([verified]) before accepting. Confirmation is the Vendor's
+///    own check of their account — not bank-level proof.
+///  - COD: [payOnDelivery] until the Driver records the cash ([collected]).
+enum OrderPaymentStatus { awaitingVerification, verified, disputed, failed, unpaidCancelled, refundDue, refunded, payOnDelivery, collected, unknown }
+
+class OrderPayment {
+  const OrderPayment({
+    required this.status,
+    this.vendorUpiId,
+    this.amountPaise,
+    this.customerReference,
+    this.collectedPaise,
+    this.shortfallPaise,
+    this.issueReason,
+  });
+
+  final OrderPaymentStatus status;
+
+  /// The Vendor UPI ID the Customer was asked to pay, as it was at placement.
+  final String? vendorUpiId;
+  final int? amountPaise;
+
+  /// The UPI reference (UTR) the Customer typed in — their claim, for the
+  /// Vendor to match against their account; it proves nothing by itself.
+  final String? customerReference;
+  final int? collectedPaise;
+  final int? shortfallPaise;
+  final String? issueReason;
+
+  static OrderPayment? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final status = OrderPaymentStatus.values.where((s) => s.name == raw['status']).firstOrNull ?? OrderPaymentStatus.unknown;
+    final issue = raw['issue'];
+    return OrderPayment(
+      status: status,
+      vendorUpiId: raw['vendorUpiId'] as String?,
+      amountPaise: (raw['amountPaise'] as num?)?.toInt(),
+      customerReference: raw['customerReference'] as String?,
+      collectedPaise: (raw['collectedPaise'] as num?)?.toInt(),
+      shortfallPaise: (raw['shortfallPaise'] as num?)?.toInt(),
+      issueReason: issue is Map ? issue['reason'] as String? : null,
+    );
+  }
+}
+
+/// A Driver's report that a picked-up order couldn't be delivered, waiting
+/// for the territory's Manager (`resolveDeliveryIssue`).
+class DeliveryIssue {
+  const DeliveryIssue({required this.reason, required this.resolved});
+  final String reason;
+  final bool resolved;
+
+  static DeliveryIssue? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    return DeliveryIssue(reason: raw['reason'] as String? ?? '', resolved: raw['resolvedAt'] != null);
+  }
 }

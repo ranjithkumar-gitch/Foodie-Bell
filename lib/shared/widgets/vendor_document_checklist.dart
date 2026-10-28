@@ -9,10 +9,9 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
 import '../../data/models/vendor_document.dart';
 import '../../data/providers/firestore_vendors_provider.dart';
-import '../../data/providers/kyc_document_url_provider.dart';
+import 'storage_image.dart';
 import '../../data/providers/mock_accounts_provider.dart';
 import '../../data/providers/vendor_document_storage_provider.dart';
-import 'app_network_image.dart';
 import 'document_source_sheet.dart';
 import 'document_viewer_screen.dart';
 
@@ -75,7 +74,7 @@ class _VendorDocumentChecklistState extends ConsumerState<VendorDocumentChecklis
     try {
       final uploaded = await uploadVendorDocument(widget.account.id, type, File(cropped.path));
       if (widget.isFirestoreBacked) {
-        await updateVendorDocumentPath(widget.account.id, type, uploaded.path, coverPhotoUrl: uploaded.url);
+        await updateVendorDocumentPath(widget.account.id, type, uploaded.path, coverPhotoUrl: uploaded.coverUrl);
         await updateVendorDocumentStatus(widget.account.id, type, VendorDocumentStatus.submitted);
       } else {
         ref.read(mockAccountsProvider.notifier).updateDocumentPath(widget.account.id, type, uploaded.path);
@@ -132,10 +131,10 @@ class _VendorDocumentChecklistState extends ConsumerState<VendorDocumentChecklis
             _DocumentTile(
               type: type,
               status: widget.account.documentStatus(type),
-              imageUrl: watchKycDocumentUrl(ref, widget.account.documentPath(type)),
+              imageUrl: widget.account.documentPath(type),
               uploading: _uploading.contains(type),
               onTap: widget.account.documentStatus(type) == VendorDocumentStatus.required ? () => _submit(type) : null,
-              onView: (url) => DocumentViewerScreen.show(context, imageUrl: url, title: type.label),
+              onView: (url) => DocumentViewerScreen.show(context, source: url, title: type.label),
               onDelete: () => _delete(type),
             ),
       ],
@@ -185,7 +184,7 @@ class _DocumentTile extends StatelessWidget {
                 InkWell(
                   borderRadius: BorderRadius.circular(10),
                   onTap: uploading ? null : () => onView(imageUrl!),
-                  child: AppNetworkImage(url: imageUrl!, width: 42, height: 42, borderRadius: BorderRadius.circular(10)),
+                  child: StorageImage(source: imageUrl!, width: 42, height: 42, borderRadius: BorderRadius.circular(10)),
                 )
               else
                 Container(

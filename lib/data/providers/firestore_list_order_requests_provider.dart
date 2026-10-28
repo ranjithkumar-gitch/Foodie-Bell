@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/session/access_scope.dart';
 import '../models/account.dart';
 import '../models/list_order_request.dart';
-import '../models/order.dart';
-import 'firestore_orders_provider.dart' show ordersCollection, orderToDoc;
 
 /// Real, persistent "Order via Photo" requests (`list_order_capture_screen.dart`
 /// on the User side, the "Photo Orders" tab of `vendor_order_queue_screen.dart`
@@ -107,14 +105,8 @@ Future<void> submitListOrderRequest(ListOrderRequest request) =>
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-/// Vendor sets a price after looking at the photos (`pending -> quoted`).
-Future<void> quoteListOrderRequest(String id, double amount) =>
-    listOrderRequestsCollection.doc(id).update({
-      'status': ListOrderStatus.quoted.name,
-      'quotedAmount': amount,
-    });
-
-/// User completes the (simulated) in-app payment (`quoted -> paid`).
+/// Customer says they have paid the quote to the shop (`quoted -> paid`);
+/// the shop then checks its own account before accepting.
 Future<void> markListOrderRequestPaid(String id) =>
     listOrderRequestsCollection.doc(id).update({
       'status': ListOrderStatus.paid.name,
@@ -132,23 +124,6 @@ Future<void> cancelListOrderRequest(String id) =>
       'status': ListOrderStatus.cancelled.name,
     });
 
-/// Vendor confirms a paid request with a photo of the receipt
-/// (`paid -> accepted`) — atomically stamps the request and creates the
-/// real `Order` that driver assignment/delivery now tracks, so the two
-/// documents can never end up out of sync with each other.
-Future<void> acceptListOrderRequestAndCreateOrder({
-  required String requestId,
-  required String receiptImageUrl,
-  required Order order,
-}) async {
-  final batch = FirebaseFirestore.instance.batch();
-  batch.update(listOrderRequestsCollection.doc(requestId), {
-    'status': ListOrderStatus.accepted.name,
-    'receiptImageUrl': receiptImageUrl,
-    'orderId': order.id,
-  });
-  // `listOrderRequestId` is how firestore.rules ties this Vendor-created
-  // order back to the request it's accepting.
-  batch.set(ordersCollection.doc(order.id), {...orderToDoc(order), 'listOrderRequestId': requestId});
-  await batch.commit();
-}
+// Quoting (with the delivery fee by road distance) and accepting a paid
+// request — which creates its order — are server-only: `quoteListOrder` and
+// `acceptListOrder` in `order_actions.dart`.

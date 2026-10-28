@@ -186,9 +186,16 @@ class DriverLocationTracker {
     _subscription = null;
   }
 
+  /// At most one write per this interval (each write is billed, on the
+  /// Driver's record and on every open delivery's tracking document). A
+  /// position skipped here goes out with the next move or the heartbeat.
+  static const _minReportInterval = Duration(seconds: 10);
+
   Future<void> _report(String driverId, Position position) async {
     _lastPosition = position;
-    _lastReportedAt = DateTime.now();
+    final now = DateTime.now();
+    final tooSoon = _lastReportedAt != null && now.difference(_lastReportedAt!) < _minReportInterval;
+    if (!tooSoon) _lastReportedAt = now;
     _heartbeat ??= Timer.periodic(_heartbeatInterval, (_) {
       final id = _driverId;
       final last = _lastPosition;
@@ -201,6 +208,7 @@ class DriverLocationTracker {
       }
       _report(id, last);
     });
+    if (tooSoon) return;
     try {
       await updateDriverLocation(driverId, latitude: position.latitude, longitude: position.longitude);
     } catch (e, st) {
@@ -269,7 +277,7 @@ final _trackedDriverIdProvider = Provider<String?>((ref) {
 final _trackedActiveOrderIdsProvider = Provider<Set<String>>((ref) {
   final driverId = ref.watch(_trackedDriverIdProvider);
   if (driverId == null) return const {};
-  final orders = ref.watch(firestoreOrdersProvider).valueOrNull ?? const [];
+  final orders = ref.watch(activeOrdersProvider).valueOrNull ?? const [];
   return {
     for (final o in orders)
       if (o.driverId == driverId && (o.status == OrderStatus.driverAssigned || o.status == OrderStatus.pickedUp)) o.id,

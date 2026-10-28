@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'app_network_image.dart';
+import 'storage_image.dart';
 
 /// Full-screen zoomable view of an uploaded document image — shared by the
 /// Vendor's own checklist and the Manager's Vendor Detail screen, since both
@@ -10,14 +10,15 @@ import 'app_network_image.dart';
 /// through `showDialog`/`showModalBottomSheet`, so this stays consistent
 /// without wiring a new route into three different role route files.
 class DocumentViewerScreen extends StatelessWidget {
-  const DocumentViewerScreen({super.key, required this.imageUrl, required this.title});
+  const DocumentViewerScreen({super.key, required this.source, required this.title});
 
-  final String imageUrl;
+  /// A download URL, or a private Storage path read through the rules.
+  final String source;
   final String title;
 
-  static Future<void> show(BuildContext context, {required String imageUrl, required String title}) => showDialog(
+  static Future<void> show(BuildContext context, {required String source, required String title}) => showDialog(
     context: context,
-    builder: (context) => DocumentViewerScreen(imageUrl: imageUrl, title: title),
+    builder: (context) => DocumentViewerScreen(source: source, title: title),
   );
 
   @override
@@ -30,7 +31,7 @@ class DocumentViewerScreen extends StatelessWidget {
             child: InteractiveViewer(
               minScale: 1,
               maxScale: 5,
-              child: AppNetworkImage(url: imageUrl, fit: BoxFit.contain),
+              child: StorageImage(source: source, fit: BoxFit.contain),
             ),
           ),
           SafeArea(

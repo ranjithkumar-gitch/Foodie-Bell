@@ -27,8 +27,8 @@ Map<String, dynamic> _reviewToDoc(Review review) => {
   'photoUrls': review.photoUrls,
 };
 
-Review _reviewFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-  final data = doc.data();
+Review _reviewFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
   return Review(
     id: doc.id,
     orderId: data['orderId'] as String? ?? '',
@@ -44,28 +44,35 @@ Review _reviewFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
   );
 }
 
-/// Every review network-wide — `vendor_reviews_screen.dart`,
-/// `order_detail_screen.dart` (has-this-order-been-reviewed check), and
-/// User's public storefront reviews section all filter this client-side.
-final firestoreReviewsProvider = StreamProvider<List<Review>>((ref) {
-  return reviewsCollection.snapshots().map((snapshot) {
-    final reviews = snapshot.docs.map(_reviewFromDoc).toList();
-    final createdAtById = {for (final doc in snapshot.docs) doc.id: doc.data()['createdAt'] as Timestamp?};
-    reviews.sort((a, b) {
-      final aTime = createdAtById[a.id];
-      final bTime = createdAtById[b.id];
-      if (aTime == null && bTime == null) return 0;
-      if (aTime == null) return 1;
-      if (bTime == null) return -1;
-      return bTime.compareTo(aTime);
-    });
-    return reviews;
-  });
+/// How many reviews a list screen shows (newest first). Averages and counts
+/// come from the server-kept `rating` on the vendor/driver record, so they
+/// cover every review, not just these.
+const reviewListLimit = 50;
+
+Stream<List<Review>> _latest(Query<Map<String, dynamic>> query) => query
+    .orderBy('createdAt', descending: true)
+    .limit(reviewListLimit)
+    .snapshots()
+    .map((snapshot) => snapshot.docs.map(_reviewFromDoc).toList());
+
+/// One shop's latest reviews (storefront, Vendor's own reviews screen).
+final vendorReviewsProvider = StreamProvider.autoDispose.family<List<Review>, String>(
+  (ref, vendorId) => _latest(reviewsCollection.where('vendorId', isEqualTo: vendorId)),
+);
+
+/// One Driver's latest reviews.
+final driverReviewsProvider = StreamProvider.autoDispose.family<List<Review>, String>(
+  (ref, driverId) => _latest(reviewsCollection.where('driverId', isEqualTo: driverId)),
+);
+
+/// The review of one order, if it has one (doc ID `rev-<orderId>`).
+final reviewForOrderProvider = StreamProvider.autoDispose.family<Review?, String>((ref, orderId) {
+  return reviewsCollection.doc('rev-$orderId').snapshots().map((doc) => doc.exists ? _reviewFromDoc(doc) : null);
 });
 
 /// Submits a new review (`rate_review_screen.dart`) — one per order, enforced
-/// by that screen only offering the form when no existing review for the
-/// order is found in [firestoreReviewsProvider].
+/// by that screen only offering the form when [reviewForOrderProvider]
+/// finds none (and by firestore.rules: the doc ID is the order's).
 Future<void> submitReview(Review review) => reviewsCollection.doc(review.id).set({
   ..._reviewToDoc(review),
   'createdAt': FieldValue.serverTimestamp(),

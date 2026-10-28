@@ -236,12 +236,11 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     if (driverId != null && widget.driverPosition != null) {
       reported = widget.driverPosition;
     } else if (driverId != null && widget.viewerIsCustomer) {
-      // Customers follow their Driver through the position mirrored onto
-      // their own order — they can't read any Driver's record.
-      LatLng? positionOf(Order? o) =>
-          o?.driverLatitude == null || o?.driverLongitude == null ? null : LatLng(o!.driverLatitude!, o.driverLongitude!);
-      reported = positionOf(ref.watch(orderByIdProvider(order.id)).valueOrNull ?? order);
-      ref.listen(orderByIdProvider(order.id), (previous, next) {
+      // Customers follow their Driver through the order's tracking document
+      // (`order_tracking`) — they can't read any Driver's record.
+      LatLng? positionOf(DriverPosition? p) => p == null ? null : LatLng(p.latitude, p.longitude);
+      reported = positionOf(ref.watch(driverPositionProvider(order.id)).valueOrNull);
+      ref.listen(driverPositionProvider(order.id), (previous, next) {
         final moved = positionOf(next.valueOrNull);
         if (moved != null) _moveTo(moved);
       });

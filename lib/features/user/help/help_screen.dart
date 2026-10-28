@@ -94,7 +94,7 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
     // Vendor — and so its real Manager — actually belongs to.
     String? orderTerritoryName;
     if (_selectedOrderId != null) {
-      final order = (ref.read(firestoreOrdersProvider).valueOrNull ?? const [])
+      final order = ref.read(orderHistoryProvider(OrderHistoryFilter.all)).orders
           .where((o) => o.id == _selectedOrderId)
           .firstOrNull;
       if (order != null) {
@@ -179,7 +179,7 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final myOrders =
-        (ref.watch(firestoreOrdersProvider).valueOrNull ?? const [])
+        ref.watch(orderHistoryProvider(OrderHistoryFilter.all)).orders
             .where((o) => o.userId == account?.id)
             .toList()
           ..sort((a, b) => b.placedAt.compareTo(a.placedAt));

@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/time_ago.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../driver_session.dart';
 
 /// Ratings received on delivered orders (spec §4.15's driver half of Rate &
-/// Review) — same real `firestoreReviewsProvider` User's Rate & Review
-/// screen writes to, filtered here by `driverId` instead of `vendorId`.
+/// Review) — the latest reviews naming this driver; the average and count
+/// are the server-kept totals over all of them.
 /// Mirrors `vendor_reviews_screen.dart`'s shape.
 class DriverReviewsScreen extends ConsumerWidget {
   const DriverReviewsScreen({super.key});
@@ -18,10 +19,10 @@ class DriverReviewsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final driverId = ref.watch(currentDriverAccountProvider).id;
-    final reviewsAsync = ref.watch(firestoreReviewsProvider);
-    final reviews = (reviewsAsync.valueOrNull ?? const []).where((r) => r.driverId == driverId && r.driverRating != null).toList();
+    final reviewsAsync = ref.watch(driverReviewsProvider(driverId));
+    final reviews = (reviewsAsync.valueOrNull ?? const []).where((r) => r.driverRating != null).toList();
 
-    final average = reviews.isEmpty ? 0.0 : reviews.map((r) => r.driverRating!).reduce((a, b) => a + b) / reviews.length;
+    final average = ref.watch(liveDriverAccountProvider(driverId))?.ratingAverage ?? 0.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Ratings')),

@@ -25,7 +25,7 @@ class QuickyApp extends ConsumerWidget {
     listenForBrandThemeChanges(context, ref);
     hydrateSelectedTerritoryFromCache(ref);
     listenForTopicSync(ref);
-    listenForAccountTopicSync(ref);
+    listenForDeviceTokenSync(ref);
     listenForDriverTerritoryTopicSync(ref);
     listenForDriverLocationTracking(ref);
     listenForClaimChanges(ref);

@@ -10,6 +10,7 @@ import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/geocode_provider.dart';
+import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/order_drop_off.dart';
 import '../../../data/providers/road_route_provider.dart';
 import '../../../shared/error_reporting.dart';
@@ -17,7 +18,6 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/mock_map_view.dart';
 import '../driver_location_tracker.dart';
 import '../driver_session.dart';
-import '../home/driver_home_screen.dart';
 import 'driver_route_map.dart';
 
 /// Order Offer Detail (spec §6 item 7): full pickup/drop/payout detail for
@@ -46,14 +46,15 @@ class _DriverIncomingOfferScreenState extends ConsumerState<DriverIncomingOfferS
       _accepting = true;
       _error = null;
     });
-    final driver = ref.read(currentDriverAccountProvider);
     try {
-      await updateOrderStatus(order.id, OrderStatus.driverAssigned, driverId: driver.id, driverName: driver.name, driverPhone: driver.phone);
+      // The server checks the offer is still open in the same transaction
+      // that assigns it, so two Drivers tapping at once can't both get it.
+      await claimDelivery(order.id);
     } catch (e, st) {
       if (!mounted) return;
       setState(() {
         _accepting = false;
-        _error = friendlyError(e, action: 'Accepting offer', stackTrace: st);
+        _error = e is OrderActionException ? e.message : friendlyError(e, action: 'Accepting offer', stackTrace: st);
       });
       return;
     }
@@ -204,7 +205,8 @@ class _DriverIncomingOfferScreenState extends ConsumerState<DriverIncomingOfferS
                                 style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500, fontSize: 13),
                               ),
                               CurrencyText(
-                                kDriverFlatPayout,
+                                // The whole delivery fee is the Driver's.
+                                order.money != null ? order.money!.driverEntitlement / 100 : Order.legacyDriverPayout,
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 28, height: 1.15),
                               ),
                             ],

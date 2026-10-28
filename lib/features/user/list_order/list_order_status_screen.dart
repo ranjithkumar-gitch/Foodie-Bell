@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/list_order_request.dart';
 import '../../../data/providers/firestore_list_order_requests_provider.dart';
 import '../../../shared/error_reporting.dart';
-import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/storage_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/status_chip.dart';
@@ -107,12 +107,12 @@ class _ListOrderStatusScreenState extends ConsumerState<ListOrderStatusScreen> {
                   itemBuilder: (context, i) => GestureDetector(
                     onTap: () => DocumentViewerScreen.show(
                       context,
-                      imageUrl: request.imageUrls[i],
+                      source: request.imageUrls[i],
                       title: 'Photo ${i + 1}',
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: AppNetworkImage(url: request.imageUrls[i], width: 100, height: 100),
+                      child: StorageImage(source: request.imageUrls[i], width: 100, height: 100),
                     ),
                   ),
                 ),

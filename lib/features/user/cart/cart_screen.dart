@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/coupon.dart';
 import '../../../data/providers/cart_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
-import '../../../data/providers/firestore_tax_categories_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/currency_text.dart';
@@ -113,11 +112,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cart = ref.watch(cartProvider);
     final notifier = ref.read(cartProvider.notifier);
 
-    final deliveryFee = cart.isEmpty ? 0.0 : cart.items.first.deliveryFee;
-    final taxCategories = ref.watch(firestoreTaxCategoriesProvider).valueOrNull ?? const [];
-    final gstAmount = cart.items.fold<double>(0, (sum, item) => sum + item.lineTotal * resolveProductGst(item.product, taxCategories).gstRate / 100);
+    // Items only: the delivery fee depends on the road distance to the
+    // address chosen at checkout, where the server prices the whole order
+    // (no GST while it's off).
     final couponDiscount = cart.couponDiscount;
-    final total = cart.subtotal + deliveryFee + gstAmount - couponDiscount;
+    final total = cart.subtotal - couponDiscount;
 
     return Scaffold(
       appBar: AppBar(
@@ -277,8 +276,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             value: -couponDiscount,
                             valueColor: palette.success,
                           ),
-                        _SummaryRow(label: context.l10n.priceDeliveryFee, value: deliveryFee),
-                        _SummaryRow(label: context.l10n.priceGst, value: gstAmount),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(context.l10n.priceDeliveryFee, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: palette.textSecondary)),
+                              Flexible(child: Text('By distance, at checkout', textAlign: TextAlign.end, style: TextStyle(color: palette.textSecondary))),
+                            ],
+                          ),
+                        ),
                         const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider()),
                         _SummaryRow(label: context.l10n.priceTotal, value: total, emphasize: true),
                         const SizedBox(height: 16),

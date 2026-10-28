@@ -8,21 +8,21 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../data/models/account.dart';
 import '../../../data/models/list_order_request.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_list_order_requests_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
-import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/list_order_image_storage_provider.dart';
+import '../../../data/providers/order_actions.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/time_ago.dart';
-import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/storage_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_source_sheet.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../vendor_session.dart';
+import 'vendor_order_actions.dart';
 
 /// Orders (spec §5.8 + §5.14, combined): Live Order Queue and Order
 /// History as two tabs of the same page, rather than a separate screen you
@@ -56,7 +56,9 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
   Widget build(BuildContext context) {
     final palette = context.colors;
     final vendorId = ref.watch(currentVendorIdProvider);
-    final ordersAsync = ref.watch(firestoreOrdersProvider);
+    // Live: only orders still in progress. History is read a page at a time.
+    final ordersAsync = ref.watch(activeOrdersProvider);
+    final history = ref.watch(orderHistoryProvider(OrderHistoryFilter.all));
     final activeCount = (ordersAsync.valueOrNull ?? const <Order>[])
         .where((o) => o.vendorId == vendorId && !o.status.isTerminal)
         .length;
@@ -146,23 +148,32 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
                     );
             },
           ),
-          ordersAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => Center(
-              child: Text(
-                friendlyError(e, action: 'Loading orders', stackTrace: st),
-              ),
-            ),
-            data: (orders) {
-              final history =
-                  orders.where((o) => o.vendorId == vendorId).toList()
-                    ..sort((a, b) => b.placedAt.compareTo(a.placedAt));
-              return history.isEmpty
+          Builder(
+            builder: (context) {
+              if (history.orders.isEmpty && history.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (history.orders.isEmpty && history.error != null) {
+                return Center(
+                  child: Text(friendlyError(history.error!, action: 'Loading orders')),
+                );
+              }
+              final mine = history.orders.where((o) => o.vendorId == vendorId).toList();
+              return mine.isEmpty
                   ? const EmptyState(
                       icon: Icons.receipt_long_rounded,
                       title: 'No orders yet',
                     )
-                  : _HistoryList(orders: history);
+                  : NotificationListener<ScrollEndNotification>(
+                      // Next page when the list is scrolled to the bottom.
+                      onNotification: (n) {
+                        if (n.metrics.extentAfter < 300) {
+                          ref.read(orderHistoryProvider(OrderHistoryFilter.all).notifier).loadMore();
+                        }
+                        return false;
+                      },
+                      child: _HistoryList(orders: mine),
+                    );
             },
           ),
           listRequestsAsync.when(
@@ -387,31 +398,24 @@ class _QueueOrderCard extends ConsumerStatefulWidget {
 class _QueueOrderCardState extends ConsumerState<_QueueOrderCard> {
   bool _updating = false;
 
-  Future<void> _setStatus(OrderStatus status, String failedAction) async {
+  Future<void> _run(Future<void> Function() action) async {
     setState(() => _updating = true);
-    try {
-      await updateOrderStatus(widget.order.id, status);
-    } catch (e, st) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            friendlyError(e, action: failedAction, stackTrace: st),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _updating = false);
-    }
+    await runVendorAction(context, action);
+    if (mounted) setState(() => _updating = false);
   }
 
   Future<void> _accept() async {
     if (!await ensureVendorReadyToAccept(context, ref)) return;
-    await _setStatus(OrderStatus.vendorAccepted, 'Accepting order');
+    await _run(() => vendorAcceptOrder(widget.order.id));
   }
 
-  Future<void> _reject() =>
-      _setStatus(OrderStatus.rejected, 'Rejecting order');
+  Future<void> _reject() => _run(() => vendorRejectOrder(widget.order.id));
+
+  Future<void> _checkPayment() async {
+    setState(() => _updating = true);
+    await confirmUpiReceived(context, widget.order);
+    if (mounted) setState(() => _updating = false);
+  }
 
   String _progressText(Order order) => switch (order.status) {
     OrderStatus.vendorAccepted => 'Accepted · finding a driver',
@@ -541,12 +545,19 @@ class _QueueOrderCardState extends ConsumerState<_QueueOrderCard> {
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(50),
                     ),
-                    onPressed: _updating ? null : _accept,
-                    child: const Text('Accept'),
+                    // A UPI order is accepted only after the Vendor has seen
+                    // the money arrive in their own account.
+                    onPressed: _updating ? null : (order.awaitingUpiVerification ? _checkPayment : _accept),
+                    child: Text(order.awaitingUpiVerification ? 'Money received?' : 'Accept'),
                   ),
                 ),
               ],
             ),
+            if (order.paymentStatus == OrderPaymentStatus.disputed) ...[
+              const SizedBox(height: 8),
+              Text('Payment problem reported — your Manager will check it.',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: palette.error)),
+            ],
           ],
         ],
       ),
@@ -577,7 +588,7 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
     } catch (e, st) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError(e, action: failedAction, stackTrace: st))),
+        SnackBar(content: Text(e is OrderActionException ? e.message : friendlyError(e, action: failedAction, stackTrace: st))),
       );
     } finally {
       if (mounted) setState(() => _updating = false);
@@ -589,6 +600,8 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
     failedAction: 'Declining request',
   );
 
+  /// The Vendor prices the goods; the server adds the delivery fee by road
+  /// distance, and the Customer is asked for the total.
   Future<void> _sendQuote() async {
     final amount = await showModalBottomSheet<double>(
       context: context,
@@ -598,12 +611,14 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
     );
     if (amount == null) return;
     await _run(
-      () => quoteListOrderRequest(widget.request.id, amount),
+      () => quoteListOrder(widget.request.id, (amount * 100).round()),
       failedAction: 'Sending quote',
     );
   }
 
-  Future<void> _acceptAndConfirm(double rebatePercent) async {
+  /// The Customer says they've paid: the Vendor checks their account,
+  /// photographs the receipt, and the server turns it into an order.
+  Future<void> _acceptAndConfirm() async {
     if (!await ensureVendorReadyToAccept(context, ref) || !mounted) return;
     final source = await DocumentSourceSheet.show(
       context,
@@ -622,43 +637,8 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
 
     final request = widget.request;
     await _run(() async {
-      final receiptUrl = await uploadListOrderReceiptImage(request.vendorId, File(picked!.path));
-      final placedAt = DateTime.now();
-      final order = Order(
-        id: generateOrderId(),
-        vendorId: request.vendorId,
-        territoryId: ref.read(liveVendorAccountProvider(request.vendorId))?.territoryId,
-        vendorName: request.vendorName,
-        userId: request.userId,
-        userName: request.userName,
-        userPhone: request.userPhone,
-        items: [
-          OrderLineItem(
-            productId: 'photo-order',
-            name: 'Photo order',
-            price: request.quotedAmount ?? 0,
-            imageUrl: request.imageUrls.isNotEmpty ? request.imageUrls.first : '',
-            quantity: 1,
-          ),
-        ],
-        deliveryAddressLabel: request.deliveryAddressLabel,
-        deliveryLatitude: request.deliveryLatitude,
-        deliveryLongitude: request.deliveryLongitude,
-        paymentMethod: PaymentMethod.upi,
-        subtotal: request.quotedAmount ?? 0,
-        deliveryFee: 0,
-        platformFee: 0,
-        gstAmount: 0,
-        total: request.quotedAmount ?? 0,
-        placedAt: placedAt,
-        statusTimestamps: {OrderStatus.placed: placedAt},
-        rebatePercent: rebatePercent,
-      );
-      await acceptListOrderRequestAndCreateOrder(
-        requestId: request.id,
-        receiptImageUrl: receiptUrl,
-        order: order,
-      );
+      final receiptPath = await uploadListOrderReceiptImage(request.vendorId, request.userId, File(picked!.path));
+      await acceptListOrder(request.id, receiptPath);
     }, failedAction: 'Confirming order');
   }
 
@@ -688,11 +668,6 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
   Widget build(BuildContext context) {
     final palette = context.colors;
     final request = widget.request;
-    final vendors = ref.watch(firestoreVendorsProvider).valueOrNull ?? const <Account>[];
-    final rebatePercent = vendors
-        .where((v) => v.id == request.vendorId)
-        .map((v) => v.rebatePercent)
-        .firstOrNull ?? 15;
     final statusColor = switch (request.status) {
       ListOrderStatus.pending || ListOrderStatus.quoted => palette.warning,
       ListOrderStatus.paid => palette.primary,
@@ -756,13 +731,13 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
               itemBuilder: (context, i) => GestureDetector(
                 onTap: () => DocumentViewerScreen.show(
                   context,
-                  imageUrl: request.imageUrls[i],
+                  source: request.imageUrls[i],
                   title: '${request.userName}\'s photo ${i + 1}',
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: AppNetworkImage(
-                    url: request.imageUrls[i],
+                  child: StorageImage(
+                    source: request.imageUrls[i],
                     width: 150,
                     height: 150,
                   ),
@@ -827,12 +802,18 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
             ),
           ] else if (request.status == ListOrderStatus.paid) ...[
             const SizedBox(height: 14),
+            Text(
+              'The customer says they paid ${AppFormat.currency(request.quotedAmount ?? 0)}. '
+              'Check that the money is in your UPI or bank account before you confirm.',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: palette.textPrimary),
+            ),
+            const SizedBox(height: 10),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
               ),
-              onPressed: _updating ? null : () => _acceptAndConfirm(rebatePercent),
-              child: const Text('Confirm order'),
+              onPressed: _updating ? null : _acceptAndConfirm,
+              child: const Text('Money received — confirm order'),
             ),
           ] else if (request.status == ListOrderStatus.quoted) ...[
             const SizedBox(height: 10),
@@ -911,8 +892,4 @@ class _QuoteAmountSheetState extends State<_QuoteAmountSheet> {
       ),
     );
   }
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

@@ -43,19 +43,23 @@ class _DriverHistoryScreenState extends ConsumerState<DriverHistoryScreen> {
   Widget build(BuildContext context) {
     final palette = context.colors;
     final driver = ref.watch(currentDriverAccountProvider);
-    final orders = ref.watch(firestoreOrdersProvider).valueOrNull ?? const [];
+    // Totals are server-side counts; the list is read a page at a time.
+    final deliveredCount = ref.watch(orderCountProvider(OrderHistoryFilter.delivered)).valueOrNull ?? 0;
+    final cancelledCount = ref.watch(orderCountProvider(OrderHistoryFilter.cancelled)).valueOrNull ?? 0;
+    final totalCount = deliveredCount + cancelledCount;
+    final successRate = totalCount == 0 ? null : (deliveredCount / totalCount * 100).round();
 
-    final history = orders.where((o) => o.driverId == driver.id && o.status.isTerminal).toList()
-      ..sort((a, b) => _finishedAt(b).compareTo(_finishedAt(a)));
-    final deliveredCount = history.where((o) => o.status == OrderStatus.delivered).length;
-    final cancelledCount = history.length - deliveredCount;
-    final successRate = history.isEmpty ? null : (deliveredCount / history.length * 100).round();
-
-    final visible = switch (_filter) {
-      _Filter.all => history,
-      _Filter.delivered => history.where((o) => o.status == OrderStatus.delivered).toList(),
-      _Filter.cancelled => history.where((o) => o.status != OrderStatus.delivered).toList(),
+    final filter = switch (_filter) {
+      _Filter.all => OrderHistoryFilter.finished,
+      _Filter.delivered => OrderHistoryFilter.delivered,
+      _Filter.cancelled => OrderHistoryFilter.cancelled,
     };
+    final page = ref.watch(orderHistoryProvider(filter));
+    final visible = [
+      for (final o in page.orders)
+        if (o.driverId == driver.id) o,
+    ]..sort((a, b) => _finishedAt(b).compareTo(_finishedAt(a)));
+    final history = visible;
     final byDay = <DateTime, List<Order>>{};
     for (final o in visible) {
       byDay.putIfAbsent(_dayOf(_finishedAt(o)), () => []).add(o);
@@ -64,8 +68,10 @@ class _DriverHistoryScreenState extends ConsumerState<DriverHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Order History')),
-      body: history.isEmpty
-          ? const EmptyState(
+      body: history.isEmpty && totalCount == 0
+          ? page.loading
+              ? const Center(child: CircularProgressIndicator())
+              : const EmptyState(
               icon: Icons.history_rounded,
               title: 'No past deliveries',
               subtitle: 'Deliveries you complete or cancel will show up here.',
@@ -102,7 +108,7 @@ class _DriverHistoryScreenState extends ConsumerState<DriverHistoryScreen> {
                       ChoiceChip(
                         label: Text(
                           switch (f) {
-                            _Filter.all => 'All (${history.length})',
+                            _Filter.all => 'All ($totalCount)',
                             _Filter.delivered => 'Delivered ($deliveredCount)',
                             _Filter.cancelled => 'Cancelled ($cancelledCount)',
                           },
@@ -140,6 +146,13 @@ class _DriverHistoryScreenState extends ConsumerState<DriverHistoryScreen> {
                     ],
                     const SizedBox(height: 8),
                   ],
+                if (page.hasMore && visible.isNotEmpty)
+                  Center(
+                    child: OutlinedButton(
+                      onPressed: page.loading ? null : () => ref.read(orderHistoryProvider(filter).notifier).loadMore(),
+                      child: Text(page.loading ? 'Loading…' : 'Show more'),
+                    ),
+                  ),
               ],
             ),
     );
@@ -227,7 +240,7 @@ class _HistoryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     CurrencyText(
-                      kDriverFlatPayout,
+                      driverEarningOf(order),
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: palette.success),
                     ),
                     Text('Payout', style: TextStyle(color: palette.textMuted, fontSize: 11)),

@@ -9,9 +9,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
+import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
-import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../data/providers/order_drop_off.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/time_ago.dart';
@@ -22,7 +23,11 @@ import '../../../shared/widgets/notification_count_badge.dart';
 import '../driver_location_tracker.dart';
 import '../driver_session.dart';
 
-const kDriverFlatPayout = 20.0;
+/// What a Driver earns for [order]: the whole delivery fee, worked out by
+/// distance when the order was placed (older orders: the flat payout then).
+double driverEarningOf(Order order) => order.money != null ? order.money!.driverEntitlement / 100 : Order.legacyDriverPayout;
+
+double driverEarningsOf(Iterable<Order> orders) => orders.fold(0.0, (sum, o) => sum + driverEarningOf(o));
 
 /// Home / Go Online-Offline Toggle (spec §6 item 6), laid out like the
 /// Swiggy/Zomato delivery-partner apps: a big online/offline duty card, a
@@ -87,21 +92,21 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   Widget build(BuildContext context) {
     final palette = context.colors;
     final driver = ref.watch(currentDriverAccountProvider);
-    final orders = ref.watch(firestoreOrdersProvider).valueOrNull ?? const [];
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
-    final startOfWeek = startOfToday.subtract(Duration(days: now.weekday - 1));
+    // In-progress deliveries and open offers only; totals come from the
+    // server's per-day figures.
+    final orders = ref.watch(activeOrdersProvider).valueOrNull ?? const [];
+    final cutoff = ref.watch(settlementCutoffProvider).valueOrNull ?? 22 * 60;
+    final startOfToday = DateTime.parse(currentSettlementDay(cutoffMinutes: cutoff));
+    final startOfWeek = startOfToday.subtract(Duration(days: startOfToday.weekday - 1));
 
-    final myDelivered = orders.where((o) => o.driverId == driver.id && o.status == OrderStatus.delivered).toList();
-    DateTime deliveredAt(Order o) => o.statusReachedAt(OrderStatus.delivered) ?? o.placedAt;
-    final todaysDeliveries = myDelivered.where((o) => !deliveredAt(o).isBefore(startOfToday)).length;
-    final weeksDeliveries = myDelivered.where((o) => !deliveredAt(o).isBefore(startOfWeek)).length;
+    final earningDays = ref.watch(myEarningsDaysProvider(7)).valueOrNull ?? const <EarningsDay>[];
+    final todaysFigures = earningsOn(earningDays, currentSettlementDay(cutoffMinutes: cutoff));
+    final todaysDeliveries = todaysFigures.orders;
+    final weeksDays = earningDays.where((d) => !d.date.isBefore(startOfWeek));
+    final weeksEarnings = weeksDays.fold<double>(0, (s, d) => s + d.earnings);
 
-    final myRatings = (ref.watch(firestoreReviewsProvider).valueOrNull ?? const [])
-        .where((r) => r.driverId == driver.id && r.driverRating != null)
-        .map((r) => r.driverRating!)
-        .toList();
-    final averageRating = myRatings.isEmpty ? null : myRatings.reduce((a, b) => a + b) / myRatings.length;
+    // Kept by the server from this driver's reviews (`drivers/{id}.rating`).
+    final averageRating = ref.watch(liveDriverAccountProvider(driver.id))?.ratingAverage;
 
     // A driver isn't limited to one delivery at a time — they can accept a
     // new open order while already out on another, so this is every order
@@ -114,19 +119,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             .toList()
           ..sort((a, b) => a.placedAt.compareTo(b.placedAt));
 
-    // Vendors in this driver's own territory, so "open orders" only ever
-    // shows pickups a driver based here would actually be dispatched for —
-    // same territory-matching convention Manager's real vendor screens use.
+    // Vendors in this driver's own territory (the provider is scoped to it),
+    // for shop names and pickup distances. Open offers are already queried
+    // by territory ID (`activeOrdersProvider`).
     final vendorsById = {for (final v in ref.watch(firestoreVendorsProvider).valueOrNull ?? const <Account>[]) v.id: v};
     final openOrders =
-        orders
-            .where(
-              (o) =>
-                  o.status == OrderStatus.vendorAccepted &&
-                  o.driverId == null &&
-                  vendorsById[o.vendorId]?.territory == driver.territory,
-            )
-            .toList()
+        orders.where((o) => o.status == OrderStatus.vendorAccepted && o.driverId == null).toList()
           ..sort((a, b) => a.placedAt.compareTo(b.placedAt));
 
     final position = ref.watch(driverDevicePositionProvider).valueOrNull;
@@ -197,9 +195,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             _DutyCard(online: _online, onChanged: _toggleOnline),
             const SizedBox(height: 14),
             _EarningsCard(
-              todayEarnings: todaysDeliveries * kDriverFlatPayout,
+              todayEarnings: todaysFigures.earnings,
               todayDeliveries: todaysDeliveries,
-              weekEarnings: weeksDeliveries * kDriverFlatPayout,
+              weekEarnings: weeksEarnings,
               rating: averageRating,
               onTap: () => context.go('/driver/earnings'),
             ),
@@ -814,7 +812,7 @@ class _OpenOrderCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     CurrencyText(
-                      kDriverFlatPayout,
+                      driverEarningOf(order),
                       style: TextStyle(fontWeight: FontWeight.w500, fontSize: 22, color: palette.success, height: 1),
                     ),
                     Text('Payout', style: TextStyle(color: palette.textMuted, fontSize: 11, fontWeight: FontWeight.w500)),

@@ -46,8 +46,8 @@ GstOverride? _gstOverrideFromDoc(Map<String, dynamic>? data) {
   );
 }
 
-Product _productFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-  final data = doc.data();
+Product _productFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
   return Product(
     id: doc.id,
     name: data['name'] as String? ?? '',
@@ -72,7 +72,8 @@ Product _productFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
 /// than via Firestore `orderBy` so a single-field `where` doesn't need a
 /// composite index. A vendor with no products yet just gets an empty list —
 /// nothing seeds it.
-final vendorProductsProvider = StreamProvider.family<List<Product>, String>((
+/// Disposed when no screen shows that vendor's catalogue any more.
+final vendorProductsProvider = StreamProvider.autoDispose.family<List<Product>, String>((
   ref,
   vendorId,
 ) {
@@ -89,19 +90,56 @@ final vendorProductsProvider = StreamProvider.family<List<Product>, String>((
       });
 });
 
-/// Every product across every vendor's catalogue, live — powers User's
-/// global product search (`search_screen.dart`'s "idli" → every vendor
-/// selling idli, not just one vendor's own menu). Paired with its
-/// `vendorId` rather than adding that field onto [Product] itself, since
-/// every other call site treats a `Product` as already vendor-scoped (a
-/// [vendorProductsProvider] result, a cart/order line item) and has no use
-/// for carrying its own vendor id around.
-final allProductsProvider = StreamProvider<List<({Product product, String vendorId})>>((ref) {
-  return productsCollection.snapshots().map(
-    (snapshot) => [
-      for (final doc in snapshot.docs) (product: _productFromDoc(doc), vendorId: doc.data()['vendorId'] as String? ?? ''),
-    ],
-  );
+/// One product in a territory's search index (`catalog_index`, kept by the
+/// server from `products` — QuickyAdmin `functions/aggregates.js`): just
+/// what search, the trending-dish filter and "Pure Veg" need. No image —
+/// a result loads its own ([productByIdProvider]) when it is shown.
+class CatalogEntry {
+  const CatalogEntry({
+    required this.productId,
+    required this.vendorId,
+    required this.name,
+    required this.price,
+    required this.isVeg,
+    required this.inStock,
+  });
+
+  final String productId;
+  final String vendorId;
+  final String name;
+  final double price;
+  final bool isVeg;
+  final bool inStock;
+}
+
+/// Every product of the vendors in [territoryId] — read from a few compact
+/// index documents (one per shard) instead of the whole `products`
+/// collection, so a search costs a handful of reads however large the
+/// catalogue. Cached while any screen uses it.
+final catalogIndexProvider = StreamProvider.autoDispose.family<List<CatalogEntry>, String>((ref, territoryId) {
+  return FirebaseFirestore.instance
+      .collection('catalog_index')
+      .where('territoryId', isEqualTo: territoryId)
+      .snapshots()
+      .map((snapshot) => [
+            for (final doc in snapshot.docs)
+              for (final e in (doc.data()['products'] as Map<String, dynamic>? ?? const {}).entries)
+                if (e.value is Map)
+                  CatalogEntry(
+                    productId: e.key,
+                    vendorId: (e.value as Map)['v'] as String? ?? '',
+                    name: (e.value as Map)['n'] as String? ?? '',
+                    price: ((e.value as Map)['p'] as num?)?.toDouble() ?? 0,
+                    isVeg: (e.value as Map)['g'] == true,
+                    inStock: (e.value as Map)['s'] != false,
+                  ),
+          ]);
+});
+
+/// One product, read once — a search result's image and details.
+final productByIdProvider = FutureProvider.autoDispose.family<Product?, String>((ref, productId) async {
+  final doc = await productsCollection.doc(productId).get();
+  return doc.exists ? _productFromDoc(doc) : null;
 });
 
 Future<void> addProduct(String vendorId, Product product) =>

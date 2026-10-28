@@ -49,6 +49,10 @@ Server-only actions:
 - **Pickup and delivery** go through `confirmPickup` and `confirmDelivery`. They check the code, lock after 5 wrong attempts, and only the order's assigned Driver can call them.
 - **Pushes and branding:** `sendPushNotification`, `activateOccasionTheme` and `resetOccasionTheme` are Super Admin only.
 
+## Where the backend lives
+
+**`QuickyAdmin` is the only place the backend is deployed from.** It holds `firebase.json`, `.firebaserc`, `firestore.rules`, `firestore.indexes.json`, `storage.rules`, `functions/` and the rules tests (`tests/rules/`). Foodie-Bell keeps only its app config; it has no rules or functions to deploy, so a deploy from the wrong repo can't overwrite them.
+
 ## Rollout
 
 Order matters. Steps 6 and 7 lock out older app builds and anyone without the new claims.
@@ -64,15 +68,16 @@ Order matters. Steps 6 and 7 lock out older app builds and anyone without the ne
    Run it with your own credentials (`gcloud auth application-default login`).
 3. **Change that account's password.** The old one, `Admin@123`, was pre-filled in QuickyAdmin's login screen source.
 4. **Ship the new Foodie-Bell and QuickyAdmin builds.** They work under the current rules too.
-5. **Migrate existing data.** Dry run first, then apply:
+5. **Migrate existing data.** Inventory, then dry run, then apply:
    ```sh
-   node scripts/migrate-step3.js
-   node scripts/migrate-step3.js --apply
+   node scripts/beta-inventory.js
+   node scripts/migrate-phase1.js
+   node scripts/migrate-phase1.js --apply
    ```
-   This adds territory IDs, moves KYC URLs to paths (rotating the old download tokens), moves bank details and order codes to private docs, and writes out delivery addresses. Fix any territories it warns about.
-6. **Deploy the rules** (identical in both repos):
+   This adds territory IDs, moves KYC and photo-order URLs to paths (rotating the old download tokens), moves manager bank details to private docs, separates storefront covers from KYC, and creates codes for in-flight orders. Every changed doc is backed up first. Fix any territories it warns about. Details: `PHASE_1_SECURITY_REPORT.md`.
+6. **Deploy the rules and indexes** (from `QuickyAdmin`):
    ```sh
-   firebase deploy --only firestore:rules,storage
+   firebase deploy --only firestore,storage
    ```
    The first Storage deploy asks to let Storage rules read Firestore; allow it, since KYC access checks the Manager's territory. If you need to roll back, Firebase Console → Firestore/Storage → Rules → history.
 7. **Clean up in the Firebase Console:**
@@ -81,11 +86,11 @@ Order matters. Steps 6 and 7 lock out older app builds and anyone without the ne
 
 ## Testing
 
-Emulator suites covered all of this (they live outside the repos):
-- 70 Firestore rule cases across every role
-- the claim triggers, order-code callables and Super Admin script
-- Storage KYC access
-- the migration on seeded legacy data
+The rules tests live in `QuickyAdmin/tests/rules/` (171 Firestore and 59 Storage cases across every role):
+```sh
+cd tests/rules && npm install && npm test
+```
+The functions (sign-in binding, claim sync and revocation, order codes, admin callables, notifications, upload checks) and the migration have end-to-end emulator tests in `QuickyAdmin/tests/functions/` (`npm test` there; on Windows run from a path without spaces).
 
 One thing the emulator can't check: whether a suspended account's sessions are actually revoked. That relies on Firebase's standard `revokeRefreshTokens`.
 

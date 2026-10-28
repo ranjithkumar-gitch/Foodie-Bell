@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/access_scope.dart';
+import '../../features/user/home/selected_territory_provider.dart';
+import '../models/account.dart';
 import '../models/promotion.dart';
 
 /// Vendor promotion requests — one flat `promotions` collection, same
@@ -76,12 +79,32 @@ Promotion _promotionFromDoc(String id, Map<String, dynamic> data) => Promotion(
 /// (e.g. a status string outside the enum) would blank every promotion off
 /// Home/Manager's queue, not just the bad one.
 final firestorePromotionsProvider = StreamProvider<List<Promotion>>((ref) {
-  return promotionsCollection.snapshots().map(
+  // Scoped to what firestore.rules lets each role read: live promotions for
+  // everyone, a Vendor's own requests, and a Manager's territory's requests.
+  final scope = ref.watch(accessScopeProvider);
+  if (scope == null) return Stream.value(const []);
+  Stream<List<Promotion>> run(Query<Map<String, dynamic>> query) => query.snapshots().map(
     (snapshot) => snapshot.docs
         .map((doc) => _tryPromotionFromDoc(doc.id, doc.data()))
         .whereType<Promotion>()
         .toList(),
   );
+  // Live promotions of one territory, by territory ID (Phase 3 — it used
+  // to stream every live promotion on the platform).
+  Stream<List<Promotion>> liveIn(String? territoryId) => territoryId == null
+      ? Stream.value(const [])
+      : run(promotionsCollection
+          .where('status', isEqualTo: PromotionStatus.active.name)
+          .where('territoryId', isEqualTo: territoryId));
+  final territoryId = scope.territoryId;
+  return switch (scope.role) {
+    AppRole.user => liveIn(ref.watch(browsingTerritoryIdProvider)),
+    AppRole.driver => liveIn(territoryId),
+    AppRole.vendor => run(promotionsCollection.where('vendorId', isEqualTo: scope.accountId)),
+    // Every request in the territory, live ones included.
+    AppRole.manager => territoryId == null ? Stream.value(const []) : run(promotionsCollection.where('territoryId', isEqualTo: territoryId)),
+    AppRole.admin => Stream.value(const []),
+  };
 });
 
 Promotion? _tryPromotionFromDoc(String id, Map<String, dynamic> data) {
@@ -179,12 +202,12 @@ Future<void> markPromotionPaymentReceived(String promotionId) =>
 Future<void> approvePromotion(String promotionId) =>
     promotionsCollection.doc(promotionId).update({
       'status': PromotionStatus.active.name,
-      'reviewedAt': Timestamp.now(),
+      'reviewedAt': FieldValue.serverTimestamp(),
     });
 
 Future<void> rejectPromotion(String promotionId, String reason) =>
     promotionsCollection.doc(promotionId).update({
       'status': PromotionStatus.rejected.name,
-      'reviewedAt': Timestamp.now(),
+      'reviewedAt': FieldValue.serverTimestamp(),
       'rejectionReason': reason,
     });
