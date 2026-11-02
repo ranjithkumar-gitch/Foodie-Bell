@@ -8,5 +8,20 @@
     <!-- Debug and profile (test) builds only: the local Firebase emulators (lib/core/dev/
          firebase_emulators.dart) speak plain HTTP. Release builds keep
          Android's default of HTTPS only. -->
-    <application android:usesCleartextTraffic="true" tools:replace="android:usesCleartextTraffic"/>
+    <application android:usesCleartextTraffic="true" tools:replace="android:usesCleartextTraffic">
+        <!-- Debug and profile builds only: don't create the default Firebase
+             app natively from google-services.json (the real project) at
+             process start. Dart initialises it instead, for the target the
+             build chose (lib/core/dev/firebase_target.dart): the emulators by
+             default, the real project only with FIREBASE_TARGET=production.
+             Release builds keep the native start-up. -->
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider"
+            tools:node="remove"/>
+        <!-- No FCM token fetched at start-up in local builds (there's no FCM
+             emulator). The app still asks for one on sign-in when it targets
+             the real project. -->
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false"/>
+    </application>
 </manifest>

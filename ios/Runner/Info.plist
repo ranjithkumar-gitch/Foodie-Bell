@@ -7,25 +7,60 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Foodiebell</string>
+	<string>Quicky</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundleAlternateIcons</key>
+		<dict/>
+	</dict>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>foodiebell</string>
+	<string>Quicky</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>firebase-phone-auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-427004408627-ios-a30b3f2456067d03690446</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<string>$(FIREBASE_MESSAGING_AUTO_INIT_ENABLED:default=YES)</string>
+	<key>GMSApiKey</key>
+	<string>$(GMS_API_KEY)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Quicky needs camera access so Vendors and Drivers can photograph documents to submit for review.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Drivers only: while you're on a delivery, Quicky keeps sharing your location if you switch to another app (for example Google Maps), so the customer can follow their order. Sharing stops when the delivery ends.</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>DeliveryTracking</key>
+		<string>Precise location lets the customer follow your delivery accurately.</string>
+	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Quicky uses your location to pin your delivery address and, for drivers, to show your position on the delivery map.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Quicky needs photo library access so Vendors and Drivers can choose document images to submit for review.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -49,6 +84,11 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>location</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

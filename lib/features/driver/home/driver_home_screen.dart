@@ -12,6 +12,7 @@ import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
+import '../../../data/providers/order_codes_provider.dart';
 import '../../../data/providers/settlement_provider.dart';
 import '../../../data/providers/order_drop_off.dart';
 import '../../../shared/error_reporting.dart';
@@ -535,6 +536,8 @@ class _ActiveDeliveryCard extends ConsumerWidget {
     final drop = watchOrderDropOff(ref, order);
     // Same live GPS the navigate screens draw their route from.
     final devicePosition = ref.watch(driverDevicePositionProvider).valueOrNull;
+    // Phase I.5: the shop's phone and address come with the assigned order.
+    final pickup = ref.watch(orderPickupContactProvider(order.id)).valueOrNull;
     final palette = context.colors;
     final pickedUp = order.status == OrderStatus.pickedUp;
     final stageColor = pickedUp ? palette.success : palette.warning;
@@ -594,11 +597,11 @@ class _ActiveDeliveryCard extends ConsumerWidget {
                   color: Colors.deepOrange,
                   label: 'PICKUP',
                   title: order.vendorName,
-                  subtitle: vendor?.address,
+                  subtitle: pickup?.address,
                   done: pickedUp,
                   current: !pickedUp,
                   showLine: true,
-                  onCall: pickedUp ? null : () => _call(context, vendor?.phone),
+                  onCall: pickedUp ? null : () => _call(context, pickup?.phone),
                 ),
                 _TimelineStop(
                   icon: Icons.home_rounded,
@@ -826,7 +829,9 @@ class _OpenOrderCard extends ConsumerWidget {
               color: Colors.deepOrange,
               label: kmToPickup == null ? 'PICKUP' : 'PICKUP · ${kmToPickup!.toStringAsFixed(1)} km away',
               title: order.vendorName,
-              subtitle: vendor?.address,
+              // Open offers show distance only; the shop's address and phone
+              // reach the Driver once they claim it (Phase I.5).
+              subtitle: null,
               done: false,
               current: false,
               showLine: true,

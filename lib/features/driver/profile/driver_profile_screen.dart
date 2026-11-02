@@ -6,8 +6,6 @@ import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../shared/auth/logout_confirmation_sheet.dart';
-import '../registration/driver_registration_controller.dart' show DriverVehicleTypeX;
-import 'driver_profile_controller.dart';
 
 /// Profile & Vehicle Details (spec §6 item 15): account summary, current
 /// vehicle on file, and the menu into Availability/Notifications/Support.
@@ -18,7 +16,6 @@ class DriverProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final account = ref.watch(sessionControllerProvider.select((s) => s.account));
-    final vehicle = ref.watch(driverProfileProvider);
     // Kept by the server from this driver's reviews (`drivers/{id}.rating`).
     final driverRecord = account == null ? null : ref.watch(liveDriverAccountProvider(account.id));
     final averageRating = driverRecord?.ratingAverage ?? 0.0;
@@ -56,29 +53,6 @@ class DriverProfileScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('Vehicle on file', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: palette.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: palette.border)),
-            child: Row(
-              children: [
-                Icon(Icons.two_wheeler_rounded, color: palette.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(vehicle.vehicleType.label, style: TextStyle(fontWeight: FontWeight.w800, color: palette.textPrimary)),
-                      Text(vehicle.vehicleRegNumber, style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
-                    ],
-                  ),
-                ),
-                TextButton(onPressed: () => context.push('/driver/profile/edit'), child: const Text('Edit')),
               ],
             ),
           ),

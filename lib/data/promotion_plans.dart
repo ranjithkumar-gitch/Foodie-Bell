@@ -15,3 +15,11 @@ const promotionPlans = [
   PromotionPlan(days: 10, price: 700),
   PromotionPlan(days: 15, price: 1000),
 ];
+
+/// Paid promotions are paused: their fees can't yet be recorded through
+/// the server (no ledger entry, no audit — the Manager's "payment received"
+/// was a plain client write), so nothing new is charged and no payment is
+/// confirmed from the app until that exists (Phase I finding P1-9).
+/// Promotions already marked paid can still be approved, and live ones keep
+/// showing. Turn back on only together with a server-recorded payment.
+const kPaidPromotionsEnabled = false;

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/widgets/cancellation_money_cards.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
@@ -12,10 +14,12 @@ import '../vendor_session.dart';
 
 const _kWeekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/// Earnings & Settlement (spec §5.15): sums `order.total`/`rebateAmount`
-/// across this vendor's delivered orders, a cash-vs-online split
-/// (`order.isCod`), rebate deducted per order, and a "download statement"
-/// affordance (fake — no file actually leaves the device).
+/// Earnings & Settlement (spec §5.15): the server's all-time totals for
+/// this vendor (`earnings_totals`) — item sales, commission, earnings after
+/// commission, and the cash-vs-UPI split — plus delivered orders a page at
+/// a time. These are earnings, not payouts: what is actually owed or paid
+/// is in Settlement payments. (There's no statement download: no file is
+/// produced server-side yet.)
 class VendorEarningsScreen extends ConsumerWidget {
   const VendorEarningsScreen({super.key});
 
@@ -56,15 +60,15 @@ class VendorEarningsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Net settlement (after rebate)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                const Text('All-time earnings (items, after commission)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 CurrencyText(netEarnings, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 34)),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    _HeroStat(label: 'Gross earnings', value: grossEarnings),
+                    _HeroStat(label: 'Item sales', value: grossEarnings),
                     const SizedBox(width: 20),
-                    _HeroStat(label: 'Rebate deducted', value: rebateDeducted),
+                    _HeroStat(label: 'Commission', value: rebateDeducted),
                   ],
                 ),
               ],
@@ -75,9 +79,12 @@ class VendorEarningsScreen extends ConsumerWidget {
             children: [
               Expanded(child: _SplitCard(icon: Icons.payments_rounded, label: 'Cash on Delivery', value: cashTotal)),
               const SizedBox(width: 14),
-              Expanded(child: _SplitCard(icon: Icons.qr_code_rounded, label: 'Online (UPI/Card/Wallet)', value: onlineTotal)),
+              Expanded(child: _SplitCard(icon: Icons.qr_code_rounded, label: 'UPI', value: onlineTotal)),
             ],
           ),
+          const SizedBox(height: 16),
+          // Cancellation charges: their own card, never part of the earnings above.
+          VendorCancellationChargesCard(totals: ref.watch(myEarningsTotalsProvider)),
           const SizedBox(height: 24),
           Text('Weekly trend', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
@@ -126,12 +133,6 @@ class VendorEarningsScreen extends ConsumerWidget {
                   : () => ref.read(orderHistoryProvider(OrderHistoryFilter.delivered).notifier).loadMore(),
               child: Text(history.loading ? 'Loading…' : 'Show more orders'),
             ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settlement statement downloaded.'))),
-            icon: const Icon(Icons.download_rounded),
-            label: const Text('Download statement'),
-          ),
         ],
       ),
     );
@@ -202,7 +203,7 @@ class _SettlementRow extends StatelessWidget {
                 children: [
                   Text(order.id, style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary)),
                   const SizedBox(height: 2),
-                  Text('Commission ${order.money != null ? '10' : order.rebatePercent.toStringAsFixed(0)}% · -${AppFormat.currency(order.rebateAmount)}', style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+                  Text('Commission ${formatPercent(order.rebatePercent)}% · -${AppFormat.currency(order.rebateAmount)}', style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
                 ],
               ),
             ),

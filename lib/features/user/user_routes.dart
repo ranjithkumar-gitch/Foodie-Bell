@@ -169,7 +169,7 @@ List<RouteBase> get userRoutes => [
   GoRoute(
     path: '/user/wallet',
     name: 'userWallet',
-    builder: (context, state) => const WalletScreen(),
+    builder: (context, state) => const RefundsScreen(),
   ),
   GoRoute(
     path: '/user/transactions',

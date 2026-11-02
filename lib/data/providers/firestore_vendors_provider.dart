@@ -30,6 +30,17 @@ const vendorsCollectionPath = 'vendors';
 CollectionReference<Map<String, dynamic>> get vendorsCollection =>
     FirebaseFirestore.instance.collection(vendorsCollectionPath);
 
+/// The sanitized, server-maintained projection of every vendor (Phase I.5,
+/// `functions/ownership.js`): name, category, location and operating status
+/// — never contact, UPI, KYC, money or (Phase I.5.1) who runs the shop. It's what customers,
+/// drivers and Managers who don't run a shop may read; the full vendor
+/// document is only for the shop itself, its assigned Manager and the
+/// Super Admin.
+const vendorDirectoryCollectionPath = 'vendor_directory';
+
+CollectionReference<Map<String, dynamic>> get vendorDirectoryCollection =>
+    FirebaseFirestore.instance.collection(vendorDirectoryCollectionPath);
+
 Map<String, dynamic> accountToVendorDoc(Account account) => {
   'name': account.name,
   'phone': account.phone,
@@ -96,16 +107,23 @@ Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
     ratingAverage: ((data['rating'] as Map?)?['average'] as num?)?.toDouble(),
     ratingCount: ((data['rating'] as Map?)?['count'] as num?)?.toInt() ?? 0,
+    assignedManagerId: data['assignedManagerId'] as String?,
+    onboardedByManagerId: data['onboardedByManagerId'] as String?,
+    assignmentStatus: data['assignmentStatus'] as String?,
   );
 }
 
 /// The Vendor accounts the signed-in account needs, live, each query scoped
 /// by territory ID (Phase 3 — it used to stream every approved vendor on
 /// the platform to every customer):
-///  - Customer: approved (`active`) vendors in the territory they browse.
-///  - Driver: approved vendors in their own territory (pickup points).
+///  - Customer: approved (`active`) vendors in the territory they browse —
+///    from the sanitized directory (Phase I.5).
+///  - Driver: approved vendors in their own territory (pickup points), from
+///    the directory too; the pickup contact comes with each assigned order
+///    (`orders/{id}/codes/pickup`).
 ///  - Vendor: their own record (whatever its status).
-///  - Manager: every vendor in their territory, pending ones included.
+///  - Manager: the shops assigned to them (full records, pending ones
+///    included). The rest of the territory is [territoryVendorDirectoryProvider].
 // Sorted client-side rather than via `.orderBy('createdAt')` — Firestore
 // excludes documents that don't have the ordered field set at all (e.g. a
 // vendor doc added by hand in the console without a `createdAt`), which
@@ -119,7 +137,7 @@ final firestoreVendorsProvider = StreamProvider<List<Account>>((ref) {
   );
   Stream<List<(Account, Timestamp?)>> approvedIn(String? territoryId) => territoryId == null
       ? Stream.value(const [])
-      : run(vendorsCollection.where('status', isEqualTo: AccountStatus.active.name).where('territoryId', isEqualTo: territoryId));
+      : run(vendorDirectoryCollection.where('status', isEqualTo: AccountStatus.active.name).where('territoryId', isEqualTo: territoryId));
   final territoryId = scope.territoryId;
   final Stream<List<(Account, Timestamp?)>> vendors = switch (scope.role) {
     AppRole.user => approvedIn(ref.watch(browsingTerritoryIdProvider)),
@@ -127,7 +145,14 @@ final firestoreVendorsProvider = StreamProvider<List<Account>>((ref) {
     AppRole.vendor => vendorsCollection.doc(scope.accountId).snapshots().map(
       (doc) => doc.exists ? [(_accountFromDoc(doc), doc.data()?['createdAt'] as Timestamp?)] : const <(Account, Timestamp?)>[],
     ),
-    AppRole.manager => territoryId == null ? Stream.value(const []) : run(vendorsCollection.where('territoryId', isEqualTo: territoryId)),
+    AppRole.manager => territoryId == null
+        ? Stream.value(const [])
+        : run(
+            vendorsCollection
+                .where('territoryId', isEqualTo: territoryId)
+                .where('assignedManagerId', isEqualTo: scope.accountId)
+                .where('assignmentStatus', isEqualTo: 'assigned'),
+          ),
     AppRole.admin => Stream.value(const []),
   };
   return vendors.map((entries) {
@@ -142,6 +167,23 @@ final firestoreVendorsProvider = StreamProvider<List<Account>>((ref) {
       });
     return [for (final e in live) e.$1];
   });
+});
+
+/// Every shop in the signed-in Manager's territory — theirs and other
+/// Managers' — from the Managers' directory (`vendor_manager_directory`,
+/// Phase I.5.1: readable only by that territory's Managers and the Super
+/// Admin). Safe fields only: who runs each shop and its operating state,
+/// never its contact, UPI, KYC or money. Empty for every other role.
+final territoryVendorDirectoryProvider = StreamProvider.autoDispose<List<Account>>((ref) {
+  final scope = ref.watch(accessScopeProvider);
+  final territoryId = scope?.territoryId;
+  if (scope == null || scope.role != AppRole.manager || territoryId == null) return Stream.value(const []);
+  return FirebaseFirestore.instance
+      .collection('vendor_manager_directory')
+      .where('territoryId', isEqualTo: territoryId)
+      .snapshots()
+      .map((s) => [for (final d in s.docs) _accountFromDoc(d)].where((a) => a.deletedAt == null).toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())));
 });
 
 /// Soft-deletes a Vendor (Admin-only, `vendor_directory_screen.dart`) —
@@ -202,8 +244,13 @@ final liveVendorAccountProvider = Provider.family<Account?, String>((ref, id) {
   return ref.watch(_vendorDocProvider(id)).valueOrNull;
 });
 
+// The full record only for the shop itself (a Manager's own shops are
+// already in the scoped list above); anyone else reads the directory entry.
 final _vendorDocProvider = StreamProvider.autoDispose.family<Account?, String>((ref, id) {
-  return vendorsCollection.doc(id).snapshots().map((doc) => doc.exists ? _accountFromDoc(doc) : null);
+  final scope = ref.watch(accessScopeProvider);
+  final ownRecord = scope != null && scope.role == AppRole.vendor && scope.accountId == id;
+  final collection = ownRecord ? vendorsCollection : vendorDirectoryCollection;
+  return collection.doc(id).snapshots().map((doc) => doc.exists ? _accountFromDoc(doc) : null);
 });
 
 Future<void> updateVendorStatus(

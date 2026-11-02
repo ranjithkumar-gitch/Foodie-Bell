@@ -42,9 +42,9 @@ class Address {
   final String pincode;
   final String city;
 
-  /// Where the User's phone was when they tapped "Use my current location"
-  /// while adding this address — null when they skipped that (or for
-  /// addresses saved before it existed).
+  /// The delivery point the User confirmed on the map (`PinLocationScreen`).
+  /// Null, or invalid, for addresses saved before a pin was required —
+  /// those must be pinned ([hasValidPin]) before an order can use them.
   final double? latitude;
   final double? longitude;
   final bool isDefault;
@@ -53,4 +53,37 @@ class Address {
   final bool isServiceable;
 
   String get shortLabel => '${label.label} · $line1';
+
+  /// Whether this address carries a delivery point the server can price
+  /// (`quoteOrder` refuses an address without one).
+  bool get hasValidPin => isValidDeliveryPin(latitude, longitude);
+
+  /// This address pinned at [latitude], [longitude].
+  Address withPin(double latitude, double longitude) => Address(
+    id: id,
+    label: label,
+    recipientName: recipientName,
+    recipientPhone: recipientPhone,
+    line1: line1,
+    pincode: pincode,
+    city: city,
+    landmark: landmark,
+    latitude: latitude,
+    longitude: longitude,
+    isDefault: isDefault,
+    isServiceable: isServiceable,
+  );
 }
+
+/// The server's rule for a usable point (`functions/routing.js`): finite,
+/// latitude within ±90, longitude within ±180 — plus not exactly (0, 0),
+/// which is what a missing location tends to be stored as, never a real
+/// Indian delivery address.
+bool isValidDeliveryPin(double? latitude, double? longitude) =>
+    latitude != null &&
+    longitude != null &&
+    latitude.isFinite &&
+    longitude.isFinite &&
+    latitude.abs() <= 90 &&
+    longitude.abs() <= 180 &&
+    !(latitude == 0 && longitude == 0);

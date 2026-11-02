@@ -1,8 +1,7 @@
-gradle-wrapper.jar
+# The Gradle wrapper (gradlew, gradlew.bat, gradle/wrapper/*) is tracked on
+# purpose, so every developer builds with the same Gradle (Phase I.8).
 /.gradle
 /captures/
-/gradlew
-/gradlew.bat
 /local.properties
 GeneratedPluginRegistrant.java
 .cxx/
@@ -12,3 +11,18 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Phase I.8: build output, IDE and machine files (never committed).
+/build/
+/app/build/
+/app/debug
+/app/profile
+/app/release
+.kotlin/
+*.iml
+.idea/
+.DS_Store
+# Signing material and its settings, wherever they sit under android/.
+**/key.properties
+**/*.p12
+**/*.pem

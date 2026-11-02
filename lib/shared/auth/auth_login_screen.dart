@@ -87,6 +87,8 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
   @override
   void dispose() {
     _phoneController.dispose();
+    // Left mid-send: a late code or auto-verification is ignored.
+    if (_submitting) cancelPendingPhoneVerification();
     super.dispose();
   }
 
@@ -107,7 +109,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
       final result = await sendPhoneCode(phone);
       if (!mounted) return;
       switch (result) {
-        case SmsCodeSent(:final verificationId, :final resendToken):
+        case SmsCodeSent(:final verificationId, :final resendToken, :final attempt):
           setState(() => _submitting = false);
           context.push(
             '/auth/otp?mode=login',
@@ -115,6 +117,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               verificationId: verificationId,
               phoneNumber: phone,
               resendToken: resendToken,
+              attempt: attempt,
             ),
           );
         case PhoneVerifiedAutomatically():

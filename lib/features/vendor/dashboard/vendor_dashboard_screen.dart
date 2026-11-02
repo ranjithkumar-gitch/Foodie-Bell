@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/account.dart';
 import '../../../data/models/order.dart';
 import '../../../data/models/vendor.dart';
+import '../../../data/providers/firestore_managers_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
+import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/auth/logout_confirmation_sheet.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/currency_text.dart';
@@ -108,6 +111,7 @@ class VendorDashboardScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          if (account != null) _OrdersPausedBanner(account: account),
           // Shop + open/closed.
           _Section(
             child: Column(
@@ -479,6 +483,55 @@ class _MenuRow extends StatelessWidget {
         if (showDivider)
           Divider(height: 1, indent: 54, color: palette.divider),
       ],
+    );
+  }
+}
+
+/// Phase I.5: a shop takes new orders only while it has an assigned, active
+/// Manager. Otherwise it still signs in and sees its account, and is told
+/// why new orders are paused (the server refuses them either way).
+/// Records from before Phase I.5 carry no assignment and show nothing.
+class _OrdersPausedBanner extends ConsumerWidget {
+  const _OrdersPausedBanner({required this.account});
+  final Account account;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = account.assignmentStatus;
+    if (status == null) return const SizedBox.shrink();
+    final managerId = account.assignedManagerId;
+    final managerStatus = status == 'assigned' && managerId != null ? ref.watch(managerStatusProvider(managerId)) : null;
+    final String? body;
+    if (status != 'assigned' || managerId == null) {
+      body = context.l10n.vendorNoManagerBody;
+    } else if (managerStatus != null && managerStatus.hasValue && managerStatus.value != 'active') {
+      body = context.l10n.vendorManagerInactiveBody;
+    } else {
+      body = null;
+    }
+    if (body == null) return const SizedBox.shrink();
+    final palette = context.colors;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: palette.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.pause_circle_outline_rounded, color: palette.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(context.l10n.vendorOrdersPausedTitle, style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary)),
+                const SizedBox(height: 4),
+                Text(body, style: TextStyle(color: palette.textSecondary, fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

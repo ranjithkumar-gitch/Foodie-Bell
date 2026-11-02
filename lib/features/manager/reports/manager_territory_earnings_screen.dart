@@ -9,36 +9,13 @@ import '../../../data/providers/settlement_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../manager_session.dart';
 
-enum _Scenario { conservative, moderate, optimistic }
-
-extension on _Scenario {
-  String get label => switch (this) {
-    _Scenario.conservative => 'Conservative',
-    _Scenario.moderate => 'Moderate',
-    _Scenario.optimistic => 'Optimistic',
-  };
-
-  /// Demo multiplier applied to the *real* last-7-day daily rebate average
-  /// to project a monthly figure — the multiplier itself is illustrative
-  /// (no real forecasting model), but the run-rate it's applied to is real.
-  double get monthlyMultiplier => switch (this) {
-    _Scenario.conservative => 22,
-    _Scenario.moderate => 28,
-    _Scenario.optimistic => 34,
-  };
-}
-
 final _weekdayFormat = DateFormat('E');
 
-/// Territory Earnings Report (spec §7.11): real rebate income trend,
-/// payback progress, and a growth projection — all off delivered orders
-/// across this Manager's territory (`firestoreOrdersProvider`, filtered by
-/// `firestoreVendorsProvider`'s territory match, same pattern
-/// `manager_daily_settlement_screen.dart` uses). Only the Growth Scenario's
-/// Conservative/Moderate/Optimistic *multiplier* stays a demo constant — a
-/// forward projection is inherently speculative regardless of how real the
-/// input is — but that multiplier is now applied to the real 7-day average,
-/// not a hardcoded run-rate.
+/// Territory Earnings Report (spec §7.11): the Manager's real commission
+/// share over the last 7 settlement days and payback progress towards the
+/// territory fee — all from the server's earnings read models
+/// (`earnings_daily`, `earnings_totals`). The old "growth scenario"
+/// projection applied invented multipliers and was removed (Phase I.2).
 class ManagerTerritoryEarningsScreen extends ConsumerStatefulWidget {
   const ManagerTerritoryEarningsScreen({super.key});
 
@@ -47,13 +24,11 @@ class ManagerTerritoryEarningsScreen extends ConsumerStatefulWidget {
 }
 
 class _ManagerTerritoryEarningsScreenState extends ConsumerState<ManagerTerritoryEarningsScreen> {
-  _Scenario _scenario = _Scenario.moderate;
-
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
     final managerAccount = ref.watch(currentManagerAccountProvider);
-    // The Manager's 60% of the commission, all time — what pays back the
+    // The Manager's share of the commission, all time — what pays back the
     // territory fee — from the server's running total.
     final earnedSoFar = ref.watch(myEarningsTotalsProvider).valueOrNull?.earnings ?? 0;
     final paybackProgress = (earnedSoFar / managerAccount.territoryFee).clamp(0.0, 1.0);
@@ -66,8 +41,6 @@ class _ManagerTerritoryEarningsScreenState extends ConsumerState<ManagerTerritor
     final rebateByDay = [
       for (final day in last7Days) days.where((d) => _isSameDay(d.date, day)).fold<double>(0, (sum, d) => sum + d.earnings),
     ];
-    final weeklyTotal = rebateByDay.fold<double>(0, (sum, v) => sum + v);
-    final projectedMonthly = (weeklyTotal / 7) * _scenario.monthlyMultiplier;
     final chartMaxY = (rebateByDay.isEmpty ? 0.0 : rebateByDay.reduce((a, b) => a > b ? a : b)).clamp(100.0, double.infinity) * 1.2;
 
     return Scaffold(
@@ -111,37 +84,6 @@ class _ManagerTerritoryEarningsScreenState extends ConsumerState<ManagerTerritor
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 28),
-          Text('Growth scenario', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          Text('Projection multiplier is illustrative — applied to your real 7-day average.', style: TextStyle(color: palette.textMuted, fontSize: 11.5)),
-          const SizedBox(height: 12),
-          SegmentedButton<_Scenario>(
-            segments: [for (final s in _Scenario.values) ButtonSegment(value: s, label: Text(s.label, overflow: TextOverflow.ellipsis))],
-            selected: {_scenario},
-            showSelectedIcon: false,
-            expandedInsets: EdgeInsets.zero,
-            onSelectionChanged: (selection) => setState(() => _scenario = selection.first),
-            style: const ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-              padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: palette.surfaceMuted, borderRadius: BorderRadius.circular(14)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Projected monthly rebate income (${_scenario.label})', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
-                const SizedBox(height: 6),
-                CurrencyText(projectedMonthly, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: palette.textPrimary)),
-              ],
             ),
           ),
           const SizedBox(height: 28),

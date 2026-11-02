@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'reassign_driver_sheet.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../shared/widgets/mock_map_view.dart';
 import '../../../shared/widgets/order_status_timestamp.dart';
 import '../../../shared/widgets/status_chip.dart';
 
-/// Order Oversight (spec §7.14) — READ-ONLY. A live-looking list/map of
-/// active orders in this territory. Deliberately watches
-/// `firestoreOrdersProvider` without ever writing to it — Manager never mutates
-/// order state, unlike Vendor/Driver.
+/// Order Oversight (spec §7.14): this territory's orders, in-progress ones
+/// live. The Manager writes nothing here directly; the one action is moving
+/// a waiting delivery to another Driver (or releasing it) through the
+/// server's `reassignDriver` ([ReassignDriverSheet]).
 class ManagerOrderOversightScreen extends ConsumerWidget {
   const ManagerOrderOversightScreen({super.key});
 
@@ -29,7 +29,6 @@ class ManagerOrderOversightScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.colors;
     // In-progress orders live (queried by territory ID); finished ones a
     // page at a time, newest first.
     final activeOrders = (ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[]).toList()
@@ -42,10 +41,6 @@ class ManagerOrderOversightScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          MockMapView(height: 180, showRoute: true, borderRadius: BorderRadius.circular(16)),
-          const SizedBox(height: 8),
-          Text('Read-only live view of your territory', style: TextStyle(color: palette.textMuted, fontSize: 11.5)),
-          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -100,6 +95,16 @@ class _OrderTile extends StatelessWidget {
                 Text('${order.id} · ${order.vendorName}', style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary)),
                 const SizedBox(height: 3),
                 Text(order.driverName == null ? 'No driver assigned yet' : 'Driver: ${order.driverName}', style: TextStyle(fontSize: 12, color: palette.textMuted)),
+                if (canReassignDriver(order))
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => showReassignDriverSheet(context, order),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: const Text('Reassign driver'),
+                    ),
+                  ),
               ],
             ),
           ),

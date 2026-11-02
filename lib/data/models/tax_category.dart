@@ -14,6 +14,11 @@ extension GstRemittedByX on GstRemittedBy {
   };
 }
 
+/// **Deprecated (Phase I.4.3).** Catalogue prices are tax-inclusive and Quicky
+/// adds no item GST, so nothing reads or edits tax categories any more; the
+/// type stays only because existing product documents may carry a
+/// [GstOverride], which is preserved unchanged.
+///
 /// A GST/HSN tax bracket, scoped to a [VendorCategory] (and a finer
 /// [subCategory] tag within it) — see `GST_HSN_IMPLEMENTATION.md` §1-2.
 /// Products reference one of these by [id] (`Product.taxCategoryId`)

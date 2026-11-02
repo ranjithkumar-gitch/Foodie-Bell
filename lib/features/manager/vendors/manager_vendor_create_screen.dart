@@ -12,6 +12,7 @@ import '../../../data/providers/firestore_categories_provider.dart';
 import '../../../data/providers/firestore_territories_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/empty_state.dart';
@@ -58,7 +59,6 @@ class _ManagerVendorCreateScreenState
   final _emailController = TextEditingController();
   Category? _selectedCategory;
   String? _selectedSubCategory;
-  double _rebatePercent = 15;
   String? _error;
   bool _creating = false;
 
@@ -111,14 +111,22 @@ class _ManagerVendorCreateScreenState
       territoryId: manager.territoryId,
       category: category.id,
       subCategory: subCategory,
-      rebatePercent: _rebatePercent,
       status: AccountStatus.pendingReview,
     );
 
     final String docId;
     try {
+      // No per-vendor rate: the server charges every shop the global
+      // commission (`app_config/pricing`), so none is written here.
       final docRef = await vendorsCollection.add({
-        ...accountToVendorDoc(draft),
+        ...accountToVendorDoc(draft)..remove('rebatePercent'),
+        // Phase I.5: a shop a Manager onboards is theirs — the rules accept
+        // only this self-assignment, and only the Super Admin can move it.
+        'assignedManagerId': manager.id,
+        'onboardedByManagerId': manager.id,
+        'assignmentStatus': 'assigned',
+        'assignmentVersion': 1,
+        'assignedAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
       });
       docId = docRef.id;
@@ -146,8 +154,10 @@ class _ManagerVendorCreateScreenState
       territoryId: manager.territoryId,
       category: category.id,
       subCategory: subCategory,
-      rebatePercent: _rebatePercent,
       status: AccountStatus.pendingReview,
+      assignedManagerId: manager.id,
+      onboardedByManagerId: manager.id,
+      assignmentStatus: 'assigned',
     );
     ref.read(mockAccountsProvider.notifier).addAccount(account);
 
@@ -175,10 +185,6 @@ class _ManagerVendorCreateScreenState
             ),
             Text(
               'Manager Code: ${manager.managerCode ?? '—'}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            Text(
-              'Rebate: ${_rebatePercent.toStringAsFixed(0)}% (fixed, cannot be changed later)',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
@@ -377,45 +383,7 @@ class _ManagerVendorCreateScreenState
             ),
           ],
           const SizedBox(height: 20),
-          Text(
-            'Rebate % (10-20 band)',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: palette.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Negotiated split routed to you as this vendor\'s onboarding Manager — fixed once the vendor is added, cannot be changed afterward.',
-            style: TextStyle(color: palette.textMuted, fontSize: 12),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: Slider(
-                  value: _rebatePercent,
-                  min: 10,
-                  max: 20,
-                  divisions: 10,
-                  label: '${_rebatePercent.round()}%',
-                  onChanged: _creating
-                      ? null
-                      : (v) => setState(() => _rebatePercent = v),
-                ),
-              ),
-              SizedBox(
-                width: 44,
-                child: Text(
-                  '${_rebatePercent.round()}%',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: palette.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          const _CommissionNote(),
           if (_error != null) ...[
             const SizedBox(height: 14),
             Text(
@@ -449,6 +417,25 @@ class _ManagerVendorCreateScreenState
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The commission every shop pays, live from `app_config/pricing` (set
+/// only by the Super Admin) — there's no per-vendor rate to negotiate.
+class _CommissionNote extends ConsumerWidget {
+  const _CommissionNote();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.colors;
+    final rates = ref.watch(pricingRatesProvider);
+    return Text(
+      rates == null
+          ? 'Commission is set by Quicky for every shop.'
+          : 'Quicky commission: ${formatPercent(rates.commissionPercent)}% of each order\'s item value, the same for every shop '
+              '(your share ${rates.managerShareLabel}). Set by Quicky and may change.',
+      style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
     );
   }
 }

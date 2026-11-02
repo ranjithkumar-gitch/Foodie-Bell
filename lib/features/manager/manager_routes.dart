@@ -8,6 +8,8 @@ import 'dashboard/manager_dashboard_screen.dart';
 import 'drivers/manager_driver_create_screen.dart';
 import 'drivers/manager_driver_detail_screen.dart';
 import 'drivers/manager_driver_list_screen.dart';
+import 'refunds/manager_refunds_screen.dart';
+import 'incidents/manager_incidents_screen.dart';
 import 'marketing/manager_marketing_tracker_screen.dart';
 import 'notifications/manager_notifications_screen.dart';
 import 'oversight/manager_order_oversight_screen.dart';
@@ -63,6 +65,8 @@ List<RouteBase> get managerRoutes => [
       // every screen's menu icon, not just one tab.
       extraItems: const [
         DrawerLinkData(icon: Icons.delivery_dining_rounded, label: 'Order Oversight', path: '/manager/orders'),
+        DrawerLinkData(icon: Icons.store_mall_directory_outlined, label: 'Shop Cancellations', path: '/manager/incidents'),
+        DrawerLinkData(icon: Icons.currency_exchange_rounded, label: 'Customer Refunds', path: '/manager/refunds'),
         DrawerLinkData(icon: Icons.local_offer_outlined, label: 'Vendor Promotion Approvals', path: '/manager/promotions'),
         DrawerLinkData(icon: Icons.category_outlined, label: 'Territory Categories', path: '/manager/categories'),
         DrawerLinkData(icon: Icons.receipt_long_rounded, label: 'Settlement History', path: '/manager/settlement/history'),
@@ -100,6 +104,8 @@ List<RouteBase> get managerRoutes => [
   GoRoute(path: '/manager/marketing', name: 'managerMarketingTracker', builder: (context, state) => const ManagerMarketingTrackerScreen()),
   GoRoute(path: '/manager/promotions', name: 'managerPromotionApprovals', builder: (context, state) => const ManagerPromotionApprovalsScreen()),
   GoRoute(path: '/manager/orders', name: 'managerOrderOversight', builder: (context, state) => const ManagerOrderOversightScreen()),
+  GoRoute(path: '/manager/incidents', name: 'managerIncidents', builder: (context, state) => const ManagerIncidentsScreen()),
+  GoRoute(path: '/manager/refunds', name: 'managerRefunds', builder: (context, state) => const ManagerRefundsScreen()),
   GoRoute(path: '/manager/code', name: 'managerCodeManagement', builder: (context, state) => const ManagerCodeManagementScreen()),
   GoRoute(path: '/manager/categories', name: 'managerCategories', builder: (context, state) => const ManagerCategoriesScreen()),
   GoRoute(path: '/manager/notifications', name: 'managerNotifications', builder: (context, state) => const ManagerNotificationsScreen()),

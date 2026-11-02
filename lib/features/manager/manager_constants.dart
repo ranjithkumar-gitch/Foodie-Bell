@@ -2,8 +2,7 @@
 class ManagerConstants {
   ManagerConstants._();
 
-  /// Rebate split between Manager and Company on the 60/40 configurable
-  /// default (spec §7.9) — hardcoded for this demo.
-  static const managerRebateSharePercent = 60;
-  static const companyRebateSharePercent = 40;
+  // The commission split is never hardcoded in the app: each order carries
+  // the server's snapshot of it (`Order.money`), and the live rate comes
+  // from `pricingRatesProvider` (Phase I.8 removed the old 60/40 constants).
 }

@@ -49,7 +49,10 @@ class _VendorHelpScreenState extends ConsumerState<VendorHelpScreen> {
     if (account == null) return;
 
     final managers = ref.read(firestoreManagersProvider).valueOrNull ?? const [];
-    final manager = managers.where((m) => m.managerCode == account.managerCode).firstOrNull;
+    // Phase I.5: the shop's own assigned Manager; older records without an
+    // assignment still match on the Manager code they were onboarded with.
+    final manager = managers.where((m) => m.id == account.assignedManagerId).firstOrNull ??
+        managers.where((m) => m.managerCode == account.managerCode).firstOrNull;
     if (manager == null) {
       setState(() => _error = "No manager is available for your account yet. Please try again later.");
       return;

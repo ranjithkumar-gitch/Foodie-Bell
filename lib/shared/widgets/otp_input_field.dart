@@ -140,7 +140,9 @@ class _OtpInputFieldState extends State<OtpInputField> {
               )
             : TextButton(
                 onPressed: () {
-                  _startTimer();
+                  // Rebuild now, so the button is gone before a second tap
+                  // can land (not only at the next countdown tick).
+                  setState(_startTimer);
                   widget.onResend?.call();
                 },
                 child: const Text('Resend code'),

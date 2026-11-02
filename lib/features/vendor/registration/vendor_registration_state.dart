@@ -24,7 +24,6 @@ class VendorRegistrationDraft {
     this.panFileName,
     this.bankUpiFileName,
     this.operatingHours = '9:00 AM - 10:00 PM, all days',
-    this.rebatePercent = 15,
     this.rebateAccepted = false,
   });
 
@@ -40,7 +39,6 @@ class VendorRegistrationDraft {
   final String? panFileName;
   final String? bankUpiFileName;
   final String operatingHours;
-  final double rebatePercent;
   final bool rebateAccepted;
 
   VendorRegistrationDraft copyWith({
@@ -56,7 +54,6 @@ class VendorRegistrationDraft {
     String? panFileName,
     String? bankUpiFileName,
     String? operatingHours,
-    double? rebatePercent,
     bool? rebateAccepted,
   }) => VendorRegistrationDraft(
     shopName: shopName ?? this.shopName,
@@ -71,7 +68,6 @@ class VendorRegistrationDraft {
     panFileName: panFileName ?? this.panFileName,
     bankUpiFileName: bankUpiFileName ?? this.bankUpiFileName,
     operatingHours: operatingHours ?? this.operatingHours,
-    rebatePercent: rebatePercent ?? this.rebatePercent,
     rebateAccepted: rebateAccepted ?? this.rebateAccepted,
   );
 }

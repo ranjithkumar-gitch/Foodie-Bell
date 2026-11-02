@@ -107,7 +107,7 @@ class _DriverNavigateCustomerScreenState extends ConsumerState<DriverNavigateCus
 
     RoadRoute? route;
     if (dropOff != null && driver != null) {
-      final fetched = ref.watch(roadRouteProvider(roadRouteRequest(from: driver, to: dropOff)));
+      final fetched = ref.watch(roadRouteProvider(orderRouteRequest(widget.orderId, 'dropoff')));
       if (fetched.hasValue) _lastRoute = fetched.value;
       route = _lastRoute;
     }

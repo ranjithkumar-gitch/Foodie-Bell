@@ -11,6 +11,7 @@ import '../../../data/providers/firestore_reviews_provider.dart';
 import '../../../data/providers/order_codes_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/error_reporting.dart';
+import '../../../shared/widgets/refund_cards.dart';
 import '../../../shared/widgets/storage_image.dart';
 import '../../../shared/widgets/branded_logo.dart';
 import '../../../shared/widgets/currency_text.dart';
@@ -18,11 +19,10 @@ import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/driver_live_map.dart';
 import '../../../shared/widgets/order_status_stepper.dart';
 import '../../../shared/widgets/upi_payment_card.dart';
+import 'cancel_order_button.dart';
+import 'shop_cancelled_banner.dart';
 import '../translation/translated_text.dart';
 import 'order_tracking_widgets.dart';
-
-String _rateLabel(double rate) =>
-    rate == rate.roundToDouble() ? rate.toStringAsFixed(0) : rate.toString();
 
 /// Combines Order Tracking (Live) (spec §4.12) and Order Detail / Invoice
 /// (spec §4.14) into one screen: live status + map + driver contact + OTP
@@ -86,12 +86,30 @@ class OrderDetailScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
+          // The shop cancelled after accepting (Phase I.4): who and why, from
+          // the server's attribution — the reason label only, never the
+          // shop's internal remark (which isn't on the order at all).
+          if (order.status == OrderStatus.cancelled && (order.cancellation?.byVendor ?? false)) ...[
+            ShopCancelledBanner(cancellation: order.cancellation!),
+            const SizedBox(height: 16),
+          ],
           // UPI: pay the shop, wait for the shop to confirm, or a refund owed.
           if (order.paymentMethod == PaymentMethod.upi &&
               (order.status == OrderStatus.placed ||
-                  const {OrderPaymentStatus.disputed, OrderPaymentStatus.refundDue, OrderPaymentStatus.unpaidCancelled, OrderPaymentStatus.failed}
+                  const {OrderPaymentStatus.disputed, OrderPaymentStatus.unpaidCancelled, OrderPaymentStatus.failed}
                       .contains(order.paymentStatus))) ...[
             UpiPaymentCard(order: order),
+            const SizedBox(height: 16),
+          ],
+          // A refund owed or returned (Phase I.7): what's owed, the shop's
+          // recorded refund, and the customer's confirmation or dispute.
+          if (const {OrderPaymentStatus.refundDue, OrderPaymentStatus.refunded}.contains(order.paymentStatus)) ...[
+            CustomerRefundCard(orderId: order.id),
+            const SizedBox(height: 16),
+          ],
+          // Cash on Delivery: cancel before the shop accepts (`cancelOrder`).
+          if (showsCancelOrderButton(order)) ...[
+            CancelOrderButton(order: order),
             const SizedBox(height: 16),
           ],
           if (isActive) ...[
@@ -307,17 +325,6 @@ class OrderDetailScreen extends ConsumerWidget {
                                 item.name,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (item.gstRate != null && item.gstRate! > 0)
-                                Text(
-                                  context.l10n.invoiceHsnGst(
-                                    item.hsnCode ?? '—',
-                                    _rateLabel(item.gstRate!),
-                                  ),
-                                  style: TextStyle(
-                                    color: palette.textMuted,
-                                    fontSize: 10.5,
-                                  ),
-                                ),
                             ],
                           ),
                         ),
@@ -340,9 +347,12 @@ class OrderDetailScreen extends ConsumerWidget {
                     valueColor: palette.success,
                   ),
                 _PriceRow(context.l10n.priceDeliveryFee, order.deliveryFee),
-                // Only older orders carry these; new orders have neither.
+                // Quicky's platform fee, shown on its own line whenever charged.
                 if (order.platformFee > 0) _PriceRow(context.l10n.pricePlatformFee, order.platformFee),
-                if (order.gstAmount > 0) _PriceRow(context.l10n.priceGst, order.gstAmount),
+                // Item prices are tax-inclusive (Phase I.4.3): no tax line,
+                // except the tax an earlier client-priced order recorded as
+                // part of what was actually paid.
+                if (order.legacyTaxCharged > 0) _PriceRow(context.l10n.priceLegacyTax, order.legacyTaxCharged),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 10),
                   child: Divider(),
@@ -351,6 +361,12 @@ class OrderDetailScreen extends ConsumerWidget {
                   context.l10n.priceTotal,
                   order.total,
                   emphasize: true,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  context.l10n.itemPricesInclusiveOfTaxes,
+                  key: const Key('invoiceTaxInclusiveNote'),
+                  style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -372,7 +388,9 @@ class OrderDetailScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                if (order.isCod) ...[
+                // The server's payment record — never "Paid" before the shop
+                // (UPI) or the Driver (cash) has confirmed the money.
+                if (order.paymentStatus != OrderPaymentStatus.unknown) ...[
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -385,42 +403,21 @@ class OrderDetailScreen extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        order.codPaymentReceived
-                            ? context.l10n.invoicePaymentReceived
-                            : context.l10n.invoicePaymentPending,
+                        order.paymentLabel,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 12.5,
-                          color: order.codPaymentReceived
-                              ? palette.success
-                              : palette.warning,
+                          color: switch (order.paymentStatus.tone) {
+                            PaymentTone.received || PaymentTone.refundCompleted => palette.success,
+                            PaymentTone.refundOwed || PaymentTone.pending => palette.warning,
+                            PaymentTone.problem => palette.error,
+                          },
                         ),
                       ),
                     ],
                   ),
                 ],
-                if (order.isPaidOnline) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        context.l10n.invoicePaymentStatusLabel,
-                        style: TextStyle(
-                          color: palette.textSecondary,
-                          fontSize: 12.5,
-                        ),
-                      ),
-                      Text(
-                        context.l10n.invoicePaymentPaid,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                          color: palette.success,
-                        ),
-                      ),
-                    ],
-                  ),
+                if (order.paymentReference != null) ...[
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -433,7 +430,7 @@ class OrderDetailScreen extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        order.paymentId!,
+                        order.paymentReference!,
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 12.5,

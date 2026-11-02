@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/branding/branding_controller.dart';
 import 'core/dev/firebase_emulators.dart';
+import 'core/dev/firebase_setup_error_app.dart';
 import 'core/notifications/foreground_notification_handler.dart';
 import 'core/notifications/local_notifications.dart';
 import 'core/security/app_check.dart';  
@@ -18,8 +18,16 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await useFirebaseEmulatorsIfAsked();
+  // Release: the real project. Debug/profile: the local emulators unless
+  // FIREBASE_TARGET=production — and never a silent fallback to the real
+  // project (lib/core/dev/firebase_target.dart).
+  try {
+    await initializeFirebaseFor(firebaseTarget, DefaultFirebaseOptions.currentPlatform);
+  } on FirebaseSetupException catch (e) {
+    debugPrint('Firebase: not started — ${e.message}');
+    runApp(FirebaseSetupErrorApp(message: e.message));
+    return;
+  }
   // The emulators don't check App Check, and a debug token exchange would
   // reach the real project.
   if (!usingFirebaseEmulators) await activateAppCheck();

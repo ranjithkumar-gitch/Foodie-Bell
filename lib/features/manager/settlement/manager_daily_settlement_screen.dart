@@ -14,9 +14,24 @@ import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/settlement_provider.dart';
+import 'cancellation_settlement_section.dart';
+import 'propose_adjustment_sheet.dart';
+import 'settlement_payment_sheet.dart';
 import '../../../shared/widgets/currency_text.dart';
 
 String _rupees(int paise) => AppFormat.currency(paise / 100);
+
+/// A statement discrepancy, in words. The types are the server's
+/// (`functions/lib/statement.js`): a disputed payment says what it was for.
+String settlementDiscrepancyText(Map<String, dynamic> d, String Function(PartyKey) partyName) {
+  final amount = _rupees((d['amountPaise'] as num?)?.toInt() ?? 0);
+  return switch (d['type']) {
+    'codShortfall' => 'Driver collected $amount less cash (order ${d['orderId']})',
+    'disputedPayment' => '${settlementPurposeLabel(d['purpose'] as String? ?? 'general')} payment of $amount was disputed (${partyName(d['from'] as String)} → ${partyName(d['to'] as String)})',
+    'noManager' => 'This territory had no active manager on this day',
+    _ => '${d['type']}',
+  };
+}
 
 /// Daily settlement for the Manager's territory (Phase 2). Everything on
 /// this screen comes from the server's statement (`generateDailySettlement`,
@@ -27,8 +42,8 @@ String _rupees(int paise) => AppFormat.currency(paise / 100);
 ///
 /// The Manager is the hub: Vendors pay in commission + delivery on UPI
 /// orders, Drivers hand in all COD cash; the Manager pays Vendors for COD
-/// goods, Drivers their delivery fees, and Quicky its 40% share, keeping
-/// their own 60%.
+/// goods, Drivers their delivery fees, and Quicky its share of the
+/// commission, keeping their own (each order's snapshotted split).
 class ManagerDailySettlementScreen extends ConsumerStatefulWidget {
   const ManagerDailySettlementScreen({super.key});
 
@@ -96,10 +111,10 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
   Future<void> _recordPayment(PartyKey party, int balance, String managerKey) async {
     final fromParty = balance > 0 ? party : managerKey;
     final toParty = balance > 0 ? managerKey : party;
-    final result = await showModalBottomSheet<({int amountPaise, bool upi, String? reference})>(
+    final result = await showModalBottomSheet<SettlementPaymentInput>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => _PaymentSheet(
+      builder: (context) => SettlementPaymentSheet(
         title: balance > 0 ? 'Payment received from ${_partyName(party, managerKey.split(':').last)}' : 'Payment made to ${_partyName(party, managerKey.split(':').last)}',
         suggestedPaise: balance.abs(),
       ),
@@ -115,6 +130,9 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
         amountPaise: result.amountPaise,
         upi: result.upi,
         reference: result.reference,
+        // Order money only — cancellation charges are settled in their own
+        // section with their own purpose.
+        purpose: 'general',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recorded. It counts once the other side confirms it.')));
@@ -122,6 +140,26 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     } on OrderActionException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
+  }
+
+  /// Opens [ProposeAdjustmentSheet] (optionally prefilled from a
+  /// discrepancy); the server files it as pending for the Super Admin.
+  Future<void> _proposeAdjustment(String managerKey, {AdjustmentDraft? draft}) async {
+    final s = _statement;
+    if (s == null) return;
+    final message = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => ProposeAdjustmentSheet(
+        statement: s,
+        territoryId: _territoryId,
+        managerKey: managerKey,
+        partyName: (p) => _partyName(p, managerKey.split(':').last),
+        draft: draft,
+      ),
+    );
+    if (message == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -134,6 +172,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     ref.watch(firestoreVendorsProvider);
     ref.watch(firestoreDriversProvider);
     final s = _statement;
+    final adjustments = _day == null ? const <SettlementAdjustment>[] : ref.watch(dayAdjustmentsProvider(_day!)).valueOrNull ?? const <SettlementAdjustment>[];
     final attention = (ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[])
         .where((o) => o.paymentStatus == OrderPaymentStatus.disputed || (o.deliveryIssue != null && !o.deliveryIssue!.resolved && o.status == OrderStatus.pickedUp))
         .toList();
@@ -175,22 +214,45 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                 _Line('Paid to shops by UPI', _rupees(s.vendorUpiCollections.values.fold(0, (a, b) => a + b))),
                 _Line('Cash collected by drivers', _rupees(s.riderCodCollections.values.fold(0, (a, b) => a + b))),
                 const Divider(),
-                _Line('Commission (10% of items)', _rupees(s.total('commissionPaise'))),
-                _Line('Your earnings (60%)', _rupees(s.total('managerEarningsPaise')), strong: true),
-                _Line('Quicky share (40%)', _rupees(s.total('quickyEarningsPaise'))),
+                // No rates in these labels: a day can mix orders priced before
+                // and after a pricing change. The server split each order at
+                // its own rate; the current rates are on the pricing card.
+                _Line('Commission (on items)', _rupees(s.total('commissionPaise'))),
+                _Line('Your earnings (your share)', _rupees(s.total('managerEarningsPaise')), strong: true),
+                _Line('Quicky share', _rupees(s.total('quickyEarningsPaise'))),
                 // Paid by customers on top of the order; all of it is Quicky's.
                 if (s.total('platformFeePaise') > 0) _Line('Platform fees (100% Quicky)', _rupees(s.total('platformFeePaise'))),
-                _Line('Total to pay Quicky', _rupees(s.total('quickyEarningsPaise') + s.total('platformFeePaise')), strong: true),
+                _Line('Total to pay Quicky', _rupees(s.total('quickyRevenuePaise')), strong: true),
                 _Line('Driver earnings (delivery fees)', _rupees(s.total('driverEarningsPaise'))),
                 _Line('Shops’ earnings (goods)', _rupees(s.total('vendorEntitlementPaise'))),
               ]),
+              if (s.customerRefunds case final r? when r.values.any((v) => v != 0)) ...[
+                const SizedBox(height: 18),
+                Text('Customer refunds (owed by shops, not you)', key: const Key('statementCustomerRefunds'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 6),
+                _Box(children: [
+                  _Line('Owed (assessed)', _rupees(r['owedPaise'] ?? 0)),
+                  _Line('Refund confirmed', _rupees(r['refundedPaise'] ?? 0)),
+                  _Line('Refund initiated — awaiting confirmation', _rupees(r['awaitingConfirmationPaise'] ?? 0)),
+                  _Line('Refund disputed', _rupees(r['disputedPaise'] ?? 0)),
+                  _Line('Still owed', _rupees(r['outstandingPaise'] ?? 0), strong: true),
+                ]),
+              ],
+              const SizedBox(height: 18),
+              CancellationSettlementSection(
+                statement: s,
+                territoryId: _territoryId,
+                managerKey: managerKey,
+                partyName: (p) => _partyName(p, managerId),
+                onRecorded: () => _load(_day!),
+              ),
               const SizedBox(height: 18),
               Text('Who owes whom', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 4),
-              Text('Includes anything left over from earlier days.', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
+              Text('Order money, including anything left over from earlier days. Cancellation charges are settled above.', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
               const SizedBox(height: 8),
               ...[
-                for (final e in s.remainingBalances.entries)
+                for (final e in s.generalBalances.entries)
                   if (e.value != 0 && e.key != managerKey)
                     _BalanceTile(
                       name: _partyName(e.key, managerId),
@@ -201,7 +263,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                       onRecord: e.key.startsWith('user:') ? null : () => _recordPayment(e.key, e.value, managerKey),
                     ),
               ],
-              if (s.remainingBalances.entries.every((e) => e.value == 0 || e.key == managerKey))
+              if (s.generalBalances.entries.every((e) => e.value == 0 || e.key == managerKey))
                 Text('Everything is settled.', style: TextStyle(color: palette.success, fontWeight: FontWeight.w700)),
               if (s.paymentsAwaitingAcknowledgement.isNotEmpty) ...[
                 const SizedBox(height: 18),
@@ -211,6 +273,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.hourglass_top_rounded),
                     title: Text('${_partyName(p['from'] as String, managerId)} → ${_partyName(p['to'] as String, managerId)}'),
+                    subtitle: Text(settlementPurposeLabel(p['purpose'] as String? ?? 'general')),
                     trailing: Text(_rupees((p['amountPaise'] as num).toInt()), style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
               ],
@@ -221,15 +284,50 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.report_problem_rounded, color: palette.error),
-                    title: Text(switch (d['type']) {
-                      'codShortfall' => 'Driver collected ${_rupees((d['amountPaise'] as num).toInt())} less cash (order ${d['orderId']})',
-                      'disputedTransfer' => 'A payment of ${_rupees((d['amountPaise'] as num).toInt())} was disputed',
-                      'noManager' => 'Order ${d['orderId']} has no territory manager',
-                      _ => '${d['type']}',
-                    }),
-                    subtitle: const Text('Ask the Super Admin for an adjustment once you know what happened.'),
+                    title: Text(settlementDiscrepancyText(d, (p) => _partyName(p, managerId))),
+                    subtitle: Text(
+                      adjustmentDraftFor(d, s, managerKey) == null
+                          ? 'Sort this out with the people involved.'
+                          : adjustments.any((a) => a.orderId == d['orderId'] && a.status == 'pending')
+                          ? 'An adjustment is waiting for the Super Admin.'
+                          : 'Once you know what happened, propose an adjustment for the Super Admin to decide.',
+                    ),
+                    trailing: adjustmentDraftFor(d, s, managerKey) == null || adjustments.any((a) => a.orderId == d['orderId'] && a.status != 'rejected')
+                        ? null
+                        : TextButton(
+                            onPressed: () => _proposeAdjustment(managerKey, draft: adjustmentDraftFor(d, s, managerKey)),
+                            child: const Text('Propose adjustment'),
+                          ),
                   ),
               ],
+              const SizedBox(height: 18),
+              Text('Adjustments for this day', style: Theme.of(context).textTheme.titleMedium),
+              if (adjustments.isEmpty)
+                Text('None proposed.', style: TextStyle(color: palette.textSecondary, fontSize: 12.5))
+              else
+                for (final a in adjustments)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(switch (a.status) {
+                      'approved' => Icons.check_circle_rounded,
+                      'rejected' => Icons.cancel_rounded,
+                      _ => Icons.hourglass_top_rounded,
+                    }),
+                    title: Text('${_partyName(a.from, managerId)} → ${_partyName(a.to, managerId)} · ${_rupees(a.amountPaise)}'),
+                    subtitle: Text('${switch (a.status) {
+                      'approved' => 'Approved',
+                      'rejected' => 'Rejected',
+                      _ => 'Waiting for the Super Admin',
+                    }} · ${a.reason}'),
+                  ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () => _proposeAdjustment(managerKey),
+                  icon: const Icon(Icons.edit_note_rounded),
+                  label: const Text('Propose an adjustment'),
+                ),
+              ),
             ],
           ],
         ),
@@ -255,12 +353,14 @@ class _PricingCard extends ConsumerWidget {
           {'upToMeters': 11000, 'feePaise': 6000},
         ];
     final commission = ((data?['commissionBps'] as num?) ?? 1000) / 100;
-    final share = ((data?['managerShareBps'] as num?) ?? 6000) / 100;
+    // No saved pricing: the share isn't quoted (the server's built-in 60/40
+    // default is not the approved split).
+    final share = data?['managerShareBps'] is num ? (data!['managerShareBps'] as num) / 100 : null;
     var from = 0.0;
     return Card(
       child: ExpansionTile(
         title: const Text('Pricing (set by Quicky)'),
-        subtitle: Text('Commission ${commission.toStringAsFixed(0)}% · your share ${share.toStringAsFixed(0)}%'),
+        subtitle: Text('Commission ${formatPercent(commission)}% · your share ${share == null ? 'not yet set by Quicky' : '${formatPercent(share)}%'}'),
         children: [
           for (final s in slabs)
             () {
@@ -354,64 +454,6 @@ class _BalanceTile extends StatelessWidget {
             if (onRecord != null) TextButton(onPressed: onRecord, child: Text(owesYou ? 'Got paid' : 'Paid')),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Amount, method and UPI reference for a settlement payment.
-class _PaymentSheet extends StatefulWidget {
-  const _PaymentSheet({required this.title, required this.suggestedPaise});
-  final String title;
-  final int suggestedPaise;
-
-  @override
-  State<_PaymentSheet> createState() => _PaymentSheetState();
-}
-
-class _PaymentSheetState extends State<_PaymentSheet> {
-  late final _amount = TextEditingController(text: (widget.suggestedPaise / 100).toStringAsFixed(2));
-  final _reference = TextEditingController();
-  bool _upi = true;
-  String? _error;
-
-  void _save() {
-    final rupees = double.tryParse(_amount.text.trim());
-    if (rupees == null || rupees <= 0) {
-      setState(() => _error = 'Enter the amount.');
-      return;
-    }
-    final reference = _reference.text.trim();
-    if (_upi && reference.isEmpty) {
-      setState(() => _error = 'Enter the UPI reference (UTR).');
-      return;
-    }
-    Navigator.pop(context, (amountPaise: (rupees * 100).round(), upi: _upi, reference: reference.isEmpty ? null : reference));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          TextField(controller: _amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹ ')),
-          const SizedBox(height: 12),
-          SegmentedButton<bool>(
-            segments: const [ButtonSegment(value: true, label: Text('UPI')), ButtonSegment(value: false, label: Text('Cash'))],
-            selected: {_upi},
-            onSelectionChanged: (s) => setState(() => _upi = s.first),
-          ),
-          const SizedBox(height: 12),
-          TextField(controller: _reference, decoration: InputDecoration(labelText: _upi ? 'UPI reference (UTR)' : 'Note (optional)')),
-          if (_error != null) ...[const SizedBox(height: 8), Text(_error!, style: TextStyle(color: context.colors.error))],
-          const SizedBox(height: 16),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _save, child: const Text('Save'))),
-        ],
       ),
     );
   }

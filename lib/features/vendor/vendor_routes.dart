@@ -19,6 +19,7 @@ import 'profile/vendor_profile_screen.dart';
 import 'profile/vendor_store_hours_screen.dart';
 import 'profile/vendor_upi_screen.dart';
 import 'promotions/vendor_promotions_screen.dart';
+import 'refunds/vendor_refunds_screen.dart';
 import 'registration/vendor_business_details_screen.dart';
 import 'registration/vendor_documents_screen.dart';
 import 'registration/vendor_location_hours_screen.dart';
@@ -131,6 +132,7 @@ List<RouteBase> get vendorRoutes => [
     builder: (context, state) =>
         VendorOrderDetailScreen(orderId: state.pathParameters['id']!),
   ),
+  GoRoute(path: '/vendor/refunds', name: 'vendorRefunds', builder: (context, state) => const VendorRefundsScreen()),
   GoRoute(
     path: '/vendor/order/:id/handover',
     name: 'vendorOrderHandover',

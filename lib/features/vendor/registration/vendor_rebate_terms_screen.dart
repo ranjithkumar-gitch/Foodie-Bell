@@ -3,15 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/settlement_provider.dart';
 import 'vendor_registration_scaffold.dart';
 import 'vendor_registration_state.dart';
 
-/// Registration step 5 — Rebate Terms Acknowledgement (spec §5.5): the
-/// Manager-negotiated rebate % (10-20 band) must be explicitly accepted
-/// before the vendor can finish registering. This is the wizard's last
-/// step — "Continue" hands off to the shared phone/OTP screen, whose OTP
-/// success routes to `/auth/terms`, which is the one that actually fires
-/// `completeRegistration()` (see auth_terms_screen.dart's doc comment).
+/// Registration step 5 — Commission terms: the global commission every
+/// shop pays (live from `app_config/pricing`, set only by the Super Admin;
+/// public read, so it shows before sign-in) must be explicitly accepted
+/// before the vendor can finish registering. There's no per-vendor rate.
+/// This is the wizard's last step — "Continue" hands off to the shared
+/// phone/OTP screen, whose OTP success routes to `/auth/terms`, which is
+/// the one that actually fires `completeRegistration()` (see
+/// auth_terms_screen.dart's doc comment).
 class VendorRebateTermsScreen extends ConsumerStatefulWidget {
   const VendorRebateTermsScreen({super.key});
 
@@ -31,14 +34,15 @@ class _VendorRebateTermsScreenState extends ConsumerState<VendorRebateTermsScree
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    final rebatePercent = ref.watch(vendorRegistrationProvider).rebatePercent;
+    final rates = ref.watch(pricingRatesProvider);
+    final rate = rates == null ? null : '${formatPercent(rates.commissionPercent)}%';
     return VendorRegistrationScaffold(
       step: 5,
       totalSteps: 5,
-      title: 'Rebate terms',
-      subtitle: 'Review the sourcing rebate your onboarding Manager has set for your store.',
+      title: 'Commission terms',
+      subtitle: 'Quicky charges every shop the same commission on the items it sells.',
       continueLabel: 'Accept & verify phone number',
-      onContinue: _accepted ? _continue : null,
+      onContinue: _accepted && rates != null ? _continue : null,
       children: [
         Container(
           width: double.infinity,
@@ -47,13 +51,15 @@ class _VendorRebateTermsScreenState extends ConsumerState<VendorRebateTermsScree
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Your rebate rate', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              const Text('Current commission', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
-              Text('${rebatePercent.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 40)),
+              rate == null
+                  ? const SizedBox(height: 48, child: Center(child: CircularProgressIndicator(color: Colors.white)))
+                  : Text(rate, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 40)),
               const SizedBox(height: 6),
               const Text(
-                'of each order\'s item subtotal is routed to your Manager as a '
-                'sourcing rebate, in line with the platform-wide 10-20% band.',
+                'of each order\'s item value (after your own coupon). Set by Quicky for all '
+                'shops; a change applies only to orders placed after it.',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 12.5),
               ),
             ],
@@ -61,9 +67,10 @@ class _VendorRebateTermsScreenState extends ConsumerState<VendorRebateTermsScree
         ),
         const SizedBox(height: 20),
         Text(
-          'This rate is deducted automatically at settlement — you never need to '
-          'pay it separately. It funds your Manager\'s local operations (onboarding, '
-          'quality checks, dispute resolution) in your territory.',
+          'Cash orders: your Manager pays you the item value minus the commission. '
+          'UPI orders: the customer pays you directly, and you pay your Manager the '
+          'commission plus the delivery fee and any platform fee. Every amount comes '
+          'from your daily settlement.',
           style: TextStyle(color: palette.textSecondary, fontSize: 13, height: 1.5),
         ),
         const SizedBox(height: 24),
@@ -78,7 +85,7 @@ class _VendorRebateTermsScreenState extends ConsumerState<VendorRebateTermsScree
                 child: Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
-                    'I acknowledge and accept the ${rebatePercent.toStringAsFixed(0)}% rebate terms.',
+                    'I accept the ${rate ?? 'current'} commission terms.',
                     style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600),
                   ),
                 ),

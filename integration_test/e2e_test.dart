@@ -15,12 +15,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 
+import 'package:foodiebell/core/dev/firebase_target.dart';
 import 'package:foodiebell/main.dart' as app;
 
 const _host = String.fromEnvironment('EMU_HOST', defaultValue: '10.0.2.2');
 const _authPort = int.fromEnvironment('EMU_AUTH_PORT', defaultValue: 9099);
 const _firestorePort = int.fromEnvironment('EMU_FS_PORT', defaultValue: 8080);
-const _project = String.fromEnvironment('EMU_PROJECT', defaultValue: 'quickmandi-3b017');
+// The app runs emulator builds as the `demo-quickmandi` project (Phase I.8
+// Batch 1.1, lib/core/dev/firebase_target.dart), so its emulator data lives
+// there. Start the emulators with `--project demo-quickmandi` and run with
+// `--dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=10.0.2.2`.
+const _project = String.fromEnvironment('EMU_PROJECT', defaultValue: emulatorProjectId);
 
 final _steps = <String>[];
 

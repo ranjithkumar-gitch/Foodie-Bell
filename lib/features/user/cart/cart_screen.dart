@@ -113,10 +113,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final notifier = ref.read(cartProvider.notifier);
 
     // Items only: the delivery fee depends on the road distance to the
-    // address chosen at checkout, where the server prices the whole order
-    // (no GST while it's off).
+    // address chosen at checkout, where the server prices the whole order.
+    // Item prices are tax-inclusive: Quicky adds no tax (Phase I.4.3).
+    // An estimate from the catalogue prices on this phone — labelled as
+    // the items' total, never as what the customer will pay.
     final couponDiscount = cart.couponDiscount;
-    final total = cart.subtotal - couponDiscount;
+    final itemsTotal = cart.subtotal - couponDiscount;
 
     return Scaffold(
       appBar: AppBar(
@@ -287,7 +289,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                         ),
                         const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider()),
-                        _SummaryRow(label: context.l10n.priceTotal, value: total, emphasize: true),
+                        _SummaryRow(label: context.l10n.cartItemsTotal, value: itemsTotal, emphasize: true),
+                        const SizedBox(height: 6),
+                        Text(context.l10n.cartFeesAtCheckout, style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
+                        Text(context.l10n.pricesInclusiveOfTaxes, key: const Key('cartTaxInclusiveNote'), style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () => context.push('/user/checkout/address'),

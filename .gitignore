@@ -4,8 +4,8 @@
 .dart_tool/
 .packages
 build/
-# If you're building an application, you may want to check-in your pubspec.lock
-pubspec.lock
+# pubspec.lock is committed (an application's dependency versions must be
+# reproducible) — Phase I.8 removed the ignore rule that contradicted that.
 
 # Directory created by dartdoc
 # If you don't generate documentation locally you can remove this line.
@@ -28,10 +28,35 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 
-# Platform-specific folders - only dart and yaml source files are pushed
-/android/
-/ios/
+# Platform-specific folders - only dart and yaml source files are pushed.
+# ios/ (Phase I.8 Batch 1.1) and android/ (Phase I.8 consolidated) are
+# tracked so the apps build from a clean checkout; their generated files,
+# machine settings and secrets are excluded by ios/.gitignore and
+# android/.gitignore.
 /web/
 /linux/
 /macos/
 /windows/
+
+# Secrets and signing material — never committed, wherever they are.
+# (Public Firebase app config — google-services.json,
+# GoogleService-Info.plist, lib/firebase_options.dart — is not a secret
+# and is tracked; see PHASE_I8_BATCH11_SOURCE_REPRODUCIBILITY.md.)
+*.jks
+*.keystore
+key.properties
+*.p8
+*.p12
+*.pem
+*.mobileprovision
+*.provisionprofile
+*.certSigningRequest
+*service-account*.json
+*service_account*.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+# OS and IDE files (never committed).
+.DS_Store
+.idea/
+*.iml

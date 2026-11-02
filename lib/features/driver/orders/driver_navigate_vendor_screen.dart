@@ -95,7 +95,7 @@ class _DriverNavigateVendorScreenState extends ConsumerState<DriverNavigateVendo
     // back to a straight link and the time to a rough on-device figure.
     RoadRoute? route;
     if (vendor != null && driver != null) {
-      final fetched = ref.watch(roadRouteProvider(roadRouteRequest(from: driver, to: vendor)));
+      final fetched = ref.watch(roadRouteProvider(orderRouteRequest(widget.orderId, 'pickup')));
       if (fetched.hasValue) _lastRoute = fetched.value;
       route = _lastRoute;
     }

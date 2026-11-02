@@ -178,13 +178,14 @@ class ProfileScreen extends ConsumerWidget {
             _ProfileCategoryCard(
               title: context.l10n.profileCategoryTransactions,
               rows: [
+                // There is no Quicky wallet: UPI payments owed back by a
+                // shop, from the server's payment record.
                 _CategoryMenuRow(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: context.l10n.profileWalletRefunds,
+                  icon: Icons.currency_rupee_rounded,
+                  label: context.l10n.refundsTitle,
                   onTap: () => context.push('/user/wallet'),
                 ),
-                // Real online (Razorpay) payments — separate from Wallet's
-                // own screen, whose history is still mock data.
+                // Payments the shop or Driver confirmed (`Order.isPaid`).
                 _CategoryMenuRow(
                   icon: Icons.receipt_long_outlined,
                   label: context.l10n.profileTransactionHistory,

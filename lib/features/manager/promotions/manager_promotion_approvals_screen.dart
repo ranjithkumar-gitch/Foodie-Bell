@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../data/promotion_plans.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/promotion.dart';
 import '../../../data/providers/firestore_promotions_provider.dart';
@@ -128,7 +129,9 @@ class ManagerPromotionApprovalsScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        onTap: promo.paymentReceived ? null : () => _markPaymentReceived(context, promo.id),
+                        // Paused (kPaidPromotionsEnabled): a payment can't be
+                        // recorded through the server yet, so it isn't ticked here.
+                        onTap: promo.paymentReceived || !kPaidPromotionsEnabled ? null : () => _markPaymentReceived(context, promo.id),
                         child: Row(
                           children: [
                             Icon(
@@ -137,9 +140,11 @@ class ManagerPromotionApprovalsScreen extends ConsumerWidget {
                               size: 20,
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              'Payment received',
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5, color: promo.paymentReceived ? palette.success : palette.textSecondary),
+                            Flexible(
+                              child: Text(
+                                promo.paymentReceived || kPaidPromotionsEnabled ? 'Payment received' : 'Paid promotions are paused: payments can’t be recorded yet',
+                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5, color: promo.paymentReceived ? palette.success : palette.textSecondary),
+                              ),
                             ),
                           ],
                         ),

@@ -225,10 +225,17 @@ class _PromotionsTab extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
+            if (!kPaidPromotionsEnabled) ...[
+              Text(
+                'Paid promotions are paused for now. Your existing requests and live promotions below are unaffected.',
+                style: TextStyle(fontSize: 12.5, color: palette.warning, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+            ],
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: account == null
+                onPressed: account == null || !kPaidPromotionsEnabled
                     ? null
                     : () => _requestPromotion(
                         context,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../../../data/providers/firestore_addresses_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/error_reporting.dart';
 import '../address_label_text.dart';
+import 'pin_location_screen.dart';
 
 /// Shared "Add Address" bottom sheet — used by both the Saved Addresses
 /// screen and the Checkout address-selection screen (which needs the same
@@ -18,6 +20,11 @@ import '../address_label_text.dart';
 /// real `addresses` doc (`firestore_addresses_provider.dart`) for the
 /// signed-in User; pass [onSaved] to react to the newly created address
 /// (e.g. auto-selecting it for checkout).
+///
+/// The address is saved only with a map pin the User confirmed themselves
+/// ([PinLocationScreen]) — started from the phone's position or from the
+/// typed address. The delivery fee and the Driver's route come from that
+/// pin, so it's never taken silently from wherever the phone happens to be.
 class AddAddressSheet extends ConsumerStatefulWidget {
   const AddAddressSheet({super.key, this.onSaved});
 
@@ -40,9 +47,12 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
   final _landmarkController = TextEditingController();
   final _pincodeController = TextEditingController();
   final _cityController = TextEditingController();
+  /// Set only by the User confirming a pin ([_confirmPin]).
   double? _latitude;
   double? _longitude;
   bool _locating = false;
+
+  bool get _pinned => isValidDeliveryPin(_latitude, _longitude);
   bool _saving = false;
   String? _error;
 
@@ -93,10 +103,52 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
     return (position: position, problem: problem);
   }
 
-  /// Pins the address to wherever the User's phone is right now and fills
-  /// the address fields from it — meant to be tapped while standing at the
-  /// address. Only staged here; it's written along with the rest of the
-  /// form on "Save Address".
+  /// Opens the map at [start] for the User to place and confirm the pin;
+  /// keeps the pin only if they confirm. Only staged here — it's written
+  /// along with the rest of the form on "Save Address".
+  Future<void> _confirmPin(LatLng start) async {
+    final pinned = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(fullscreenDialog: true, builder: (_) => PinLocationScreen(initial: start)),
+    );
+    if (pinned == null || !mounted) return;
+    setState(() {
+      _latitude = pinned.latitude;
+      _longitude = pinned.longitude;
+      _error = null;
+    });
+  }
+
+  /// Starts the pin from the typed address, looked up on the map.
+  Future<void> _pinFromTypedAddress() async {
+    final query = [_line1Controller.text, _cityController.text, _pincodeController.text]
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .join(', ');
+    final notFound = context.l10n.addAddressPinNotFound;
+    setState(() {
+      _locating = true;
+      _error = null;
+    });
+    LatLng? start;
+    if (query.isNotEmpty) {
+      try {
+        final results = await Geocoding().locationFromAddress(query);
+        if (results.isNotEmpty) start = LatLng(results.first.latitude, results.first.longitude);
+      } catch (e) {
+        debugPrint('add_address_sheet: address lookup failed: $e');
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      if (start == null) _error = notFound;
+    });
+    if (start != null) await _confirmPin(start);
+  }
+
+  /// Fills the address fields from where the User's phone is right now and
+  /// starts the pin there — meant to be tapped while standing at the
+  /// address. The pin still has to be confirmed on the map.
   Future<void> _useCurrentLocation() async {
     setState(() {
       _locating = true;
@@ -122,12 +174,9 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
     setState(() {
       _locating = false;
       _error = problem;
-      if (position != null) {
-        _latitude = position.latitude;
-        _longitude = position.longitude;
-      }
       if (place != null) _fillFrom(place);
     });
+    if (position != null) await _confirmPin(LatLng(position.latitude, position.longitude));
   }
 
   /// Fills house/street, pincode and city from [place], leaving alone any
@@ -152,6 +201,12 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    // The server prices delivery from this pin and refuses an address
+    // without one, so it's required here rather than discovered at checkout.
+    if (!_pinned) {
+      setState(() => _error = context.l10n.addAddressPinRequired);
+      return;
+    }
     final userId = ref.read(sessionControllerProvider).account?.id;
     if (userId == null) return;
 
@@ -159,16 +214,6 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
       _saving = true;
       _error = null;
     });
-
-    // A User who never tapped "Use my current location" still gets their
-    // position saved with the address. Best effort only: when it can't be
-    // read the address is saved without one rather than not at all.
-    if (_latitude == null || _longitude == null) {
-      final position = (await _locate()).position;
-      if (!mounted) return;
-      _latitude = position?.latitude;
-      _longitude = position?.longitude;
-    }
 
     try {
       final saved = await addAddress(
@@ -349,24 +394,64 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _saving || _locating ? null : _useCurrentLocation,
-                  icon: _locating
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.my_location_rounded, size: 18),
-                  label: Text(
-                    _locating
-                        ? context.l10n.addAddressGettingLocation
-                        : _latitude != null
-                        ? context.l10n.addAddressUpdateCurrentLocation
-                        : context.l10n.addAddressUseCurrentLocation,
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.addAddressPinHeading,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: palette.textPrimary,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      _pinned ? Icons.check_circle_rounded : Icons.location_off_outlined,
+                      size: 18,
+                      color: _pinned ? palette.success : palette.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _pinned ? context.l10n.addAddressPinConfirmed : context.l10n.addAddressPinRequired,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: _pinned ? palette.success : palette.textSecondary,
+                        ),
+                      ),
+                    ),
+                    if (_pinned)
+                      TextButton(
+                        onPressed: _saving || _locating ? null : () => _confirmPin(LatLng(_latitude!, _longitude!)),
+                        child: Text(context.l10n.addAddressPinChange),
+                      ),
+                  ],
+                ),
+                if (_locating)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                        const SizedBox(width: 10),
+                        Text(context.l10n.addAddressGettingLocation),
+                      ],
+                    ),
+                  )
+                else if (!_pinned) ...[
+                  TextButton.icon(
+                    onPressed: _saving ? null : _useCurrentLocation,
+                    icon: const Icon(Icons.my_location_rounded, size: 18),
+                    label: Text(context.l10n.addAddressUseCurrentLocation),
+                  ),
+                  TextButton.icon(
+                    onPressed: _saving ? null : _pinFromTypedAddress,
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: Text(context.l10n.addAddressPinFromAddress),
+                  ),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 14),
                   Text(

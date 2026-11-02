@@ -105,13 +105,20 @@ class AppLocalizationsTe extends AppLocalizations {
   String get pricePlatformFee => 'ప్లాట్‌ఫారమ్ ఫీజు';
 
   @override
-  String get priceGst => 'GST';
-
-  @override
   String get priceCouponDiscount => 'కూపన్ డిస్కౌంట్';
 
   @override
   String get priceTotal => 'మొత్తం';
+
+  @override
+  String get itemPricesInclusiveOfTaxes =>
+      'వస్తువుల ధరల్లో వర్తించే పన్నులు కలిపే ఉన్నాయి.';
+
+  @override
+  String get pricesInclusiveOfTaxes => 'ధరల్లో వర్తించే పన్నులు కలిపే ఉన్నాయి.';
+
+  @override
+  String get priceLegacyTax => 'పన్నులు (ఈ పాత ఆర్డర్‌పై వసూలు చేసినవి)';
 
   @override
   String get actionChange => 'మార్చు';
@@ -368,11 +375,6 @@ class AppLocalizationsTe extends AppLocalizations {
   String get invoiceTitle => 'ఇన్వాయిస్';
 
   @override
-  String invoiceHsnGst(Object hsn, Object rate) {
-    return 'HSN $hsn · GST $rate%';
-  }
-
-  @override
   String get invoicePaymentMethodLabel => 'చెల్లింపు విధానం';
 
   @override
@@ -453,6 +455,10 @@ class AppLocalizationsTe extends AppLocalizations {
   @override
   String get storefrontClosedMessage =>
       'ఈ విక్రేత ప్రస్తుతం మూసివేయబడింది మరియు ఆర్డర్‌లను స్వీకరించడం లేదు.';
+
+  @override
+  String get storefrontCategoryUnavailable =>
+      'ఈ దుకాణం విభాగం ప్రస్తుతం మీ ప్రాంతంలో అందుబాటులో లేదు, కాబట్టి ఇక్కడ ఆర్డర్‌లు తీసుకోలేదు.';
 
   @override
   String get storefrontNoProductsYet => 'ఇంకా ఉత్పత్తులు లేవు';
@@ -614,6 +620,78 @@ class AppLocalizationsTe extends AppLocalizations {
   String get addAddressSaveButton => 'చిరునామాను సేవ్ చేయండి';
 
   @override
+  String get addAddressPinHeading => 'డెలివరీ స్థానం';
+
+  @override
+  String get addAddressPinRequired =>
+      'సేవ్ చేసే ముందు మ్యాప్‌లో ఖచ్చితమైన డెలివరీ స్థానాన్ని పిన్ చేయండి.';
+
+  @override
+  String get addAddressPinFromAddress => 'పై చిరునామాను మ్యాప్‌లో చూపించండి';
+
+  @override
+  String get addAddressPinConfirmed => 'మ్యాప్‌లో స్థానం పిన్ చేయబడింది';
+
+  @override
+  String get addAddressPinChange => 'పిన్ మార్చండి';
+
+  @override
+  String get addAddressPinNotFound =>
+      'ఆ చిరునామా మ్యాప్‌లో దొరకలేదు. చిరునామాను సరిచూడండి, లేదా మీ ప్రస్తుత స్థానాన్ని ఉపయోగించండి.';
+
+  @override
+  String get pinScreenTitle => 'డెలివరీ స్థానాన్ని నిర్ధారించండి';
+
+  @override
+  String get pinScreenHint => 'పిన్ ప్రవేశ ద్వారం మీద ఉండేలా మ్యాప్‌ను జరపండి.';
+
+  @override
+  String get pinScreenConfirm => 'ఈ స్థానాన్ని నిర్ధారించండి';
+
+  @override
+  String get addressNotPinned =>
+      'ఇంకా మ్యాప్‌లో పిన్ చేయలేదు. ఇక్కడ డెలివరీ కోసం పిన్ చేయండి.';
+
+  @override
+  String get addressPinThis => 'ఈ చిరునామాను పిన్ చేయండి';
+
+  @override
+  String get addressPinNotFoundTitle => 'ఈ చిరునామా మ్యాప్‌లో దొరకలేదు';
+
+  @override
+  String get addressPinNotFoundBody =>
+      'బదులుగా మీ ఫోన్ ఇప్పుడు ఉన్న చోటు నుండి మొదలుపెట్టాలా? ఖచ్చితమైన చోటుకు పిన్‌ను మీరే జరిపి నిర్ధారించాలి.';
+
+  @override
+  String get addressPinUseMyLocation => 'నా స్థానం నుండి మొదలుపెట్టు';
+
+  @override
+  String get addressPinNotNow => 'ఇప్పుడు కాదు';
+
+  @override
+  String get addressPinNoLocation =>
+      'మీ స్థానాన్ని చదవలేకపోయాం. లొకేషన్ (GPS) ఆన్ చేసి అనుమతించి, మళ్ళీ ప్రయత్నించండి.';
+
+  @override
+  String get addressPinSaved => 'చిరునామా పిన్ చేయబడింది.';
+
+  @override
+  String get checkoutAddressNeedsPin =>
+      'ఆర్డర్ చేసే ముందు ఈ చిరునామాను మ్యాప్‌లో పిన్ చేయండి.';
+
+  @override
+  String get cartItemsTotal => 'వస్తువుల మొత్తం';
+
+  @override
+  String get cartFeesAtCheckout =>
+      'దూరాన్ని బట్టి డెలివరీ ఫీజు, ప్లాట్‌ఫామ్ ఫీజు (ఉంటే) చెక్అవుట్‌లో కలుపబడతాయి.';
+
+  @override
+  String deliveryFeeFrom(Object amount) {
+    return '$amount నుండి';
+  }
+
+  @override
   String get addAddressUseCurrentLocation =>
       'నా ప్రస్తుత లొకేషన్‌ను ఉపయోగించండి';
 
@@ -772,7 +850,7 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get helpFaq2A =>
-      'రద్దు చేయబడిన ఆర్డర్‌లకు రీఫండ్‌లు మీ యాప్‌లోని వాలెట్‌కు స్వయంచాలకంగా, సాధారణంగా కొన్ని నిమిషాల్లో జమ చేయబడతాయి.';
+      'రద్దు చేసిన క్యాష్ ఆర్డర్‌లకు ఎలాంటి చార్జీ ఉండదు. మీరు UPI ద్వారా దుకాణానికి చెల్లించిన ఆర్డర్ రద్దు అయినా లేదా తిరస్కరించబడినా, దుకాణం ఆ మొత్తాన్ని మీ UPI ఖాతాకు తిరిగి చెల్లిస్తుంది; ప్రొఫైల్ → రీఫండ్‌లు లో దాని స్థితి చూడవచ్చు.';
 
   @override
   String get helpFaq3Q =>
@@ -856,6 +934,16 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get walletScreenTitle => 'వాలెట్ & రీఫండ్‌లు';
+
+  @override
+  String get refundsTitle => 'రీఫండ్‌లు';
+
+  @override
+  String get refundsEmptyTitle => 'రీఫండ్‌లు లేవు';
+
+  @override
+  String get refundsExplainer =>
+      'మీరు UPI ద్వారా దుకాణానికి చెల్లించిన తర్వాత ఆర్డర్ రద్దు అయినా లేదా తిరస్కరించబడినా, ఆ మొత్తాన్ని దుకాణం మీ UPI ఖాతాకు తిరిగి చెల్లించాలి. అలాంటి ఆర్డర్‌లు, వాటి స్థితి ఇక్కడ కనిపిస్తాయి.';
 
   @override
   String get walletBalanceLabel => 'వాలెట్ బ్యాలెన్స్';
@@ -1031,4 +1119,331 @@ class AppLocalizationsTe extends AppLocalizations {
     );
     return '$_temp0 · $total';
   }
+
+  @override
+  String get reasonItemsUnavailable => 'వస్తువులు అందుబాటులో లేవు';
+
+  @override
+  String get reasonShopClosingSoon => 'దుకాణం త్వరలో మూసివేస్తున్నాం';
+
+  @override
+  String get reasonTooBusy => 'ప్రస్తుతం చాలా బిజీగా ఉన్నాం';
+
+  @override
+  String get reasonCannotPrepareInTime => 'సమయానికి సిద్ధం చేయలేం';
+
+  @override
+  String get reasonOutsideServiceArea => 'నా డెలివరీ ప్రాంతం బయట';
+
+  @override
+  String get reasonOther => 'ఇతర';
+
+  @override
+  String get reasonItemsOutOfStockAfterAccept =>
+      'అంగీకరించిన తర్వాత వస్తువులు అయిపోయాయి';
+
+  @override
+  String get reasonEquipmentFailure => 'పరికరాల వైఫల్యం';
+
+  @override
+  String get reasonStaffUnavailable => 'సిబ్బంది అందుబాటులో లేరు';
+
+  @override
+  String get reasonQualityIssue => 'వస్తువుల నాణ్యతలో సమస్య';
+
+  @override
+  String get reasonCustomerRequestedViaShop =>
+      'కస్టమర్ దుకాణాన్ని రద్దు చేయమన్నారు';
+
+  @override
+  String get reasonPricingError => 'ధరలో పొరపాటు';
+
+  @override
+  String get reasonEmergencyClosure => 'అత్యవసర మూసివేత';
+
+  @override
+  String get vendorAcceptConfirmTitle =>
+      'అన్ని వస్తువులు ఉన్నాయని నిర్ధారించండి';
+
+  @override
+  String get vendorAcceptConfirmCheckbox =>
+      'ఈ వస్తువులన్నీ నా దగ్గర ఉన్నాయి, ఈ ఆర్డర్‌ను సిద్ధం చేయగలను.';
+
+  @override
+  String get vendorAcceptButton => 'ఆర్డర్‌ను అంగీకరించు';
+
+  @override
+  String get vendorRejectTitle => 'ఈ ఆర్డర్‌ను ఎందుకు తీసుకోలేరు?';
+
+  @override
+  String get vendorRejectNote =>
+      'ఆర్డర్‌ను అంగీకరించకపోవడం పరవాలేదు. ఇది రద్దుగా లెక్కించబడదు, ఎలాంటి చార్జీ ఉండదు.';
+
+  @override
+  String get vendorRejectButton => 'ఆర్డర్‌ను తిరస్కరించు';
+
+  @override
+  String get remarkOptional => 'వ్యాఖ్య (ఐచ్ఛికం)';
+
+  @override
+  String get remarkRequired => 'వ్యాఖ్య (తప్పనిసరి)';
+
+  @override
+  String get vendorOrdersPausedTitle =>
+      'మీ షాప్ ప్రస్తుతం కొత్త ఆర్డర్లు స్వీకరించదు';
+
+  @override
+  String get vendorNoManagerBody =>
+      'మీ షాప్‌కు ఇంకా మేనేజర్‌ను కేటాయించలేదు. Quicky త్వరలో కేటాయిస్తుంది; అప్పటి వరకు కొత్త ఆర్డర్లు నిలిపివేయబడతాయి.';
+
+  @override
+  String get vendorManagerInactiveBody =>
+      'మీ మేనేజర్ ప్రస్తుతం యాక్టివ్‌గా లేరు. Quicky దీన్ని పరిష్కరిస్తోంది. మీరు మీ ఖాతాను చూడవచ్చు, ఆర్డర్లను తిరస్కరించవచ్చు, కానీ కొత్త ఆర్డర్లు నిలిపివేయబడ్డాయి.';
+
+  @override
+  String get vendorCancelButton => 'అంగీకరించిన ఆర్డర్‌ను రద్దు చేయి';
+
+  @override
+  String get vendorCancelTitle => 'అంగీకరించిన ఈ ఆర్డర్‌ను రద్దు చేయాలా?';
+
+  @override
+  String get vendorCancelWarning =>
+      'ఇది అంగీకరించిన తర్వాత రద్దుగా లెక్కించబడుతుంది. మీ మేనేజర్ దీన్ని చూస్తారు.';
+
+  @override
+  String vendorCancelChargeNoDriver(Object amount, Object percent, Object fee) {
+    return 'రద్దు చార్జీ: $amount ($fee డెలివరీ ఫీజులో $percent%, డ్రైవర్ కేటాయించబడలేదు).';
+  }
+
+  @override
+  String vendorCancelChargeWithDriver(
+    Object amount,
+    Object percent,
+    Object fee,
+    Object driverAmount,
+  ) {
+    return 'రద్దు చార్జీ: $amount ($fee డెలివరీ ఫీజులో $percent%, డ్రైవర్ కేటాయించబడ్డారు). అందులో $driverAmount డ్రైవర్‌కు వెళ్తుంది.';
+  }
+
+  @override
+  String get vendorCancelNoCharge => 'ఈ ఆర్డర్‌కు రద్దు చార్జీ లేదు.';
+
+  @override
+  String vendorCancelRefundOwed(Object amount) {
+    return 'కస్టమర్ UPI చెల్లింపుకు $amount రీఫండ్ కూడా మీరు చెల్లించాలి.';
+  }
+
+  @override
+  String get vendorCancelUpiBlocked =>
+      'UPI ద్వారా చెల్లించిన ఆర్డర్‌ను రద్దు చేయడం ఇంకా అందుబాటులో లేదు. ఈ ఆర్డర్ గురించి మీ మేనేజర్‌ను సంప్రదించండి.';
+
+  @override
+  String get vendorCancelRemarkHint => 'ఏమి జరిగింది? (కనీసం 15 అక్షరాలు)';
+
+  @override
+  String get vendorCancelRemarkTooShort =>
+      'ఏమి జరిగిందో కనీసం 15 అక్షరాల్లో వివరించండి.';
+
+  @override
+  String get vendorCancelConfirm => 'ఆర్డర్‌ను రద్దు చేసి చార్జీని అంగీకరించు';
+
+  @override
+  String get vendorCancelConfirmNoCharge => 'ఆర్డర్‌ను రద్దు చేయి';
+
+  @override
+  String get vendorCancelChargeChanged =>
+      'చార్జీ మారింది (డ్రైవర్ కేటాయించబడ్డారు లేదా విడుదలయ్యారు). కొత్త మొత్తాన్ని చూడండి.';
+
+  @override
+  String get vendorCancelDone => 'ఆర్డర్ రద్దు చేయబడింది.';
+
+  @override
+  String get vendorCancellationCharges => 'రద్దు చార్జీలు';
+
+  @override
+  String get orderCancelledByShop =>
+      'అంగీకరించిన తర్వాత దుకాణం ఈ ఆర్డర్‌ను రద్దు చేసింది.';
+
+  @override
+  String get driverCancellationComp => 'రద్దు పరిహారం';
+
+  @override
+  String get chooseReason => 'ఒక కారణాన్ని ఎంచుకోండి.';
+
+  @override
+  String get cancelChargesCharged => 'విధించినవి';
+
+  @override
+  String get cancelChargesPaid => 'చెల్లించినవి (నిర్ధారించబడినవి)';
+
+  @override
+  String get cancelChargesOwed => 'ఇంకా బాకీ';
+
+  @override
+  String get cancelChargesReversed => 'రద్దు చేయబడినవి';
+
+  @override
+  String get cancelChargesWaived => 'మాఫీ చేయబడినది (చెల్లించనిది)';
+
+  @override
+  String get cancelRefundDue => 'మీకు తిరిగి రావాల్సినది';
+
+  @override
+  String get cancelRefunded => 'మీకు తిరిగి ఇచ్చినది';
+
+  @override
+  String get cancelRefundPending => 'మీ నిర్ధారణ కోసం వేచి ఉన్న రీఫండ్';
+
+  @override
+  String get cancelChargesNone => 'రద్దు చార్జీలు లేవు.';
+
+  @override
+  String get cancelChargesNote =>
+      'అంగీకరించిన తర్వాత ఆర్డర్‌ను రద్దు చేస్తే విధించబడుతుంది. మీ సంపాదన నుండి వేరుగా ఉంచబడుతుంది.';
+
+  @override
+  String get driverCompEarned => 'సంపాదించినది';
+
+  @override
+  String get driverCompPaid => 'చెల్లించినది (నిర్ధారించబడినది)';
+
+  @override
+  String get driverCompPending => 'పెండింగ్';
+
+  @override
+  String get driverCompNone => 'ఇంకా రద్దు పరిహారం లేదు.';
+
+  @override
+  String get driverCompNote =>
+      'మీకు కేటాయించిన ఆర్డర్‌ను దుకాణం రద్దు చేస్తే చెల్లించబడుతుంది. డెలివరీ ఫీజుల నుండి వేరుగా ఉంచబడుతుంది.';
+
+  @override
+  String orderCancelledReason(Object reason) {
+    return 'కారణం: $reason';
+  }
+
+  @override
+  String get refundCardTitle => 'మీ రీఫండ్';
+
+  @override
+  String get refundStatusDue => 'రీఫండ్ చెల్లించాల్సి ఉంది';
+
+  @override
+  String get refundStatusAwaiting =>
+      'రీఫండ్ పంపబడింది — మీ నిర్ధారణ కోసం వేచి ఉంది';
+
+  @override
+  String get refundStatusDisputed => 'రీఫండ్‌పై వివాదం';
+
+  @override
+  String get refundStatusReview => 'సమీక్ష అవసరం';
+
+  @override
+  String get refundStatusConfirmed => 'రీఫండ్ నిర్ధారించబడింది';
+
+  @override
+  String refundOwedToYou(Object amount) {
+    return 'మీకు రావాల్సినది: $amount';
+  }
+
+  @override
+  String refundFromShop(Object shop) {
+    return '$shop నుండి';
+  }
+
+  @override
+  String refundReturnedSoFar(Object amount) {
+    return 'ఇప్పటివరకు $amount తిరిగి వచ్చింది.';
+  }
+
+  @override
+  String get refundToOriginal => 'రీఫండ్: మీరు చెల్లించిన UPI ఖాతాకు';
+
+  @override
+  String refundToUpi(Object upiId) {
+    return 'రీఫండ్: $upiId';
+  }
+
+  @override
+  String get refundChangeUpi => 'వేరే UPI IDకి రీఫండ్ పొందండి';
+
+  @override
+  String get refundUpiDialogTitle => 'మీ రీఫండ్ కోసం UPI ID';
+
+  @override
+  String get refundUpiHint => 'name@bank';
+
+  @override
+  String get refundSave => 'సేవ్ చేయండి';
+
+  @override
+  String get refundCancel => 'రద్దు';
+
+  @override
+  String get refundSubmit => 'సమర్పించండి';
+
+  @override
+  String get refundWaitingShop => 'దుకాణం ఇంకా ఈ రీఫండ్ పంపలేదు.';
+
+  @override
+  String get refundPayerShop => 'దుకాణం';
+
+  @override
+  String get refundPayerQuicky => 'Quicky';
+
+  @override
+  String refundSentClaim(
+    Object payer,
+    Object amount,
+    Object date,
+    Object reference,
+  ) {
+    return '$payer $dateన $amount పంపినట్లు చెబుతోంది (UPI రిఫరెన్స్ $reference). మీకు అందిందా?';
+  }
+
+  @override
+  String get refundReceived => 'నాకు అందింది';
+
+  @override
+  String get refundNotReceived => 'అందలేదు';
+
+  @override
+  String get refundDifferentAmount => 'వేరే మొత్తం';
+
+  @override
+  String get refundDifferentAmountTitle => 'మీకు ఎంత అందింది?';
+
+  @override
+  String get refundAmountReceivedLabel => 'అందిన మొత్తం (₹)';
+
+  @override
+  String get refundNoteLabel => 'గమనిక (ఐచ్ఛికం)';
+
+  @override
+  String get refundNotReceivedTitle => 'రీఫండ్ అందలేదా?';
+
+  @override
+  String get refundNotReceivedBody =>
+      'Quicky దుకాణంతో కలిసి దీనిని సమీక్షిస్తుంది. ఉపయోగపడే వివరాలు జోడించండి.';
+
+  @override
+  String get refundDisputedNote =>
+      'ఈ రీఫండ్ నమోదైనట్లుగా అందలేదని మీరు తెలిపారు. Quicky దీనిని సమీక్షిస్తోంది.';
+
+  @override
+  String get refundReviewNote => 'Quicky ఈ రీఫండ్‌ను సమీక్షిస్తోంది.';
+
+  @override
+  String refundConfirmedNote(Object amount) {
+    return 'రీఫండ్ నిర్ధారించబడింది: $amount తిరిగి వచ్చింది.';
+  }
+
+  @override
+  String get refundLoadError => 'రీఫండ్‌ను లోడ్ చేయలేకపోయాం.';
+
+  @override
+  String get refundRetry => 'మళ్లీ ప్రయత్నించండి';
+
+  @override
+  String get refundThanks => 'ధన్యవాదాలు — మీ సమాధానం నమోదైంది.';
 }

@@ -9,6 +9,7 @@ import '../../../data/providers/firestore_addresses_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/error_reporting.dart';
 import '../addresses/add_address_sheet.dart';
+import '../addresses/pin_saved_address.dart';
 import '../address_label_text.dart';
 
 /// Checkout – Address Selection (spec §4.9). Real, per-User saved addresses
@@ -40,7 +41,12 @@ class _CheckoutAddressScreenState extends ConsumerState<CheckoutAddressScreen> {
     final addressesAsync = userId == null
         ? const AsyncValue<List<Address>>.data(<Address>[])
         : ref.watch(firestoreAddressesProvider(userId));
-    final selected = ref.watch(selectedAddressProvider);
+    final picked = ref.watch(selectedAddressProvider);
+    // The picked address as currently saved (e.g. just pinned).
+    final selected = picked == null
+        ? null
+        : addressesAsync.valueOrNull?.where((a) => a.id == picked.id).firstOrNull ?? picked;
+    final canDeliverHere = selected != null && selected.hasValidPin;
 
     // Nothing picked yet (fresh checkout, or the only-just-loaded address
     // list) — default to the saved default, or just the first one, same as
@@ -49,8 +55,11 @@ class _CheckoutAddressScreenState extends ConsumerState<CheckoutAddressScreen> {
     if (selected == null && loadedAddresses != null && loadedAddresses.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || ref.read(selectedAddressProvider) != null) return;
-        final defaultMatch = loadedAddresses.where((a) => a.isDefault);
-        final fallback = defaultMatch.isNotEmpty ? defaultMatch.first : loadedAddresses.first;
+        // Prefer an address the order can actually be priced to (pinned).
+        final pinned = loadedAddresses.where((a) => a.hasValidPin).toList();
+        final pool = pinned.isNotEmpty ? pinned : loadedAddresses;
+        final defaultMatch = pool.where((a) => a.isDefault);
+        final fallback = defaultMatch.isNotEmpty ? defaultMatch.first : pool.first;
         ref.read(selectedAddressProvider.notifier).state = fallback;
       });
     }
@@ -123,6 +132,13 @@ class _CheckoutAddressScreenState extends ConsumerState<CheckoutAddressScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text('${address.line1}, ${address.city} - ${address.pincode}', style: TextStyle(color: palette.textSecondary, fontSize: 13)),
+                          if (!address.hasValidPin)
+                            AddressPinNotice(
+                              onPin: () async {
+                                final pinned = await pinSavedAddressFlow(context, ref, address);
+                                if (pinned != null && mounted) ref.read(selectedAddressProvider.notifier).state = pinned;
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -137,9 +153,23 @@ class _CheckoutAddressScreenState extends ConsumerState<CheckoutAddressScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: ElevatedButton(
-            onPressed: selected == null ? null : () => context.push('/user/checkout/payment'),
-            child: Text(context.l10n.checkoutDeliverHere),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The server prices delivery from the pin and refuses an
+              // address without one, so checkout doesn't go on without it.
+              if (selected != null && !selected.hasValidPin) ...[
+                Text(context.l10n.checkoutAddressNeedsPin, style: TextStyle(color: palette.error, fontWeight: FontWeight.w600, fontSize: 12.5)),
+                const SizedBox(height: 8),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: canDeliverHere ? () => context.push('/user/checkout/payment') : null,
+                  child: Text(context.l10n.checkoutDeliverHere),
+                ),
+              ),
+            ],
           ),
         ),
       ),

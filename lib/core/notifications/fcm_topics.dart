@@ -10,6 +10,7 @@ import '../../data/models/territory.dart';
 import '../../data/providers/firestore_territories_provider.dart';
 import '../../data/providers/territory_cache.dart';
 import '../../features/user/home/selected_territory_provider.dart';
+import '../dev/firebase_emulators.dart';
 import '../session/session_controller.dart';
 
 /// FCM topic wiring for the territory-scoped push notification feature
@@ -53,6 +54,8 @@ final _unsafeTopicChars = RegExp(r'[^a-zA-Z0-9\-_.~%]');
 String sanitizeTopicSegment(String s) => s.replaceAll(_unsafeTopicChars, '_');
 
 Future<void> subscribeToTopic(String topic) async {
+  // No FCM emulator exists: an emulator build never registers with FCM.
+  if (usingFirebaseEmulators) return;
   try {
     await FirebaseMessaging.instance.subscribeToTopic(topic);
   } catch (e, st) {
@@ -61,6 +64,7 @@ Future<void> subscribeToTopic(String topic) async {
 }
 
 Future<void> unsubscribeFromTopic(String topic) async {
+  if (usingFirebaseEmulators) return;
   try {
     await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
   } catch (e, st) {
@@ -151,6 +155,8 @@ Future<void> _registerToken(String? token) async {
 /// On sign-out deletes the token on the device, so nothing more is
 /// delivered to it; the server drops the dead token on its next send.
 void listenForDeviceTokenSync(WidgetRef ref) {
+  // No FCM emulator: an emulator build never fetches or files a token.
+  if (usingFirebaseEmulators) return;
   ref.listen<String?>(currentAccountIdProvider, (previous, next) async {
     if (previous == next) return;
     if (previous != null) {

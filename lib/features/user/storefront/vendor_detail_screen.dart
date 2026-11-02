@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/coupon.dart';
 import '../../../data/models/product.dart';
 import '../../../data/providers/cart_provider.dart';
 import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_categories_provider.dart';
+import '../../../data/providers/firestore_territories_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_products_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
@@ -175,8 +177,16 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
     }
   }
 
+  /// Open, and its category not switched off in its territory by the
+  /// Manager — the only shops the server takes an order for.
+  bool get _canOrder {
+    final vendor = widget.account;
+    final territory = ref.read(firestoreTerritoriesProvider).valueOrNull?.where((t) => t.id == vendor.territoryId).firstOrNull;
+    return vendor.isOpen && vendorCategoryEnabled(vendor, territory);
+  }
+
   Future<void> _addToCart(Product product) async {
-    if (!widget.account.isOpen) return;
+    if (!_canOrder) return;
     final notifier = ref.read(cartProvider.notifier);
     final added = notifier.addItem(
       product,
@@ -250,7 +260,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
     backgroundColor: Colors.transparent,
     builder: (_) => _ProductDetailsSheet(
       product: product,
-      vendorClosed: !widget.account.isOpen,
+      vendorClosed: !_canOrder,
       onAdd: () => _addToCart(product),
     ),
   );
@@ -260,6 +270,9 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
     final palette = context.colors;
     final cart = ref.watch(cartProvider);
     final account = widget.account;
+    final territory = ref.watch(firestoreTerritoriesProvider).valueOrNull?.where((t) => t.id == account.territoryId).firstOrNull;
+    final categoryOff = !vendorCategoryEnabled(account, territory);
+    final canOrder = account.isOpen && !categoryOff;
     final categoriesAsync = ref.watch(activeCategoriesProvider);
     // Matches on the category's display name too, not just its id — a
     // vendor's `category` field can hold either depending on when/how it
@@ -377,9 +390,11 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                       children: [
                         _InfoStat(
                           icon: Icons.moped_outlined,
-                          label: AppFormat.currency(
-                            UserConstants.defaultDeliveryFee,
-                          ),
+                          // The real fee depends on the road distance to the drop-off
+                          // (priced by the server at checkout); this is the lowest slab.
+                          label: context.l10n.deliveryFeeFrom(AppFormat.currency(
+                            (ref.watch(pricingRatesProvider)?.lowestDeliveryFeePaise ?? 2000) / 100,
+                          )),
                         ),
                         _VerticalDivider(),
                         eta != null
@@ -413,7 +428,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                       ],
                     ),
                   ),
-                  if (!account.isOpen) ...[
+                  if (!canOrder) ...[
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
@@ -438,7 +453,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              context.l10n.storefrontClosedMessage,
+                              categoryOff ? context.l10n.storefrontCategoryUnavailable : context.l10n.storefrontClosedMessage,
                               style: TextStyle(
                                 color: palette.error,
                                 fontWeight: FontWeight.w600,
@@ -450,7 +465,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                       ),
                     ),
                   ],
-                  if (account.isOpen && supportsListOrdering(account)) ...[
+                  if (canOrder && supportsListOrdering(account)) ...[
                     const SizedBox(height: 12),
                     InkWell(
                       borderRadius: BorderRadius.circular(16),
@@ -677,7 +692,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                         ref.read(cartProvider.notifier).increment(product.id),
                     onDecrement: () =>
                         ref.read(cartProvider.notifier).decrement(product.id),
-                    vendorClosed: !account.isOpen,
+                    vendorClosed: !canOrder,
                   );
                 },
               ),

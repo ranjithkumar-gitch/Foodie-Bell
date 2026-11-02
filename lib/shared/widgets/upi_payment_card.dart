@@ -120,11 +120,17 @@ class _UpiPaymentCardState extends State<UpiPaymentCard> {
             'The shop confirms your order after they see the money in their account.',
         palette.warning,
       ),
-      OrderPaymentStatus.verified => ('Payment confirmed by the shop', 'The shop has confirmed they received ${AppFormat.currency(_amount)}.', palette.success),
+      OrderPaymentStatus.verified => ('Payment received', 'The shop has confirmed they received ${AppFormat.currency(_amount)}.', palette.success),
       OrderPaymentStatus.disputed => ('Payment under review', 'Your territory manager is checking this payment.${order.payment?.issueReason == null ? '' : ' (${order.payment!.issueReason})'}', palette.error),
       OrderPaymentStatus.failed => ('Payment not received', 'The shop did not receive this payment, so the order was cancelled.', palette.error),
-      OrderPaymentStatus.refundDue => ('Refund due', 'The shop owes you ${AppFormat.currency(_amount)} back. It will be returned to your UPI account.', palette.warning),
-      OrderPaymentStatus.refunded => ('Refunded', 'The shop has returned your payment.', palette.success),
+      // Owed is not done: nothing has been returned until the status says so.
+      OrderPaymentStatus.refundDue => (
+        'Refund owed',
+        'The shop received ${AppFormat.currency(_amount)} for this order and owes it back to your UPI account. '
+            'When the shop records it, you\'ll be asked to confirm it arrived; only then is it marked confirmed.',
+        palette.warning,
+      ),
+      OrderPaymentStatus.refunded => ('Refund confirmed', 'The return of your payment has been confirmed.', palette.success),
       _ => ('UPI payment', '', palette.textSecondary),
     };
     final awaiting = status == OrderPaymentStatus.awaitingVerification;

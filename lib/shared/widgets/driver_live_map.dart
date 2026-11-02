@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../core/maps/maps_availability.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -270,7 +271,7 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
         _lastRoute = null;
       }
       final fetched = ref
-          .watch(roadRouteProvider(roadRouteRequest(from: reported, to: destination, via: via)))
+          .watch(roadRouteProvider(orderRouteRequest(order.id, pickedUp ? 'dropoff' : 'pickup')))
           .valueOrNull;
       if (fetched != null) _lastRoute = fetched;
       route = _lastRoute;
@@ -297,8 +298,8 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
 
     // The road line as drawn: starting exactly at the Driver's marker, with
     // the stretch they've already covered dropped. Google's route starts at
-    // the lookup origin, which is snapped to a ~100 m grid
-    // (`roadRouteRequest`), so drawn as-is it began up to ~100 m away from
+    // the lookup origin, which `orderRoute` snaps to a ~110 m grid
+    // server-side, so drawn as-is it began up to ~110 m away from
     // the marker and kept the road behind them on screen.
     final routeLine = route != null && route.points.length > 1 && shown != null
         ? _lineFromDriver(shown, route.points)
@@ -325,7 +326,7 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     final map = SizedBox(
       height: widget.height,
       width: double.infinity,
-      child: IgnorePointer(
+      child: MapsGate(child: IgnorePointer(
         ignoring: !widget.interactive,
         child: GoogleMap(
           initialCameraPosition: CameraPosition(target: focus.first, zoom: 15),
@@ -410,7 +411,7 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
           mapToolbarEnabled: false,
           compassEnabled: false,
         ),
-      ),
+      )),
     );
 
     final overlaid = Stack(

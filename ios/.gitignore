@@ -1,0 +1,53 @@
+# Flutter's standard iOS ignores: generated, per-machine or build output.
+**/dgph
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+**/*sync/
+.sconsign.dblite
+.tags*
+**/.vagrant/
+**/DerivedData/
+Icon?
+**/Pods/
+**/.symlinks/
+profile
+xcuserdata
+*.xcuserstate
+**/.generated/
+Flutter/App.framework
+Flutter/Flutter.framework
+Flutter/Flutter.podspec
+Flutter/Generated.xcconfig
+Flutter/ephemeral/
+Flutter/app.flx
+Flutter/app.zip
+Flutter/flutter_assets/
+Flutter/flutter_export_environment.sh
+ServiceDefinitions.json
+Runner/GeneratedPluginRegistrant.*
+build/
+.DS_Store
+
+# Exceptions to above rules.
+!default.mode1v3
+!default.mode2v3
+!default.pbxuser
+!default.perspectivev3
+
+# Local secrets: the Google Maps key (template: Flutter/Secrets.xcconfig.example).
+Flutter/Secrets.xcconfig
+
+# Signing material and exported builds — never committed.
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.p8
+*.cer
+*.certSigningRequest
+*.ipa
+*.dSYM
+*.dSYM.zip
+ExportOptions*.plist

@@ -260,7 +260,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           (a) =>
               a.status == AccountStatus.active &&
               (selectedTerritory == null ||
-                  a.territoryId == selectedTerritory.id),
+                  a.territoryId == selectedTerritory.id) &&
+              vendorCategoryEnabled(a, selectedTerritory),
         )
         .map((a) => a.id)
         .toSet();
@@ -948,6 +949,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 selectedTerritory == null ||
                                 a.territory == selectedTerritory.name,
                           )
+                          // A category the territory's Manager switched off
+                          // shows no shops, even under "All".
+                          .where((a) => vendorCategoryEnabled(a, selectedTerritory))
                           .toList();
                       final territoryVendors = applyQuickFilters(
                         unfilteredVendors,

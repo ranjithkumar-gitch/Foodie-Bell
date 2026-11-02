@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,14 +6,18 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../data/providers/earnings_provider.dart';
+import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
+import '../../../data/providers/settlement_provider.dart';
+import '../../../data/providers/vendor_incidents_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
-import '../../../shared/widgets/mock_map_view.dart';
 import '../manager_session.dart';
 
-/// Manager Dashboard (spec §7.6): territory overview map, active
-/// vendors/drivers count, today's GMV, today's rebate pool, and an
-/// orders/day trend chart — plus quick-action links into every other
+/// Manager Dashboard (spec §7.6; Phase I.5 §5.1): the signed-in Manager's
+/// own business only — their shops, their orders today, completed and
+/// pending, their commission, what's owed to them, their unsettled days and
+/// their shops' cancellations to review — plus the territory's shop count
+/// (a directory figure, not money) — and quick-action links into every other
 /// Manager screen (Vendor/Driver Management already have rail tabs; the
 /// rest — Settlement History, Territory Earnings, Marketing Tracker,
 /// Promotion Approvals, Order Oversight, Support — only have entry points
@@ -36,19 +39,29 @@ class ManagerDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final managerAccount = ref.watch(currentManagerAccountProvider);
-    // Both providers are already scoped to this Manager's territory ID.
+    // Phase I.5: `firestoreVendorsProvider` is this Manager's own shops; the
+    // directory is the whole territory (a count only, never money).
     final vendors = ref.watch(firestoreVendorsProvider).valueOrNull ?? const [];
+    final territoryVendors = ref.watch(territoryVendorDirectoryProvider).valueOrNull ?? const [];
     final territoryDrivers = ref.watch(firestoreDriversProvider).valueOrNull ?? const [];
     final activeDrivers = territoryDrivers.where((a) => a.status == AccountStatus.active).length;
     final hasVendor = vendors.isNotEmpty;
     final hasDriver = territoryDrivers.isNotEmpty;
 
-    // Today's delivered value and the Manager's share of today's commission,
-    // from the server's territory figures for the settlement day — no
-    // order downloads.
-    final todayStats = ref.watch(territoryTodayStatsProvider).valueOrNull ?? const TerritoryDayStats({});
-    final gmvToday = todayStats.itemValue;
-    final managerEarningsToday = todayStats.managerShare;
+    // Every financial figure is this Manager's own — their shops' orders,
+    // their statements — never another Manager's (Phase I.5).
+    final today = ref.watch(managerTodayEarningsProvider).valueOrNull ?? const EarningsFigures({});
+    final ordersToday = ref.watch(todaysOrdersProvider).valueOrNull ?? const [];
+    final pending = ref.watch(activeOrdersProvider).valueOrNull ?? const [];
+    final statements = ref.watch(territoryStatementsProvider).valueOrNull ?? const <SettlementStatement>[];
+    final me = managerAccount.id.isEmpty ? null : partyKeyFor(AppRole.manager, managerAccount.id);
+    final latest = statements.firstOrNull;
+    final owedToMePaise = latest == null || me == null
+        ? 0
+        : latest.obligations.where((o) => o.to == me && o.outstandingPaise > 0).fold<int>(0, (a, o) => a + o.outstandingPaise);
+    final unsettledDays = statements.where((s) => s.status != SettlementStatus.completed).length;
+    final incidents = ref.watch(territoryIncidentsProvider).valueOrNull ?? const [];
+    final needReview = incidents.where((i) => i.reviewFlags.isNotEmpty).length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Manager Dashboard')),
@@ -60,8 +73,6 @@ class ManagerDashboardScreen extends ConsumerWidget {
           Text(managerAccount.territory ?? '—', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 4),
           Text('Manager code: ${managerAccount.managerCode ?? '—'}', style: TextStyle(color: palette.textSecondary, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 16),
-          MockMapView(height: 180, borderRadius: BorderRadius.circular(16)),
           const SizedBox(height: 20),
           GridView.count(
             shrinkWrap: true,
@@ -71,18 +82,18 @@ class ManagerDashboardScreen extends ConsumerWidget {
             crossAxisSpacing: 14,
             childAspectRatio: 1.7,
             children: [
-              _KpiCard(label: 'Active Vendors', value: '${vendors.length}', onTap: () => context.go('/manager/vendors')),
+              _KpiCard(label: 'My vendors', value: '${vendors.length}', onTap: () => context.go('/manager/vendors')),
+              _KpiCard(label: 'Territory vendors', value: '${territoryVendors.length}', onTap: () => context.go('/manager/vendors')),
+              _KpiCard(label: 'My orders today', value: '${ordersToday.length}'),
+              _KpiCard(label: 'My completed today', value: '${today.orders}'),
+              _KpiCard(label: 'My pending orders', value: '${pending.length}'),
+              _KpiCard(label: 'My commission today', value: AppFormat.currency(today.earnings)),
+              _KpiCard(label: 'Owed to me', value: AppFormat.currency(owedToMePaise / 100)),
+              _KpiCard(label: 'My unsettled days', value: '$unsettledDays'),
+              _KpiCard(label: 'Cancellations to review', value: '$needReview'),
               _KpiCard(label: 'Active Drivers', value: '$activeDrivers', onTap: () => context.go('/manager/drivers')),
-              _KpiCard(label: "Today's GMV", value: AppFormat.currency(gmvToday)),
-              _KpiCard(label: 'Your earnings today', value: AppFormat.currency(managerEarningsToday)),
             ],
           ),
-          const SizedBox(height: 28),
-          Text('Orders / day trend (7 days)', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 6),
-          Text('Illustrative demo trend', style: TextStyle(color: palette.textMuted, fontSize: 11.5)),
-          const SizedBox(height: 16),
-          SizedBox(height: 200, child: _OrdersTrendChart(palette: palette)),
           const SizedBox(height: 28),
           Text('Quick actions', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 14),
@@ -208,53 +219,10 @@ class _KpiCard extends StatelessWidget {
   }
 }
 
-class _OrdersTrendChart extends StatelessWidget {
-  const _OrdersTrendChart({required this.palette});
-  final AppPalette palette;
-
-  static const _ordersByDay = [18.0, 24.0, 21.0, 30.0, 27.0, 35.0, 32.0];
-
-  @override
-  Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 40,
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(days[value.toInt()], style: TextStyle(fontSize: 11, color: palette.textMuted)),
-                );
-              },
-            ),
-          ),
-        ),
-        barGroups: [
-          for (var i = 0; i < _ordersByDay.length; i++)
-            BarChartGroupData(x: i, barRods: [
-              BarChartRodData(toY: _ordersByDay[i], color: palette.primary, width: 20, borderRadius: BorderRadius.circular(6)),
-            ]),
-        ],
-      ),
-    );
-  }
-}
-
 class _QuickActionsGrid extends StatelessWidget {
   static const _actions = [
     (icon: Icons.receipt_long_rounded, label: 'Settlement History', path: '/manager/settlement/history'),
     (icon: Icons.trending_up_rounded, label: 'Territory Earnings', path: '/manager/reports/earnings'),
-    (icon: Icons.campaign_outlined, label: 'Marketing Tracker', path: '/manager/marketing'),
     (icon: Icons.local_offer_outlined, label: 'Promotion Approvals', path: '/manager/promotions'),
     (icon: Icons.delivery_dining_rounded, label: 'Order Oversight', path: '/manager/orders'),
     (icon: Icons.support_agent_rounded, label: 'Help & Support', path: '/manager/support'),

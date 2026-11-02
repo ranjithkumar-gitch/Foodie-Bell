@@ -6,6 +6,7 @@ import '../../core/session/access_scope.dart';
 import '../../features/user/home/selected_territory_provider.dart';
 import '../models/account.dart';
 import '../models/promotion.dart';
+import 'firestore_vendors_provider.dart';
 
 /// Vendor promotion requests — one flat `promotions` collection, same
 /// pattern as `orders`/`products`. Every role's screen filters this
@@ -97,12 +98,19 @@ final firestorePromotionsProvider = StreamProvider<List<Promotion>>((ref) {
           .where('status', isEqualTo: PromotionStatus.active.name)
           .where('territoryId', isEqualTo: territoryId));
   final territoryId = scope.territoryId;
+  final myShops = scope.role == AppRole.manager
+      ? {for (final v in ref.watch(firestoreVendorsProvider).valueOrNull ?? const <Account>[]) v.id}
+      : const <String>{};
   return switch (scope.role) {
     AppRole.user => liveIn(ref.watch(browsingTerritoryIdProvider)),
     AppRole.driver => liveIn(territoryId),
     AppRole.vendor => run(promotionsCollection.where('vendorId', isEqualTo: scope.accountId)),
-    // Every request in the territory, live ones included.
-    AppRole.manager => territoryId == null ? Stream.value(const []) : run(promotionsCollection.where('territoryId', isEqualTo: territoryId)),
+    // The requests of the Manager's own shops (Phase I.5: only a shop's own
+    // Manager reviews them), live ones included.
+    AppRole.manager => territoryId == null
+        ? Stream.value(const [])
+        : run(promotionsCollection.where('territoryId', isEqualTo: territoryId))
+            .map((list) => list.where((p) => myShops.contains(p.vendorId)).toList()),
     AppRole.admin => Stream.value(const []),
   };
 });

@@ -105,13 +105,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pricePlatformFee => 'Platform fee';
 
   @override
-  String get priceGst => 'GST';
-
-  @override
   String get priceCouponDiscount => 'Coupon discount';
 
   @override
   String get priceTotal => 'Total';
+
+  @override
+  String get itemPricesInclusiveOfTaxes =>
+      'Item prices are inclusive of applicable taxes.';
+
+  @override
+  String get pricesInclusiveOfTaxes => 'Prices inclusive of applicable taxes.';
+
+  @override
+  String get priceLegacyTax => 'Taxes (charged on this earlier order)';
 
   @override
   String get actionChange => 'Change';
@@ -369,11 +376,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invoiceTitle => 'Invoice';
 
   @override
-  String invoiceHsnGst(Object hsn, Object rate) {
-    return 'HSN $hsn · GST $rate%';
-  }
-
-  @override
   String get invoicePaymentMethodLabel => 'Payment method';
 
   @override
@@ -454,6 +456,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get storefrontClosedMessage =>
       'This vendor is currently closed and not accepting orders.';
+
+  @override
+  String get storefrontCategoryUnavailable =>
+      'This shop\'s category isn\'t available in your area right now, so it can\'t take orders here.';
 
   @override
   String get storefrontNoProductsYet => 'No products yet';
@@ -614,6 +620,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addAddressSaveButton => 'Save Address';
 
   @override
+  String get addAddressPinHeading => 'Delivery location';
+
+  @override
+  String get addAddressPinRequired =>
+      'Pin the exact delivery location on the map before saving.';
+
+  @override
+  String get addAddressPinFromAddress => 'Find the address above on the map';
+
+  @override
+  String get addAddressPinConfirmed => 'Location pinned on the map';
+
+  @override
+  String get addAddressPinChange => 'Adjust pin';
+
+  @override
+  String get addAddressPinNotFound =>
+      'We couldn\'t find that address on the map. Check it, or use your current location.';
+
+  @override
+  String get pinScreenTitle => 'Confirm delivery location';
+
+  @override
+  String get pinScreenHint => 'Move the map so the pin sits on the entrance.';
+
+  @override
+  String get pinScreenConfirm => 'Confirm this location';
+
+  @override
+  String get addressNotPinned =>
+      'Not pinned on the map yet. Pin it to get deliveries here.';
+
+  @override
+  String get addressPinThis => 'Pin this address';
+
+  @override
+  String get addressPinNotFoundTitle =>
+      'Couldn\'t find this address on the map';
+
+  @override
+  String get addressPinNotFoundBody =>
+      'Start from where your phone is now instead? You\'ll still move the pin to the exact spot and confirm it.';
+
+  @override
+  String get addressPinUseMyLocation => 'Start from my location';
+
+  @override
+  String get addressPinNotNow => 'Not now';
+
+  @override
+  String get addressPinNoLocation =>
+      'We couldn\'t read your location. Turn on location (GPS) and allow it, then try again.';
+
+  @override
+  String get addressPinSaved => 'Address pinned.';
+
+  @override
+  String get checkoutAddressNeedsPin =>
+      'Pin this address on the map before ordering.';
+
+  @override
+  String get cartItemsTotal => 'Items total';
+
+  @override
+  String get cartFeesAtCheckout =>
+      'The delivery fee (by distance) and any platform fee are added at checkout.';
+
+  @override
+  String deliveryFeeFrom(Object amount) {
+    return 'From $amount';
+  }
+
+  @override
   String get addAddressUseCurrentLocation => 'Use my current location';
 
   @override
@@ -771,7 +850,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpFaq2A =>
-      'Refunds for cancelled orders are credited to your in-app Wallet automatically, usually within a few minutes.';
+      'Cash orders that are cancelled are never charged. If you paid a shop by UPI and the order is cancelled or rejected, the shop returns the money to your UPI account; you can follow it under Profile → Refunds.';
 
   @override
   String get helpFaq3Q => 'Can I change my delivery address after ordering?';
@@ -853,6 +932,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletScreenTitle => 'Wallet & Refunds';
+
+  @override
+  String get refundsTitle => 'Refunds';
+
+  @override
+  String get refundsEmptyTitle => 'No refunds';
+
+  @override
+  String get refundsExplainer =>
+      'If you paid a shop by UPI and the order was then cancelled or rejected, the shop owes you that money back to your UPI account. Those orders and their status show here.';
 
   @override
   String get walletBalanceLabel => 'Wallet balance';
@@ -1027,4 +1116,330 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0 · $total';
   }
+
+  @override
+  String get reasonItemsUnavailable => 'Items not available';
+
+  @override
+  String get reasonShopClosingSoon => 'Shop closing soon';
+
+  @override
+  String get reasonTooBusy => 'Too busy right now';
+
+  @override
+  String get reasonCannotPrepareInTime => 'Can\'t prepare in time';
+
+  @override
+  String get reasonOutsideServiceArea => 'Outside my delivery area';
+
+  @override
+  String get reasonOther => 'Other';
+
+  @override
+  String get reasonItemsOutOfStockAfterAccept =>
+      'Items ran out after accepting';
+
+  @override
+  String get reasonEquipmentFailure => 'Equipment failure';
+
+  @override
+  String get reasonStaffUnavailable => 'Staff unavailable';
+
+  @override
+  String get reasonQualityIssue => 'Quality problem with the items';
+
+  @override
+  String get reasonCustomerRequestedViaShop =>
+      'Customer asked the shop to cancel';
+
+  @override
+  String get reasonPricingError => 'Pricing mistake';
+
+  @override
+  String get reasonEmergencyClosure => 'Emergency closure';
+
+  @override
+  String get vendorAcceptConfirmTitle => 'Confirm you have every item';
+
+  @override
+  String get vendorAcceptConfirmCheckbox =>
+      'I have all of these items and can prepare this order.';
+
+  @override
+  String get vendorAcceptButton => 'Accept order';
+
+  @override
+  String get vendorRejectTitle => 'Why can\'t you take this order?';
+
+  @override
+  String get vendorRejectNote =>
+      'Not accepting an order is fine. It isn\'t counted as a cancellation and there\'s no charge.';
+
+  @override
+  String get vendorRejectButton => 'Reject order';
+
+  @override
+  String get remarkOptional => 'Remark (optional)';
+
+  @override
+  String get remarkRequired => 'Remark (required)';
+
+  @override
+  String get vendorOrdersPausedTitle => 'Your shop can\'t take new orders';
+
+  @override
+  String get vendorNoManagerBody =>
+      'No Manager is assigned to your shop yet. Quicky will assign one; until then new orders are paused.';
+
+  @override
+  String get vendorManagerInactiveBody =>
+      'Your Manager isn\'t active right now. Quicky is sorting this out. You can still see your account and decline orders, but new orders are paused.';
+
+  @override
+  String get vendorCancelButton => 'Cancel accepted order';
+
+  @override
+  String get vendorCancelTitle => 'Cancel this accepted order?';
+
+  @override
+  String get vendorCancelWarning =>
+      'This counts as a cancellation after accepting. Your Manager will see it.';
+
+  @override
+  String vendorCancelChargeNoDriver(Object amount, Object percent, Object fee) {
+    return 'Cancellation charge: $amount ($percent% of the $fee delivery fee, no driver assigned).';
+  }
+
+  @override
+  String vendorCancelChargeWithDriver(
+    Object amount,
+    Object percent,
+    Object fee,
+    Object driverAmount,
+  ) {
+    return 'Cancellation charge: $amount ($percent% of the $fee delivery fee, a driver is assigned). $driverAmount of it goes to the driver.';
+  }
+
+  @override
+  String get vendorCancelNoCharge =>
+      'No cancellation charge applies to this order.';
+
+  @override
+  String vendorCancelRefundOwed(Object amount) {
+    return 'You also owe the customer a $amount refund for their UPI payment.';
+  }
+
+  @override
+  String get vendorCancelUpiBlocked =>
+      'Cancelling a UPI-paid order isn\'t available yet. Please contact your Manager about this order.';
+
+  @override
+  String get vendorCancelRemarkHint =>
+      'What happened? (at least 15 characters)';
+
+  @override
+  String get vendorCancelRemarkTooShort =>
+      'Please describe what happened in at least 15 characters.';
+
+  @override
+  String get vendorCancelConfirm => 'Cancel order and accept the charge';
+
+  @override
+  String get vendorCancelConfirmNoCharge => 'Cancel order';
+
+  @override
+  String get vendorCancelChargeChanged =>
+      'The charge changed (a driver was assigned or released). Please review the new amount.';
+
+  @override
+  String get vendorCancelDone => 'Order cancelled.';
+
+  @override
+  String get vendorCancellationCharges => 'Cancellation charges';
+
+  @override
+  String get orderCancelledByShop =>
+      'The shop cancelled this order after accepting it.';
+
+  @override
+  String get driverCancellationComp => 'Cancellation compensation';
+
+  @override
+  String get chooseReason => 'Choose a reason.';
+
+  @override
+  String get cancelChargesCharged => 'Charged';
+
+  @override
+  String get cancelChargesPaid => 'Paid (confirmed)';
+
+  @override
+  String get cancelChargesOwed => 'Still owed';
+
+  @override
+  String get cancelChargesReversed => 'Reversed';
+
+  @override
+  String get cancelChargesWaived => 'Waived (was unpaid)';
+
+  @override
+  String get cancelRefundDue => 'Refund owed to you';
+
+  @override
+  String get cancelRefunded => 'Refunded to you';
+
+  @override
+  String get cancelRefundPending => 'Refund awaiting your confirmation';
+
+  @override
+  String get cancelChargesNone => 'No cancellation charges.';
+
+  @override
+  String get cancelChargesNote =>
+      'Charged when you cancel an order after accepting it. Kept separate from your earnings.';
+
+  @override
+  String get driverCompEarned => 'Earned';
+
+  @override
+  String get driverCompPaid => 'Paid (confirmed)';
+
+  @override
+  String get driverCompPending => 'Pending';
+
+  @override
+  String get driverCompNone => 'No cancellation compensation yet.';
+
+  @override
+  String get driverCompNote =>
+      'Paid when a shop cancels an order you were assigned. Kept separate from delivery fees.';
+
+  @override
+  String orderCancelledReason(Object reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String get refundCardTitle => 'Your refund';
+
+  @override
+  String get refundStatusDue => 'Refund owed';
+
+  @override
+  String get refundStatusAwaiting => 'Refund initiated — awaiting confirmation';
+
+  @override
+  String get refundStatusDisputed => 'Refund disputed';
+
+  @override
+  String get refundStatusReview => 'Review required';
+
+  @override
+  String get refundStatusConfirmed => 'Refund confirmed';
+
+  @override
+  String refundOwedToYou(Object amount) {
+    return 'Owed to you: $amount';
+  }
+
+  @override
+  String refundFromShop(Object shop) {
+    return 'From $shop';
+  }
+
+  @override
+  String refundReturnedSoFar(Object amount) {
+    return '$amount returned so far.';
+  }
+
+  @override
+  String get refundToOriginal => 'Refund to: the UPI account you paid from';
+
+  @override
+  String refundToUpi(Object upiId) {
+    return 'Refund to: $upiId';
+  }
+
+  @override
+  String get refundChangeUpi => 'Refund to a different UPI ID';
+
+  @override
+  String get refundUpiDialogTitle => 'UPI ID for your refund';
+
+  @override
+  String get refundUpiHint => 'name@bank';
+
+  @override
+  String get refundSave => 'Save';
+
+  @override
+  String get refundCancel => 'Cancel';
+
+  @override
+  String get refundSubmit => 'Submit';
+
+  @override
+  String get refundWaitingShop => 'The shop hasn\'t sent this refund yet.';
+
+  @override
+  String get refundPayerShop => 'The shop';
+
+  @override
+  String get refundPayerQuicky => 'Quicky';
+
+  @override
+  String refundSentClaim(
+    Object payer,
+    Object amount,
+    Object date,
+    Object reference,
+  ) {
+    return '$payer says it sent $amount on $date (UPI ref $reference). Did you receive it?';
+  }
+
+  @override
+  String get refundReceived => 'I received it';
+
+  @override
+  String get refundNotReceived => 'Not received';
+
+  @override
+  String get refundDifferentAmount => 'Different amount';
+
+  @override
+  String get refundDifferentAmountTitle => 'How much did you receive?';
+
+  @override
+  String get refundAmountReceivedLabel => 'Amount received (₹)';
+
+  @override
+  String get refundNoteLabel => 'Note (optional)';
+
+  @override
+  String get refundNotReceivedTitle => 'Refund not received?';
+
+  @override
+  String get refundNotReceivedBody =>
+      'Quicky will review it with the shop. Add anything that helps.';
+
+  @override
+  String get refundDisputedNote =>
+      'You reported this refund didn\'t arrive as recorded. Quicky is reviewing it.';
+
+  @override
+  String get refundReviewNote => 'Quicky is reviewing this refund.';
+
+  @override
+  String refundConfirmedNote(Object amount) {
+    return 'Refund confirmed: $amount returned.';
+  }
+
+  @override
+  String get refundLoadError => 'Couldn\'t load the refund.';
+
+  @override
+  String get refundRetry => 'Retry';
+
+  @override
+  String get refundThanks => 'Thanks — we\'ve recorded your answer.';
 }

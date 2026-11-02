@@ -1,1 +1,11 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
+// GMS_API_KEY (Google Maps SDK for iOS): local only, git-ignored.
+#include? "Secrets.xcconfig"
+
+// Local test build: never bundle GoogleService-Info.plist (the real
+// project), so Firebase isn't configured natively before Dart picks the
+// target (lib/core/dev/firebase_target.dart) — and no FCM token is fetched
+// at start-up. Release keeps both.
+EXCLUDED_SOURCE_FILE_NAMES = $(inherited) GoogleService-Info.plist
+FIREBASE_MESSAGING_AUTO_INIT_ENABLED = NO

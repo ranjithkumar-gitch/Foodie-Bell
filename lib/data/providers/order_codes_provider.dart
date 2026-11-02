@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firestore_orders_provider.dart';
+import '../../core/release/app_build.dart';
 
 /// Pickup and delivery codes. The server generates them when an order is
 /// placed (`createOrderCodes` in QuickyAdmin's `functions/index.js`) and
@@ -26,6 +27,24 @@ final orderDeliveryCodeProvider = StreamProvider.family<String?, String>((ref, o
   return _codeDoc(orderId, 'delivery').snapshots().map((doc) => doc.data()?['code'] as String?);
 });
 
+/// The shop's pickup contact for the order's assigned Driver (Phase I.5):
+/// written by the server when the Driver claims the delivery
+/// (`orders/{id}/codes/pickup`), because the full vendor record — phone,
+/// address — is no longer readable by drivers. Null until claimed.
+class PickupContact {
+  const PickupContact({this.phone, this.address});
+  final String? phone;
+  final String? address;
+}
+
+final orderPickupContactProvider = StreamProvider.family<PickupContact?, String>((ref, orderId) {
+  return _codeDoc(orderId, 'pickup').snapshots().map((doc) {
+    final data = doc.data();
+    if (data == null) return null;
+    return PickupContact(phone: data['vendorPhone'] as String?, address: data['vendorAddress'] as String?);
+  });
+});
+
 /// The server's verdict on a code a Driver typed in.
 class CodeCheck {
   const CodeCheck({required this.ok, this.attemptsLeft});
@@ -38,7 +57,7 @@ class CodeCheck {
 final _functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
 
 Future<CodeCheck> _confirm(String callable, String orderId, String code) async {
-  final result = await _functions.httpsCallable(callable).call<Map<String, dynamic>>({'orderId': orderId, 'code': code});
+  final result = await _functions.httpsCallable(callable).call<Map<String, dynamic>>(withClientBuild({'orderId': orderId, 'code': code}));
   final data = Map<String, dynamic>.from(result.data);
   return CodeCheck(ok: data['ok'] == true, attemptsLeft: (data['attemptsLeft'] as num?)?.toInt());
 }

@@ -73,6 +73,13 @@ The fee is never accepted from the client. Idempotency (one order per key) means
 
 ## 6. Customer checkout and invoice (Foodie-Bell)
 
+> **Update 2026-10-31 (Phase I.4.3, tax-inclusive pricing):**
+> - Catalogue prices are the vendor's final selling prices, inclusive of applicable taxes, and Quicky adds no item GST.
+> - The invoice, checkout and cart show no GST line, and say "Item prices are inclusive of applicable taxes." (cart: "Prices inclusive of applicable taxes.").
+> - The platform fee is still its own line.
+>
+> See QuickyAdmin `PHASE_I4_3_TAX_INCLUSIVE_PRICING_REPORT.md`.
+
 | Screen | Change |
 |---|---|
 | Checkout (`checkout_payment_screen.dart`) | A separate **"Platform fee"** line from the server quote, shown before the customer confirms; the total includes it. The shown total is sent as `expectedTotalPaise`; if it changed, checkout shows the error and fetches a new quote. |

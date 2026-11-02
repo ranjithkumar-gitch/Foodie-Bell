@@ -8,28 +8,15 @@ import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../manager_session.dart';
 
-/// Territory Categories — a Manager turning categories on/off for their own
-/// territory, on top of (never overriding) Admin's own global active/
-/// inactive call on each [Category]. A category turned off here stops
-/// showing on User Home for this territory specifically
-/// (`categoriesForTerritory`, `home_screen.dart`) and drops out of this
-/// Manager's own "Add Vendor" category picker
-/// (`manager_vendor_create_screen.dart`) — every other territory is
-/// unaffected.
+/// Territory Categories — which categories are available in the Manager's
+/// territory (a category turned off stops showing on User Home there,
+/// `categoriesForTerritory`, and drops out of the "Add Vendor" picker).
+///
+/// Phase I.5.1: read-only. A territory can have several Managers, so its
+/// category settings are the Super Admin's; the rules refuse a Manager's
+/// change (`territories` update is Super Admin only).
 class ManagerCategoriesScreen extends ConsumerWidget {
   const ManagerCategoriesScreen({super.key});
-
-  Future<void> _toggle(BuildContext context, WidgetRef ref, {required String territoryId, required List<String> disabledCategoryIds, required String categoryId, required bool enabled}) async {
-    final next = enabled
-        ? disabledCategoryIds.where((id) => id != categoryId).toList()
-        : [...disabledCategoryIds, categoryId];
-    try {
-      await setTerritoryDisabledCategories(territoryId, next);
-    } catch (e, st) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e, action: 'Updating category', stackTrace: st))));
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -59,7 +46,8 @@ class ManagerCategoriesScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(20),
                 children: [
                   Text(
-                    'Turn a category off to hide it from User Home in ${territory.name} only — every other territory keeps seeing it.',
+                    'Categories available in ${territory.name}. Only Quicky (the Super Admin) can turn a category on or off for the territory — contact Quicky to change one.',
+                    key: const Key('categoriesReadOnlyNotice'),
                     style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
                   ),
                   const SizedBox(height: 16),
@@ -67,20 +55,15 @@ class ManagerCategoriesScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                       decoration: BoxDecoration(color: palette.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: palette.border)),
+                      // Shown as a switch for familiarity, but disabled.
                       child: SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         secondary: Icon(category.icon, color: palette.primary),
                         title: Text(category.name, style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary)),
+                        subtitle: Text(territory.disabledCategoryIds.contains(category.id) ? 'Off in this territory' : 'Available'),
                         value: !territory.disabledCategoryIds.contains(category.id),
                         activeThumbColor: palette.primary,
-                        onChanged: (enabled) => _toggle(
-                          context,
-                          ref,
-                          territoryId: territory.id,
-                          disabledCategoryIds: territory.disabledCategoryIds,
-                          categoryId: category.id,
-                          enabled: enabled,
-                        ),
+                        onChanged: null,
                       ),
                     ),
                     const SizedBox(height: 10),

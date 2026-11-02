@@ -266,12 +266,6 @@ abstract class AppLocalizations {
   /// **'Platform fee'**
   String get pricePlatformFee;
 
-  /// No description provided for @priceGst.
-  ///
-  /// In en, this message translates to:
-  /// **'GST'**
-  String get priceGst;
-
   /// No description provided for @priceCouponDiscount.
   ///
   /// In en, this message translates to:
@@ -283,6 +277,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total'**
   String get priceTotal;
+
+  /// No description provided for @itemPricesInclusiveOfTaxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Item prices are inclusive of applicable taxes.'**
+  String get itemPricesInclusiveOfTaxes;
+
+  /// No description provided for @pricesInclusiveOfTaxes.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices inclusive of applicable taxes.'**
+  String get pricesInclusiveOfTaxes;
+
+  /// No description provided for @priceLegacyTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Taxes (charged on this earlier order)'**
+  String get priceLegacyTax;
 
   /// No description provided for @actionChange.
   ///
@@ -746,12 +758,6 @@ abstract class AppLocalizations {
   /// **'Invoice'**
   String get invoiceTitle;
 
-  /// No description provided for @invoiceHsnGst.
-  ///
-  /// In en, this message translates to:
-  /// **'HSN {hsn} · GST {rate}%'**
-  String invoiceHsnGst(Object hsn, Object rate);
-
   /// No description provided for @invoicePaymentMethodLabel.
   ///
   /// In en, this message translates to:
@@ -877,6 +883,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This vendor is currently closed and not accepting orders.'**
   String get storefrontClosedMessage;
+
+  /// No description provided for @storefrontCategoryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This shop\'s category isn\'t available in your area right now, so it can\'t take orders here.'**
+  String get storefrontCategoryUnavailable;
 
   /// No description provided for @storefrontNoProductsYet.
   ///
@@ -1172,6 +1184,132 @@ abstract class AppLocalizations {
   /// **'Save Address'**
   String get addAddressSaveButton;
 
+  /// No description provided for @addAddressPinHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery location'**
+  String get addAddressPinHeading;
+
+  /// No description provided for @addAddressPinRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin the exact delivery location on the map before saving.'**
+  String get addAddressPinRequired;
+
+  /// No description provided for @addAddressPinFromAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Find the address above on the map'**
+  String get addAddressPinFromAddress;
+
+  /// No description provided for @addAddressPinConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Location pinned on the map'**
+  String get addAddressPinConfirmed;
+
+  /// No description provided for @addAddressPinChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust pin'**
+  String get addAddressPinChange;
+
+  /// No description provided for @addAddressPinNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t find that address on the map. Check it, or use your current location.'**
+  String get addAddressPinNotFound;
+
+  /// No description provided for @pinScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm delivery location'**
+  String get pinScreenTitle;
+
+  /// No description provided for @pinScreenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the map so the pin sits on the entrance.'**
+  String get pinScreenHint;
+
+  /// No description provided for @pinScreenConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm this location'**
+  String get pinScreenConfirm;
+
+  /// No description provided for @addressNotPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Not pinned on the map yet. Pin it to get deliveries here.'**
+  String get addressNotPinned;
+
+  /// No description provided for @addressPinThis.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin this address'**
+  String get addressPinThis;
+
+  /// No description provided for @addressPinNotFoundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t find this address on the map'**
+  String get addressPinNotFoundTitle;
+
+  /// No description provided for @addressPinNotFoundBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from where your phone is now instead? You\'ll still move the pin to the exact spot and confirm it.'**
+  String get addressPinNotFoundBody;
+
+  /// No description provided for @addressPinUseMyLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from my location'**
+  String get addressPinUseMyLocation;
+
+  /// No description provided for @addressPinNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get addressPinNotNow;
+
+  /// No description provided for @addressPinNoLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t read your location. Turn on location (GPS) and allow it, then try again.'**
+  String get addressPinNoLocation;
+
+  /// No description provided for @addressPinSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Address pinned.'**
+  String get addressPinSaved;
+
+  /// No description provided for @checkoutAddressNeedsPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin this address on the map before ordering.'**
+  String get checkoutAddressNeedsPin;
+
+  /// No description provided for @cartItemsTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Items total'**
+  String get cartItemsTotal;
+
+  /// No description provided for @cartFeesAtCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'The delivery fee (by distance) and any platform fee are added at checkout.'**
+  String get cartFeesAtCheckout;
+
+  /// No description provided for @deliveryFeeFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From {amount}'**
+  String deliveryFeeFrom(Object amount);
+
   /// No description provided for @addAddressUseCurrentLocation.
   ///
   /// In en, this message translates to:
@@ -1445,7 +1583,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpFaq2A.
   ///
   /// In en, this message translates to:
-  /// **'Refunds for cancelled orders are credited to your in-app Wallet automatically, usually within a few minutes.'**
+  /// **'Cash orders that are cancelled are never charged. If you paid a shop by UPI and the order is cancelled or rejected, the shop returns the money to your UPI account; you can follow it under Profile → Refunds.'**
   String get helpFaq2A;
 
   /// No description provided for @helpFaq3Q.
@@ -1597,6 +1735,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wallet & Refunds'**
   String get walletScreenTitle;
+
+  /// No description provided for @refundsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunds'**
+  String get refundsTitle;
+
+  /// No description provided for @refundsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No refunds'**
+  String get refundsEmptyTitle;
+
+  /// No description provided for @refundsExplainer.
+  ///
+  /// In en, this message translates to:
+  /// **'If you paid a shop by UPI and the order was then cancelled or rejected, the shop owes you that money back to your UPI account. Those orders and their status show here.'**
+  String get refundsExplainer;
 
   /// No description provided for @walletBalanceLabel.
   ///
@@ -1867,6 +2023,574 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, one{{count} item} other{{count} items}} · {total}'**
   String homeTrackItemsSummary(int count, Object total);
+
+  /// No description provided for @reasonItemsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Items not available'**
+  String get reasonItemsUnavailable;
+
+  /// No description provided for @reasonShopClosingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop closing soon'**
+  String get reasonShopClosingSoon;
+
+  /// No description provided for @reasonTooBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Too busy right now'**
+  String get reasonTooBusy;
+
+  /// No description provided for @reasonCannotPrepareInTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t prepare in time'**
+  String get reasonCannotPrepareInTime;
+
+  /// No description provided for @reasonOutsideServiceArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside my delivery area'**
+  String get reasonOutsideServiceArea;
+
+  /// No description provided for @reasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get reasonOther;
+
+  /// No description provided for @reasonItemsOutOfStockAfterAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Items ran out after accepting'**
+  String get reasonItemsOutOfStockAfterAccept;
+
+  /// No description provided for @reasonEquipmentFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Equipment failure'**
+  String get reasonEquipmentFailure;
+
+  /// No description provided for @reasonStaffUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff unavailable'**
+  String get reasonStaffUnavailable;
+
+  /// No description provided for @reasonQualityIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality problem with the items'**
+  String get reasonQualityIssue;
+
+  /// No description provided for @reasonCustomerRequestedViaShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer asked the shop to cancel'**
+  String get reasonCustomerRequestedViaShop;
+
+  /// No description provided for @reasonPricingError.
+  ///
+  /// In en, this message translates to:
+  /// **'Pricing mistake'**
+  String get reasonPricingError;
+
+  /// No description provided for @reasonEmergencyClosure.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency closure'**
+  String get reasonEmergencyClosure;
+
+  /// No description provided for @vendorAcceptConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm you have every item'**
+  String get vendorAcceptConfirmTitle;
+
+  /// No description provided for @vendorAcceptConfirmCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'I have all of these items and can prepare this order.'**
+  String get vendorAcceptConfirmCheckbox;
+
+  /// No description provided for @vendorAcceptButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept order'**
+  String get vendorAcceptButton;
+
+  /// No description provided for @vendorRejectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Why can\'t you take this order?'**
+  String get vendorRejectTitle;
+
+  /// No description provided for @vendorRejectNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Not accepting an order is fine. It isn\'t counted as a cancellation and there\'s no charge.'**
+  String get vendorRejectNote;
+
+  /// No description provided for @vendorRejectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject order'**
+  String get vendorRejectButton;
+
+  /// No description provided for @remarkOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Remark (optional)'**
+  String get remarkOptional;
+
+  /// No description provided for @remarkRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Remark (required)'**
+  String get remarkRequired;
+
+  /// No description provided for @vendorOrdersPausedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your shop can\'t take new orders'**
+  String get vendorOrdersPausedTitle;
+
+  /// No description provided for @vendorNoManagerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No Manager is assigned to your shop yet. Quicky will assign one; until then new orders are paused.'**
+  String get vendorNoManagerBody;
+
+  /// No description provided for @vendorManagerInactiveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Manager isn\'t active right now. Quicky is sorting this out. You can still see your account and decline orders, but new orders are paused.'**
+  String get vendorManagerInactiveBody;
+
+  /// No description provided for @vendorCancelButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel accepted order'**
+  String get vendorCancelButton;
+
+  /// No description provided for @vendorCancelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this accepted order?'**
+  String get vendorCancelTitle;
+
+  /// No description provided for @vendorCancelWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This counts as a cancellation after accepting. Your Manager will see it.'**
+  String get vendorCancelWarning;
+
+  /// No description provided for @vendorCancelChargeNoDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation charge: {amount} ({percent}% of the {fee} delivery fee, no driver assigned).'**
+  String vendorCancelChargeNoDriver(Object amount, Object percent, Object fee);
+
+  /// No description provided for @vendorCancelChargeWithDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation charge: {amount} ({percent}% of the {fee} delivery fee, a driver is assigned). {driverAmount} of it goes to the driver.'**
+  String vendorCancelChargeWithDriver(
+    Object amount,
+    Object percent,
+    Object fee,
+    Object driverAmount,
+  );
+
+  /// No description provided for @vendorCancelNoCharge.
+  ///
+  /// In en, this message translates to:
+  /// **'No cancellation charge applies to this order.'**
+  String get vendorCancelNoCharge;
+
+  /// No description provided for @vendorCancelRefundOwed.
+  ///
+  /// In en, this message translates to:
+  /// **'You also owe the customer a {amount} refund for their UPI payment.'**
+  String vendorCancelRefundOwed(Object amount);
+
+  /// No description provided for @vendorCancelUpiBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelling a UPI-paid order isn\'t available yet. Please contact your Manager about this order.'**
+  String get vendorCancelUpiBlocked;
+
+  /// No description provided for @vendorCancelRemarkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What happened? (at least 15 characters)'**
+  String get vendorCancelRemarkHint;
+
+  /// No description provided for @vendorCancelRemarkTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Please describe what happened in at least 15 characters.'**
+  String get vendorCancelRemarkTooShort;
+
+  /// No description provided for @vendorCancelConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel order and accept the charge'**
+  String get vendorCancelConfirm;
+
+  /// No description provided for @vendorCancelConfirmNoCharge.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel order'**
+  String get vendorCancelConfirmNoCharge;
+
+  /// No description provided for @vendorCancelChargeChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The charge changed (a driver was assigned or released). Please review the new amount.'**
+  String get vendorCancelChargeChanged;
+
+  /// No description provided for @vendorCancelDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Order cancelled.'**
+  String get vendorCancelDone;
+
+  /// No description provided for @vendorCancellationCharges.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation charges'**
+  String get vendorCancellationCharges;
+
+  /// No description provided for @orderCancelledByShop.
+  ///
+  /// In en, this message translates to:
+  /// **'The shop cancelled this order after accepting it.'**
+  String get orderCancelledByShop;
+
+  /// No description provided for @driverCancellationComp.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation compensation'**
+  String get driverCancellationComp;
+
+  /// No description provided for @chooseReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a reason.'**
+  String get chooseReason;
+
+  /// No description provided for @cancelChargesCharged.
+  ///
+  /// In en, this message translates to:
+  /// **'Charged'**
+  String get cancelChargesCharged;
+
+  /// No description provided for @cancelChargesPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid (confirmed)'**
+  String get cancelChargesPaid;
+
+  /// No description provided for @cancelChargesOwed.
+  ///
+  /// In en, this message translates to:
+  /// **'Still owed'**
+  String get cancelChargesOwed;
+
+  /// No description provided for @cancelChargesReversed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reversed'**
+  String get cancelChargesReversed;
+
+  /// No description provided for @cancelChargesWaived.
+  ///
+  /// In en, this message translates to:
+  /// **'Waived (was unpaid)'**
+  String get cancelChargesWaived;
+
+  /// No description provided for @cancelRefundDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund owed to you'**
+  String get cancelRefundDue;
+
+  /// No description provided for @cancelRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded to you'**
+  String get cancelRefunded;
+
+  /// No description provided for @cancelRefundPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund awaiting your confirmation'**
+  String get cancelRefundPending;
+
+  /// No description provided for @cancelChargesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No cancellation charges.'**
+  String get cancelChargesNone;
+
+  /// No description provided for @cancelChargesNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Charged when you cancel an order after accepting it. Kept separate from your earnings.'**
+  String get cancelChargesNote;
+
+  /// No description provided for @driverCompEarned.
+  ///
+  /// In en, this message translates to:
+  /// **'Earned'**
+  String get driverCompEarned;
+
+  /// No description provided for @driverCompPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid (confirmed)'**
+  String get driverCompPaid;
+
+  /// No description provided for @driverCompPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get driverCompPending;
+
+  /// No description provided for @driverCompNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No cancellation compensation yet.'**
+  String get driverCompNone;
+
+  /// No description provided for @driverCompNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid when a shop cancels an order you were assigned. Kept separate from delivery fees.'**
+  String get driverCompNote;
+
+  /// No description provided for @orderCancelledReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason: {reason}'**
+  String orderCancelledReason(Object reason);
+
+  /// No description provided for @refundCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your refund'**
+  String get refundCardTitle;
+
+  /// No description provided for @refundStatusDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund owed'**
+  String get refundStatusDue;
+
+  /// No description provided for @refundStatusAwaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund initiated — awaiting confirmation'**
+  String get refundStatusAwaiting;
+
+  /// No description provided for @refundStatusDisputed.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund disputed'**
+  String get refundStatusDisputed;
+
+  /// No description provided for @refundStatusReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review required'**
+  String get refundStatusReview;
+
+  /// No description provided for @refundStatusConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund confirmed'**
+  String get refundStatusConfirmed;
+
+  /// No description provided for @refundOwedToYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Owed to you: {amount}'**
+  String refundOwedToYou(Object amount);
+
+  /// No description provided for @refundFromShop.
+  ///
+  /// In en, this message translates to:
+  /// **'From {shop}'**
+  String refundFromShop(Object shop);
+
+  /// No description provided for @refundReturnedSoFar.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} returned so far.'**
+  String refundReturnedSoFar(Object amount);
+
+  /// No description provided for @refundToOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund to: the UPI account you paid from'**
+  String get refundToOriginal;
+
+  /// No description provided for @refundToUpi.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund to: {upiId}'**
+  String refundToUpi(Object upiId);
+
+  /// No description provided for @refundChangeUpi.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund to a different UPI ID'**
+  String get refundChangeUpi;
+
+  /// No description provided for @refundUpiDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'UPI ID for your refund'**
+  String get refundUpiDialogTitle;
+
+  /// No description provided for @refundUpiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'name@bank'**
+  String get refundUpiHint;
+
+  /// No description provided for @refundSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get refundSave;
+
+  /// No description provided for @refundCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get refundCancel;
+
+  /// No description provided for @refundSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get refundSubmit;
+
+  /// No description provided for @refundWaitingShop.
+  ///
+  /// In en, this message translates to:
+  /// **'The shop hasn\'t sent this refund yet.'**
+  String get refundWaitingShop;
+
+  /// No description provided for @refundPayerShop.
+  ///
+  /// In en, this message translates to:
+  /// **'The shop'**
+  String get refundPayerShop;
+
+  /// No description provided for @refundPayerQuicky.
+  ///
+  /// In en, this message translates to:
+  /// **'Quicky'**
+  String get refundPayerQuicky;
+
+  /// No description provided for @refundSentClaim.
+  ///
+  /// In en, this message translates to:
+  /// **'{payer} says it sent {amount} on {date} (UPI ref {reference}). Did you receive it?'**
+  String refundSentClaim(
+    Object payer,
+    Object amount,
+    Object date,
+    Object reference,
+  );
+
+  /// No description provided for @refundReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'I received it'**
+  String get refundReceived;
+
+  /// No description provided for @refundNotReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Not received'**
+  String get refundNotReceived;
+
+  /// No description provided for @refundDifferentAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Different amount'**
+  String get refundDifferentAmount;
+
+  /// No description provided for @refundDifferentAmountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How much did you receive?'**
+  String get refundDifferentAmountTitle;
+
+  /// No description provided for @refundAmountReceivedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount received (₹)'**
+  String get refundAmountReceivedLabel;
+
+  /// No description provided for @refundNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note (optional)'**
+  String get refundNoteLabel;
+
+  /// No description provided for @refundNotReceivedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund not received?'**
+  String get refundNotReceivedTitle;
+
+  /// No description provided for @refundNotReceivedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Quicky will review it with the shop. Add anything that helps.'**
+  String get refundNotReceivedBody;
+
+  /// No description provided for @refundDisputedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'You reported this refund didn\'t arrive as recorded. Quicky is reviewing it.'**
+  String get refundDisputedNote;
+
+  /// No description provided for @refundReviewNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Quicky is reviewing this refund.'**
+  String get refundReviewNote;
+
+  /// No description provided for @refundConfirmedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund confirmed: {amount} returned.'**
+  String refundConfirmedNote(Object amount);
+
+  /// No description provided for @refundLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the refund.'**
+  String get refundLoadError;
+
+  /// No description provided for @refundRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get refundRetry;
+
+  /// No description provided for @refundThanks.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks — we\'ve recorded your answer.'**
+  String get refundThanks;
 }
 
 class _AppLocalizationsDelegate

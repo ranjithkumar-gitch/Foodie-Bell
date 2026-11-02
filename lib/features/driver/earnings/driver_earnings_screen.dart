@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/widgets/cancellation_money_cards.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/earnings_provider.dart';
@@ -36,7 +37,7 @@ DateTime _dayOf(DateTime d) => DateTime(d.year, d.month, d.day);
 /// Earnings Dashboard (spec §6 item 13), laid out like the Swiggy/Zomato
 /// partner apps: a Today / This week / This month switch over one big
 /// earnings figure (with deliveries and cash collected), a last-7-days
-/// earnings chart, weekly payouts, and every delivery grouped by day. The
+/// earnings chart, weekly earnings, and every delivery grouped by day. The
 /// figures are the server's per-day totals (`earnings_daily`, one document
 /// per settlement day — "today" is the settlement day, as on the daily
 /// statement); the delivery list is read a page at a time.
@@ -73,7 +74,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
     final palette = context.colors;
     final driver = ref.watch(currentDriverAccountProvider);
     // Six weeks of per-day totals covers the month, the 7-day chart and the
-    // weekly payouts.
+    // weekly earnings.
     final days = ref.watch(myEarningsDaysProvider(42)).valueOrNull ?? const <EarningsDay>[];
     final cutoff = ref.watch(settlementCutoffProvider).valueOrNull ?? 22 * 60;
     final today = DateTime.parse(currentSettlementDay(cutoffMinutes: cutoff));
@@ -143,8 +144,12 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
           Text('Last 7 days', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
           const SizedBox(height: 12),
           _Last7DaysChart(days: last7),
+          const SizedBox(height: 16),
+          // Cancellation compensation: its own card, never part of delivery fees.
+          DriverCancellationCompCard(totals: ref.watch(myEarningsTotalsProvider)),
           const SizedBox(height: 24),
-          Text('Weekly payouts', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
+          Text('Weekly earnings', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
+          Text('Delivery fees earned each week. What your Manager has actually paid you is under Settlement payments.', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -207,7 +212,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
               child: EmptyState(
                 icon: Icons.payments_outlined,
                 title: 'No deliveries yet',
-                subtitle: 'Completed deliveries will show up here with their payout.',
+                subtitle: 'Completed deliveries will show up here with their delivery fee.',
               ),
             )
           else

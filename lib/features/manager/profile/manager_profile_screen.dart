@@ -311,11 +311,6 @@ class _ManagerProfileScreenState extends ConsumerState<ManagerProfileScreen> {
           // Approvals, Territory Categories, and Order Oversight moved to
           // the Drawer's quick-links section (`rail_drawer_shell.dart`) —
           // reachable from every screen's menu icon, not just Profile.
-          MenuTile(
-            icon: Icons.campaign_outlined,
-            label: 'Local Marketing Tracker',
-            onTap: () => context.push('/manager/marketing'),
-          ),
           // Was missing entirely despite the route/screen existing — this
           // doc comment already claimed it was here (see above); the wall
           // was unreachable for Manager until this tile existed.

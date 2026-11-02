@@ -9,6 +9,7 @@ import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/error_reporting.dart';
 import '../address_label_text.dart';
 import 'add_address_sheet.dart';
+import 'pin_saved_address.dart';
 
 /// Saved Addresses (spec §4.18, and doubling as the registration-flow's
 /// "Delivery Address Setup" step — reachable from Profile at any time).
@@ -64,6 +65,13 @@ class AddressesScreen extends ConsumerWidget {
                 address: address,
                 isSelected: isSelected,
                 onSetDefault: () => ref.read(selectedAddressProvider.notifier).state = address,
+                onPin: () async {
+                  final pinned = await pinSavedAddressFlow(context, ref, address);
+                  // Keep checkout's selection in step with the newly pinned copy.
+                  if (pinned != null && ref.read(selectedAddressProvider)?.id == pinned.id) {
+                    ref.read(selectedAddressProvider.notifier).state = pinned;
+                  }
+                },
                 onDelete: () async {
                   try {
                     await removeAddress(address.id);
@@ -103,11 +111,14 @@ class AddressesScreen extends ConsumerWidget {
 }
 
 class _AddressCard extends StatelessWidget {
-  const _AddressCard({required this.address, required this.isSelected, required this.onSetDefault, required this.onDelete});
+  const _AddressCard({required this.address, required this.isSelected, required this.onSetDefault, required this.onPin, required this.onDelete});
 
   final Address address;
   final bool isSelected;
   final VoidCallback onSetDefault;
+
+  /// "Pin this address", offered while the address has no usable pin.
+  final VoidCallback onPin;
   final VoidCallback onDelete;
 
   IconData get _labelIcon => switch (address.label) {
@@ -170,6 +181,7 @@ class _AddressCard extends StatelessWidget {
                   Text(address.line1, style: TextStyle(color: palette.textSecondary, fontSize: 13)),
                   if (address.landmark != null) Text(address.landmark!, style: TextStyle(color: palette.textMuted, fontSize: 12)),
                   Text('${address.city} · ${address.pincode}', style: TextStyle(color: palette.textMuted, fontSize: 12)),
+                  if (!address.hasValidPin) AddressPinNotice(onPin: onPin),
                 ],
               ),
             ),

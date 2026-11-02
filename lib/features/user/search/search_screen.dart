@@ -175,7 +175,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final territories = territoriesAsync.valueOrNull ?? const [];
     final selectedTerritory = ref.watch(selectedTerritoryProvider) ?? resolveDefaultTerritory(territories);
     final categoriesAsync = ref.watch(activeCategoriesProvider);
-    final categories = categoriesAsync.valueOrNull ?? const [];
+    final categories = categoriesForTerritory(categoriesAsync.valueOrNull ?? const [], selectedTerritory);
     final vendorsAsync = ref.watch(firestoreVendorsProvider);
     final productsAsync = selectedTerritory == null
         ? const AsyncValue<List<CatalogEntry>>.data([])
@@ -197,6 +197,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final vendors = allVendors
         .where((a) => a.status == AccountStatus.active)
         .where((a) => selectedTerritory == null || a.territoryId == selectedTerritory.id)
+        .where((a) => vendorCategoryEnabled(a, selectedTerritory))
         .where((a) => a.name.toLowerCase().contains(_query) || (a.ownerName?.toLowerCase().contains(_query) ?? false))
         .toList();
 
@@ -213,7 +214,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               r.vendor != null &&
               r.vendor!.status == AccountStatus.active &&
               r.vendor!.isOpen &&
-              (selectedTerritory == null || r.vendor!.territoryId == selectedTerritory.id),
+              (selectedTerritory == null || r.vendor!.territoryId == selectedTerritory.id) &&
+              vendorCategoryEnabled(r.vendor!, selectedTerritory),
         )
         .toList();
 

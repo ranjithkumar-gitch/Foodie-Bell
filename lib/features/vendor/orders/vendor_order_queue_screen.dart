@@ -22,6 +22,7 @@ import '../../../shared/widgets/document_source_sheet.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../vendor_session.dart';
+import 'vendor_cancellation_sheets.dart';
 import 'vendor_order_actions.dart';
 
 /// Orders (spec §5.8 + §5.14, combined): Live Order Queue and Order
@@ -404,12 +405,9 @@ class _QueueOrderCardState extends ConsumerState<_QueueOrderCard> {
     if (mounted) setState(() => _updating = false);
   }
 
-  Future<void> _accept() async {
-    if (!await ensureVendorReadyToAccept(context, ref)) return;
-    await _run(() => vendorAcceptOrder(widget.order.id));
-  }
+  Future<void> _accept() => _run(() => confirmAvailabilityAndAccept(context, ref, widget.order));
 
-  Future<void> _reject() => _run(() => vendorRejectOrder(widget.order.id));
+  Future<void> _reject() => _run(() => rejectWithReason(context, widget.order));
 
   Future<void> _checkPayment() async {
     setState(() => _updating = true);

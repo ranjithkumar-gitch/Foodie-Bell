@@ -8,9 +8,12 @@ import '../../../data/models/vendor_document.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../shared/widgets/storage_image.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
+import '../../../data/providers/settlement_provider.dart';
+import '../../../data/providers/vendor_incidents_provider.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/status_chip.dart';
+import 'vendor_reliability_card.dart';
 
 /// Vendor Approval Detail (spec §7.7). Looks the vendor up across both
 /// stores — Firestore's `vendors` collection and the in-memory
@@ -176,22 +179,36 @@ class _ManagerVendorDetailScreenState extends ConsumerState<ManagerVendorDetailS
               onChanged: (status) => _setDocumentStatus(account, isFirestoreBacked, type, status),
             ),
           const SizedBox(height: 24),
-          Text('Rebate %', style: Theme.of(context).textTheme.titleLarge),
+          Text('Commission', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text('Fixed when this vendor was onboarded — cannot be changed.', style: TextStyle(color: palette.textMuted, fontSize: 12)),
+          Text('The same for every shop, set by Quicky. The server applies the rate in force when each order is placed.', style: TextStyle(color: palette.textMuted, fontSize: 12)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(color: palette.surfaceMuted, borderRadius: BorderRadius.circular(12)),
-            child: Row(
-              children: [
-                Icon(Icons.lock_outline_rounded, size: 18, color: palette.textMuted),
-                const SizedBox(width: 10),
-                Expanded(child: Text('Negotiated split routed to this territory.', style: TextStyle(color: palette.textSecondary, fontSize: 12.5))),
-                Text('${account.rebatePercent.round()}%', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: palette.textPrimary)),
-              ],
+            child: Builder(
+              builder: (context) {
+                final rates = ref.watch(pricingRatesProvider);
+                return Row(
+                  children: [
+                    Icon(Icons.percent_rounded, size: 18, color: palette.textMuted),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        rates == null ? 'Of each order\'s item value.' : 'Of each order\'s item value · your share ${rates.managerShareLabel}',
+                        style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
+                      ),
+                    ),
+                    Text(rates == null ? '—' : '${formatPercent(rates.commissionPercent)}%', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: palette.textPrimary)),
+                  ],
+                );
+              },
             ),
           ),
+          const SizedBox(height: 24),
+          Text('Cancellations', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 10),
+          VendorReliabilityCard(reliability: ref.watch(vendorReliabilityProvider(account.id))),
           const SizedBox(height: 20),
           if (account.status == AccountStatus.pendingReview) ...[
             ElevatedButton.icon(onPressed: () => _approve(account, isFirestoreBacked), icon: const Icon(Icons.check_circle_outline_rounded), label: const Text('Approve')),

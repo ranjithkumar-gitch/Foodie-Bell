@@ -34,8 +34,8 @@ final _checkoutQuoteProvider = FutureProvider.autoDispose.family<OrderQuote, Str
 /// Every amount here comes from the server (`quoteOrder`): item prices from
 /// the shop's catalogue, the delivery fee by road distance from the shop,
 /// the Vendor's coupon, Quicky's platform fee (set by the Super Admin; a
-/// line of its own whenever it is charged), and the total. No GST line
-/// while GST is off. `placeOrder` works it all out again when the
+/// line of its own whenever it is charged), and the total. Item prices are
+/// tax-inclusive, so there is no tax line (Phase I.4.3). `placeOrder` works it all out again when the
 /// order is placed — the app only says what was chosen.
 ///
 /// A UPI order is placed first and paid afterwards, from the order screen
@@ -101,7 +101,9 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
     final cart = ref.watch(cartProvider);
     final address = ref.watch(selectedAddressProvider);
     final vendorId = cart.items.isEmpty ? '' : cart.items.first.vendorId;
-    final quoteKey = cart.isEmpty || address == null
+    // No quote (and no Place Order) for an address without a usable pin:
+    // the server would refuse it, and it couldn't be delivered.
+    final quoteKey = cart.isEmpty || address == null || !address.hasValidPin
         ? null
         : jsonEncode({
             'vendorId': vendorId,
@@ -186,6 +188,8 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
                 const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider()),
                 if (address == null)
                   Text('Choose a delivery address to see the delivery fee.', style: TextStyle(color: palette.textSecondary))
+                else if (!address.hasValidPin)
+                  Text(context.l10n.checkoutAddressNeedsPin, style: TextStyle(color: palette.error, fontWeight: FontWeight.w600))
                 else if (quoteError != null)
                   Text(quoteError is OrderActionException ? quoteError.message : 'We couldn’t price this order. Please try again.',
                       style: TextStyle(color: palette.error, fontWeight: FontWeight.w600))
@@ -199,6 +203,8 @@ class _CheckoutPaymentScreenState extends ConsumerState<CheckoutPaymentScreen> {
                   if (money.platformFee > 0) _PriceRow(context.l10n.pricePlatformFee, money.platformFee / 100),
                   const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider()),
                   _PriceRow(context.l10n.priceTotal, money.customerTotal / 100, emphasize: true),
+                  const SizedBox(height: 4),
+                  Text(context.l10n.itemPricesInclusiveOfTaxes, key: const Key('checkoutTaxInclusiveNote'), style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
                 ],
               ],
             ),

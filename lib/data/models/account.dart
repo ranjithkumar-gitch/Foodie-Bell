@@ -61,6 +61,9 @@ class Account {
     this.upiIds = const [],
     this.ratingAverage,
     this.ratingCount = 0,
+    this.assignedManagerId,
+    this.onboardedByManagerId,
+    this.assignmentStatus,
   });
 
   final String id;
@@ -205,6 +208,23 @@ class Account {
   final double? ratingAverage;
   final int ratingCount;
 
+  /// Vendor-only (Phase I.5): the one Manager of the shop's territory who
+  /// runs it, set by the server (a Manager onboarding it, or the Super
+  /// Admin's audited reassignment) — never by the app. Null while
+  /// [assignmentStatus] is `pending`: such a shop can't take orders.
+  final String? assignedManagerId;
+
+  /// Vendor-only: the Manager who originally onboarded the shop (kept when
+  /// it's reassigned).
+  final String? onboardedByManagerId;
+
+  /// Vendor-only: `assigned` or `pending`; null on records from before
+  /// Phase I.5.
+  final String? assignmentStatus;
+
+  /// Whether the shop is assigned to Manager [managerId].
+  bool isAssignedTo(String managerId) => assignmentStatus == 'assigned' && assignedManagerId == managerId;
+
   /// The UPI ID payments go to, or null when none is set.
   String? get primaryUpiId => upiIds.isEmpty ? null : upiIds.first;
 
@@ -288,5 +308,8 @@ class Account {
     upiIds: upiIds ?? this.upiIds,
     ratingAverage: ratingAverage,
     ratingCount: ratingCount,
+    assignedManagerId: assignedManagerId,
+    onboardedByManagerId: onboardedByManagerId,
+    assignmentStatus: assignmentStatus,
   );
 }

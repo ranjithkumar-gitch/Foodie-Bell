@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../data/models/account.dart';
 import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
@@ -10,7 +11,6 @@ import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/rating_badge.dart';
 import '../translation/translated_text.dart';
-import '../user_constants.dart';
 import 'vendor_distance.dart';
 
 /// Full-width card for a real, Firestore-backed Vendor `Account` — the
@@ -232,9 +232,11 @@ class VendorAccountCard extends ConsumerWidget {
                       ],
                       _MetaTag(
                         icon: Icons.moped_outlined,
-                        label: AppFormat.currency(
-                          UserConstants.defaultDeliveryFee,
-                        ),
+                        // The real fee depends on the road distance to the drop-off
+                          // (priced by the server at checkout); this is the lowest slab.
+                          label: context.l10n.deliveryFeeFrom(AppFormat.currency(
+                            (ref.watch(pricingRatesProvider)?.lowestDeliveryFeePaise ?? 2000) / 100,
+                          )),
                       ),
                       if (distanceKm != null) ...[
                         const SizedBox(width: 14),

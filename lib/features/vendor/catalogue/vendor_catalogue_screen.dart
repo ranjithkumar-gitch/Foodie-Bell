@@ -77,13 +77,6 @@ class _VendorCatalogueScreenState extends ConsumerState<VendorCatalogueScreen> {
                   text: 'Manage categories',
                 ),
               ),
-              PopupMenuItem(
-                value: _Tool.bulkUpload,
-                child: _MenuText(
-                  icon: Icons.upload_file_outlined,
-                  text: 'Upload many products',
-                ),
-              ),
             ],
           ),
         ],

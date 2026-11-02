@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/refund_cards.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/settlement_provider.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
-import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/order_codes_provider.dart';
 import '../../../shared/widgets/storage_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/order_status_stepper.dart';
 import '../../../shared/widgets/status_chip.dart';
-import '../vendor_session.dart';
+import '../../../l10n/app_localizations_context.dart';
+import 'vendor_cancellation_sheets.dart';
 import 'vendor_order_actions.dart';
 
-String _rateLabel(double rate) => rate == rate.roundToDouble() ? rate.toStringAsFixed(0) : rate.toString();
 
 /// Order Detail — vendor view (spec §5.9): items to prepare, a customer
 /// note, and status progression. Accept/Reject live here too (same
@@ -85,8 +86,6 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(item.name),
-                              if (item.gstRate != null && item.gstRate! > 0)
-                                Text('HSN ${item.hsnCode ?? '—'} · GST ${_rateLabel(item.gstRate!)}%', style: TextStyle(color: palette.textMuted, fontSize: 10.5)),
                             ],
                           ),
                         ),
@@ -105,14 +104,15 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                 _AmountRow(label: 'Delivery fee (for the driver)', value: order.deliveryFee),
                 // Quicky's platform fee, when charged: paid by the customer, not the shop's.
                 if (order.platformFee > 0) _AmountRow(label: 'Platform fee (Quicky)', value: order.platformFee),
-                if (order.gstAmount > 0) _AmountRow(label: 'GST', value: order.gstAmount),
+                // Tax-inclusive prices (Phase I.4.3): only an earlier client-priced order shows the tax it recorded.
+                if (order.legacyTaxCharged > 0) _AmountRow(label: 'Taxes (earlier order)', value: order.legacyTaxCharged),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [Text('Customer pays', style: Theme.of(context).textTheme.titleMedium), CurrencyText(order.total, style: Theme.of(context).textTheme.titleMedium)],
                 ),
                 const SizedBox(height: 4),
-                _AmountRow(label: 'Quicky commission (${order.money != null ? '10' : order.rebatePercent.toStringAsFixed(0)}%)', value: -order.rebateAmount),
+                _AmountRow(label: 'Quicky commission (${formatPercent(order.rebatePercent)}%)', value: -order.rebateAmount),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -125,9 +125,10 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                   Text(
                     switch (order.paymentStatus) {
                       OrderPaymentStatus.awaitingVerification => 'UPI: check your account for the money, then confirm.',
-                      OrderPaymentStatus.verified => 'UPI payment confirmed by you.',
+                      OrderPaymentStatus.verified => 'UPI payment received (you confirmed it).',
                       OrderPaymentStatus.disputed => 'UPI payment is being checked by your Manager.',
-                      OrderPaymentStatus.refundDue => 'You must return this UPI payment to the customer.',
+                      OrderPaymentStatus.refundDue => 'Refund owed: return this UPI payment to the customer (see below).',
+                      OrderPaymentStatus.refunded => 'Refund confirmed: the return to the customer is confirmed.',
                       _ => 'UPI payment',
                     },
                     style: TextStyle(fontWeight: FontWeight.w700, color: palette.textSecondary, fontSize: 15),
@@ -136,6 +137,11 @@ class VendorOrderDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+          // Phase I.7: the refund this shop owes the customer, and recording it.
+          if (const {OrderPaymentStatus.refundDue, OrderPaymentStatus.refunded}.contains(order.paymentStatus)) ...[
+            const SizedBox(height: 16),
+            VendorRefundCard(orderId: order.id),
+          ],
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
@@ -221,7 +227,7 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(foregroundColor: palette.error, side: BorderSide(color: palette.error)),
-                        onPressed: () => runVendorAction(context, () => vendorRejectOrder(order.id)),
+                        onPressed: () => rejectWithReason(context, order),
                         child: const Text('Reject'),
                       ),
                     ),
@@ -234,15 +240,25 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                               child: const Text('Money received?'),
                             )
                           : ElevatedButton(
-                              onPressed: () async {
-                                if (!await ensureVendorReadyToAccept(context, ref)) return;
-                                if (!context.mounted) return;
-                                await runVendorAction(context, () => vendorAcceptOrder(order.id));
-                              },
+                              onPressed: () => confirmAvailabilityAndAccept(context, ref, order),
                               child: const Text('Accept'),
                             ),
                     ),
                   ],
+                ),
+              ),
+            )
+          // Accepted, not yet picked up: the shop may still cancel, with a
+          // reason, a remark and the server's cancellation charge (Phase I.4).
+          : order.status == OrderStatus.vendorAccepted || order.status == OrderStatus.driverAssigned
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(foregroundColor: palette.error, side: BorderSide(color: palette.error)),
+                  onPressed: () => showVendorCancelOrderSheet(context, order),
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: Text(context.l10n.vendorCancelButton),
                 ),
               ),
             )

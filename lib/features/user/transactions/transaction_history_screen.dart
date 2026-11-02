@@ -12,13 +12,20 @@ import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 
+/// [userId]'s orders whose money has actually changed hands ([Order.isPaid],
+/// from the server's payment record), most recent payment first: UPI the
+/// shop confirmed (photo orders included), cash the Driver recorded, and
+/// payments now owed back or refunded. A UPI reference the customer only
+/// typed, a disputed payment and uncollected COD are left out.
+List<Order> paidTransactions(List<Order> active, List<Order> history, String? userId) =>
+    withLiveOrders(active, history).where((o) => o.userId == userId && o.isPaid).toList()
+      ..sort((a, b) => b.paymentCompletedAt.compareTo(a.paymentCompletedAt));
+
 /// Transaction History: every payment this User has made, most recent
 /// first. There's no separate `transactions` collection — a payment is
-/// recorded on the order it paid for ([Order.paymentId]/[Order.paidAt] for
-/// an online one, [Order.codPaymentReceived] for cash), so this list is
-/// just that User's paid orders and can never drift out of sync with them.
-/// A COD order only appears once the Driver has confirmed the cash — until
-/// then no money has changed hands, and it may still be cancelled.
+/// recorded on the order it paid for (`payment` on the order, written only
+/// by the server), so this list is just that User's paid orders
+/// ([paidTransactions]) and can never drift out of sync with them.
 class TransactionHistoryScreen extends ConsumerWidget {
   const TransactionHistoryScreen({super.key});
 
@@ -35,12 +42,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(context.l10n.profileTransactionHistory)),
       body: Builder(
         builder: (context) {
-          final paid =
-              withLiveOrders(active, page.orders).where((o) => o.userId == userId && o.isPaid).toList()
-                ..sort(
-                  (a, b) =>
-                      b.paymentCompletedAt.compareTo(a.paymentCompletedAt),
-                );
+          final paid = paidTransactions(active, page.orders, userId);
           if (paid.isEmpty && page.loading) return const Center(child: CircularProgressIndicator());
           if (paid.isEmpty && page.error != null) {
             return Center(child: Text(friendlyError(page.error!, action: 'Loading transactions')));
@@ -78,6 +80,7 @@ class _TransactionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.colors;
     final paidAt = DateFormat('d MMM y, h:mm a').format(order.paymentCompletedAt);
+    final tone = order.paymentStatus.tone == PaymentTone.refundOwed ? palette.warning : palette.success;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () => context.push('/user/order/${order.id}'),
@@ -94,14 +97,14 @@ class _TransactionTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: palette.success.withValues(alpha: 0.12),
+                color: tone.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 order.isPaidOnline
-                    ? Icons.credit_card_rounded
+                    ? Icons.qr_code_2_rounded
                     : Icons.payments_outlined,
-                color: palette.success,
+                color: tone,
                 size: 20,
               ),
             ),
@@ -124,7 +127,13 @@ class _TransactionTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    order.isPaidOnline ? '$paidAt · ${order.paymentId}' : paidAt,
+                    // Every row says which it is: received, refund owed or
+                    // refund completed.
+                    [
+                      order.paymentLabel,
+                      paidAt,
+                      ?order.paymentReference,
+                    ].join(' · '),
                     style: TextStyle(color: palette.textMuted, fontSize: 11.5),
                   ),
                 ],

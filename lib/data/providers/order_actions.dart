@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/order.dart';
+import '../../core/release/app_build.dart';
 
 /// Every order and settlement change goes through these Cloud Functions
 /// (QuickyAdmin `functions/orders.js`, `ledger.js`). The app sends what the
@@ -11,9 +12,13 @@ final _functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
 
 /// A refusal from the server, with a message that's safe to show as-is.
 class OrderActionException implements Exception {
-  const OrderActionException(this.message, {this.code});
+  const OrderActionException(this.message, {this.code, this.details});
   final String message;
   final String? code;
+
+  /// The server's structured detail, when it sends one — e.g. the new
+  /// quote when a vendor cancellation's charge changed (`vendorCancelOrder`).
+  final Object? details;
 
   @override
   String toString() => message;
@@ -21,7 +26,7 @@ class OrderActionException implements Exception {
 
 Future<Map<String, dynamic>> _call(String name, Map<String, dynamic> data) async {
   try {
-    final result = await _functions.httpsCallable(name).call<Map<String, dynamic>>(data);
+    final result = await _functions.httpsCallable(name).call<Map<String, dynamic>>(withClientBuild(data));
     return Map<String, dynamic>.from(result.data);
   } on FirebaseFunctionsException catch (e) {
     final network = const {'unavailable', 'deadline-exceeded', 'internal'}.contains(e.code);
@@ -30,6 +35,7 @@ Future<Map<String, dynamic>> _call(String name, Map<String, dynamic> data) async
           ? "We couldn't reach the server. Check your connection and try again."
           : e.message ?? 'Something went wrong. Please try again.',
       code: e.code,
+      details: e.details,
     );
   }
 }
@@ -103,10 +109,105 @@ Future<void> reportPaymentIssue(String orderId, String reason) =>
 Future<void> resolvePaymentDispute(String orderId, {required bool received, required String note}) =>
     _call('resolvePaymentDispute', {'orderId': orderId, 'outcome': received ? 'received' : 'notReceived', 'note': note});
 
-Future<void> vendorAcceptOrder(String orderId) => _call('vendorDecision', {'orderId': orderId, 'accept': true});
+/// Accepts [orderId]; the vendor must have confirmed they have every item
+/// (Phase I.4 — the server refuses `availabilityConfirmed: false`).
+Future<void> vendorAcceptOrder(String orderId, {required bool availabilityConfirmed}) =>
+    _call('vendorDecision', {'orderId': orderId, 'accept': true, 'availabilityConfirmed': availabilityConfirmed});
 
-Future<void> vendorRejectOrder(String orderId, {String reason = 'Rejected by shop'}) =>
-    _call('vendorDecision', {'orderId': orderId, 'accept': false, 'reason': reason});
+/// Rejects [orderId] before accepting it — recorded with [reasonCode] (one
+/// of the server's pre-acceptance reasons), never charged.
+Future<void> vendorRejectOrder(String orderId, {required String reasonCode, String? remark}) =>
+    _call('vendorDecision', {'orderId': orderId, 'accept': false, 'reasonCode': reasonCode, 'remark': ?remark});
+
+/// What cancelling an accepted order would cost the vendor, from the server
+/// (`quoteVendorCancellation`). Informational: the binding amount is the
+/// one `vendorCancelOrder` re-computes, which must match this quote.
+class VendorCancellationQuote {
+  const VendorCancellationQuote({
+    required this.scenario,
+    required this.chargePaise,
+    required this.driverSharePaise,
+    required this.quickySharePaise,
+    required this.policyVersion,
+    required this.driverAssigned,
+    required this.upiCancellationAllowed,
+    this.deliveryFeePaise,
+    this.refundDuePaise,
+    this.noChargeReason,
+    this.bps = 0,
+    this.driverShareBps = 0,
+  });
+
+  /// "A" — no driver assigned; "B" — a driver is assigned.
+  final String scenario;
+  final int chargePaise;
+  final int driverSharePaise;
+  final int quickySharePaise;
+  final int policyVersion;
+  final bool driverAssigned;
+  final bool upiCancellationAllowed;
+  final int? deliveryFeePaise;
+  final int? refundDuePaise;
+  final String? noChargeReason;
+
+  /// The rates the server applied, in basis points of the delivery fee and
+  /// of the charge (from the versioned cancellation policy) — for labels.
+  final int bps;
+  final int driverShareBps;
+
+  static VendorCancellationQuote? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    int? n(Object? v) => (v as num?)?.toInt();
+    return VendorCancellationQuote(
+      scenario: raw['scenario'] as String? ?? 'A',
+      chargePaise: n(raw['chargePaise']) ?? 0,
+      driverSharePaise: n(raw['driverSharePaise']) ?? 0,
+      quickySharePaise: n(raw['quickySharePaise']) ?? 0,
+      policyVersion: n(raw['policyVersion']) ?? 1,
+      driverAssigned: raw['driverAssigned'] == true,
+      upiCancellationAllowed: raw['upiCancellationAllowed'] != false,
+      deliveryFeePaise: n(raw['deliveryFeePaise']),
+      refundDuePaise: n(raw['refundDuePaise']),
+      noChargeReason: raw['noChargeReason'] as String?,
+      bps: n(raw['bps']) ?? 0,
+      driverShareBps: n(raw['driverShareBps']) ?? 0,
+    );
+  }
+}
+
+Future<VendorCancellationQuote> quoteVendorCancellation(String orderId) async =>
+    VendorCancellationQuote.tryParse(await _call('quoteVendorCancellation', {'orderId': orderId}))!;
+
+/// The quote inside a refusal because the charge changed meanwhile (a
+/// driver claimed or was released): what the vendor should now confirm.
+VendorCancellationQuote? changedQuoteOf(OrderActionException e) =>
+    e.details is Map ? VendorCancellationQuote.tryParse((e.details as Map)['quote']) : null;
+
+/// Cancels an order the vendor accepted, before pickup. [quote] is what
+/// the vendor saw and confirmed: the server refuses if its own figure (or
+/// scenario or policy version) differs. Keep [idempotencyKey] for retries.
+Future<void> vendorCancelOrder(
+  String orderId, {
+  required VendorCancellationQuote quote,
+  required String reasonCode,
+  required String remark,
+  required String idempotencyKey,
+}) => _call('vendorCancelOrder', {
+  'orderId': orderId,
+  'reasonCode': reasonCode,
+  'remark': remark,
+  'expectedPenaltyPaise': quote.chargePaise,
+  'expectedScenario': quote.scenario,
+  'expectedPolicyVersion': quote.policyVersion,
+  'idempotencyKey': idempotencyKey,
+});
+
+/// The territory's Manager (or Super Admin) appends a review to a vendor
+/// incident. Excusing never moves money.
+Future<({String reviewId, bool duplicate})> reviewVendorIncident(String incidentId, {required String outcome, String? note, String? requestId}) async {
+  final data = await _call('reviewVendorIncident', {'incidentId': incidentId, 'outcome': outcome, 'note': ?note, 'requestId': ?requestId});
+  return (reviewId: data['reviewId'] as String? ?? '', duplicate: data['duplicate'] == true);
+}
 
 Future<void> customerCancelOrder(String orderId, String reason) => _call('cancelOrder', {'orderId': orderId, 'reason': reason});
 
@@ -160,6 +261,7 @@ Future<void> recordSettlementTransfer({
   required int amountPaise,
   required bool upi,
   String? reference,
+  String? purpose,
 }) => _call('recordSettlementTransfer', {
   'idempotencyKey': idempotencyKey,
   'territoryId': territoryId,
@@ -169,12 +271,19 @@ Future<void> recordSettlementTransfer({
   'amountPaise': amountPaise,
   'method': upi ? 'upi' : 'cash',
   'reference': ?reference,
+  // What the payment settles (Phase I.4): general, cancellationCharge,
+  // cancellationDriverComp or cancellationRemittance.
+  'purpose': ?purpose,
 });
 
 Future<void> acknowledgeSettlementTransfer(String transferId, {required bool confirm, String? note}) =>
     _call('acknowledgeSettlementTransfer', {'transferId': transferId, 'confirm': confirm, 'note': ?note});
 
-Future<void> proposeSettlementAdjustment({
+/// Files a pending adjustment for the Super Admin to decide; nothing moves
+/// in the ledger until it's approved (`decideSettlementAdjustment`). Keep
+/// [idempotencyKey] the same for retries of one proposal: the server then
+/// returns the first one ([duplicate] true) instead of filing another.
+Future<({String adjustmentId, bool duplicate})> proposeSettlementAdjustment({
   required String territoryId,
   required String day,
   required String fromParty,
@@ -182,12 +291,65 @@ Future<void> proposeSettlementAdjustment({
   required int amountPaise,
   required String reason,
   String? orderId,
-}) => _call('proposeSettlementAdjustment', {
-  'territoryId': territoryId,
-  'day': day,
-  'from': fromParty,
-  'to': toParty,
-  'amountPaise': amountPaise,
-  'reason': reason,
-  'orderId': ?orderId,
-});
+  String? idempotencyKey,
+}) async {
+  final data = await _call('proposeSettlementAdjustment', {
+    'territoryId': territoryId,
+    'day': day,
+    'from': fromParty,
+    'to': toParty,
+    'amountPaise': amountPaise,
+    'reason': reason,
+    'orderId': ?orderId,
+    'idempotencyKey': ?idempotencyKey,
+  });
+  return (adjustmentId: data['adjustmentId'] as String, duplicate: data['duplicate'] == true);
+}
+
+/// What reversing one order's cancellation charge would do (Phase I.4.1,
+/// `previewCancellationReversal`): the server's figures from confirmed
+/// payments only. The shop is released (unpaid waived, paid refunded),
+/// the driver keeps the compensation, Quicky bears the cost.
+class CancellationReversalPlan {
+  const CancellationReversalPlan(this.data);
+  final Map<String, dynamic> data;
+
+  int _p(String k) => (data[k] as num?)?.toInt() ?? 0;
+  int get chargePaise => _p('chargePaise');
+  int get collectedPaise => _p('collectedPaise');
+  int get pendingPaise => _p('pendingPaise');
+  int get disputedPaise => _p('disputedPaise');
+  int get otherChargesPaise => _p('otherChargesPaise');
+  int get unpaidPaise => _p('unpaidPaise');
+  int get waivedPaise => _p('waivedPaise');
+  int get refundPaise => _p('refundPaise');
+  int get driverCompPreservedPaise => _p('driverCompPreservedPaise');
+  int get compFundingPaise => _p('compFundingPaise');
+  int get remittanceReturnPaise => _p('remittanceReturnPaise');
+  int get quickyCostPaise => _p('quickyCostPaise');
+  int get quickyNetPaise => _p('quickyNetPaise');
+}
+
+/// The plan, and the order's reversal status (`pending`/`approved`/`rejected`) if one was proposed.
+typedef ReversalPreview = ({CancellationReversalPlan plan, String? status});
+
+Future<ReversalPreview> previewCancellationReversal(String orderId) async {
+  final data = await _call('previewCancellationReversal', {'orderId': orderId});
+  final plan = Map<String, dynamic>.from(data['plan'] as Map? ?? const {});
+  final reversal = data['reversal'] as Map?;
+  return (plan: CancellationReversalPlan(plan), status: reversal?['status'] as String?);
+}
+
+/// Proposes reversing [orderId]'s cancellation charge for the Super Admin
+/// to decide. The server takes the parties and amount from the posted
+/// charge. Keep [idempotencyKey] for retries.
+Future<({String adjustmentId, bool duplicate})> proposeCancellationReversal(String orderId, {required String reason, required String evidence, required String idempotencyKey}) async {
+  final data = await _call('proposeSettlementAdjustment', {
+    'purpose': 'cancellationReversal',
+    'orderId': orderId,
+    'reason': reason,
+    'evidence': evidence,
+    'idempotencyKey': idempotencyKey,
+  });
+  return (adjustmentId: data['adjustmentId'] as String? ?? '', duplicate: data['duplicate'] == true);
+}

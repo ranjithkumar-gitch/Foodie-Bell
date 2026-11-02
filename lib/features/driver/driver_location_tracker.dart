@@ -24,8 +24,25 @@ import '../../data/providers/firestore_orders_provider.dart';
 /// Google Maps for turn-by-turn and the customer is watching the map. With
 /// no delivery in progress it only reports while the app is open, so an
 /// idle Driver isn't left with a permanent notification.
+/// Writes one position for a Driver or an order (Firestore in the app; fakes in tests).
+typedef LocationWriter = Future<void> Function(String id, {required double latitude, required double longitude});
+
 class DriverLocationTracker {
+  DriverLocationTracker({LocationWriter? writeDriver, LocationWriter? writeOrder, DateTime Function()? now})
+      : _writeDriver = writeDriver ?? updateDriverLocation,
+        _writeOrder = writeOrder ?? updateOrderDriverLocation,
+        _now = now ?? DateTime.now;
+
+  final LocationWriter _writeDriver;
+  final LocationWriter _writeOrder;
+  final DateTime Function() _now;
   StreamSubscription<Position>? _subscription;
+
+  /// Whether a position stream is running (for tests and diagnostics).
+  bool get isTracking => _subscription != null;
+
+  /// Whether the running stream keeps going in the background (a delivery in progress).
+  bool get onDelivery => _onDelivery;
 
   /// Whether the current stream was started in background mode — see
   /// [setOnDelivery].
@@ -86,8 +103,12 @@ class DriverLocationTracker {
     _onDelivery = onDelivery;
     final driverId = _driverId;
     if (driverId == null || _starting) return;
-    await _subscription?.cancel();
+    final generation = _generation;
+    final previous = _subscription;
     _subscription = null;
+    await previous?.cancel();
+    // A sign-out (or a new session) while cancelling: don't restart for it.
+    if (generation != _generation || _driverId != driverId) return;
     await _begin(driverId, prompt: false);
   }
 
@@ -126,6 +147,7 @@ class DriverLocationTracker {
   }
 
   Future<void> _begin(String driverId, {required bool prompt}) async {
+    if (_driverId != driverId) return;
     final generation = _generation;
     _starting = true;
     try {
@@ -143,6 +165,20 @@ class DriverLocationTracker {
       }
       if (generation != _generation) return;
 
+      // iOS "Precise: off" (reduced accuracy): during a delivery, ask once for
+      // temporary full accuracy (Info.plist `DeliveryTracking` purpose). If
+      // refused, tracking carries on with the approximate position.
+      if (_onDelivery && defaultTargetPlatform == TargetPlatform.iOS) {
+        try {
+          if (await Geolocator.getLocationAccuracy() == LocationAccuracyStatus.reduced) {
+            await Geolocator.requestTemporaryFullAccuracy(purposeKey: 'DeliveryTracking');
+          }
+        } catch (e) {
+          debugPrint('driver_location_tracker: full accuracy unavailable: $e');
+        }
+        if (generation != _generation) return;
+      }
+
       // The device's cached fix goes up straight away, so the Driver's doc
       // has a position from the moment they sign in rather than only once
       // a fresh GPS fix arrives (which can take a while indoors, or never
@@ -155,6 +191,12 @@ class DriverLocationTracker {
         debugPrint('driver_location_tracker: no last known position: $e');
       }
 
+      // Never two streams at once: replace any stream of this same session
+      // synchronously (no await), so a slower, superseded start can't cancel
+      // the stream that replaced it.
+      final previous = _subscription;
+      _subscription = null;
+      previous?.cancel();
       // The stream delivers the current position first, then every move.
       _subscription = Geolocator.getPositionStream(locationSettings: _settings()).listen(
         (position) => _report(driverId, position),
@@ -193,7 +235,7 @@ class DriverLocationTracker {
 
   Future<void> _report(String driverId, Position position) async {
     _lastPosition = position;
-    final now = DateTime.now();
+    final now = _now();
     final tooSoon = _lastReportedAt != null && now.difference(_lastReportedAt!) < _minReportInterval;
     if (!tooSoon) _lastReportedAt = now;
     _heartbeat ??= Timer.periodic(_heartbeatInterval, (_) {
@@ -203,20 +245,20 @@ class DriverLocationTracker {
       // Only while the position stream is still alive — if GPS died, the
       // location really is going stale and the customer should see that.
       if (id == null || last == null || _subscription == null) return;
-      if (reportedAt != null && DateTime.now().difference(reportedAt) < _heartbeatInterval - const Duration(seconds: 5)) {
+      if (reportedAt != null && _now().difference(reportedAt) < _heartbeatInterval - const Duration(seconds: 5)) {
         return;
       }
       _report(id, last);
     });
     if (tooSoon) return;
     try {
-      await updateDriverLocation(driverId, latitude: position.latitude, longitude: position.longitude);
+      await _writeDriver(driverId, latitude: position.latitude, longitude: position.longitude);
     } catch (e, st) {
       debugPrint('driver_location_tracker: update($driverId) failed: $e\n$st');
     }
     for (final orderId in activeOrderIds) {
       try {
-        await updateOrderDriverLocation(orderId, latitude: position.latitude, longitude: position.longitude);
+        await _writeOrder(orderId, latitude: position.latitude, longitude: position.longitude);
       } catch (e, st) {
         debugPrint('driver_location_tracker: order($orderId) update failed: $e\n$st');
       }
@@ -265,7 +307,7 @@ final driverDevicePositionProvider = StreamProvider.autoDispose<Position?>((ref)
 /// from login/registration onward (including while still under review, so
 /// a just-registered Driver's location is on record too), null for every
 /// other role and once signed out.
-final _trackedDriverIdProvider = Provider<String?>((ref) {
+final trackedDriverIdProvider = Provider<String?>((ref) {
   final session = ref.watch(sessionControllerProvider);
   final account = session.account;
   if (account == null || account.role != AppRole.driver || account.id.isEmpty) return null;
@@ -274,10 +316,14 @@ final _trackedDriverIdProvider = Provider<String?>((ref) {
 });
 
 /// The signed-in Driver's deliveries in progress (assigned or picked up).
-final _trackedActiveOrderIdsProvider = Provider<Set<String>>((ref) {
-  final driverId = ref.watch(_trackedDriverIdProvider);
+final trackedActiveOrderIdsProvider = Provider<Set<String>>((ref) {
+  final driverId = ref.watch(trackedDriverIdProvider);
   if (driverId == null) return const {};
-  final orders = ref.watch(activeOrdersProvider).valueOrNull ?? const [];
+  // The server's assignments are the authority. If the listener fails, keep
+  // no deliveries rather than the last known ones, so background tracking
+  // can never carry on for a delivery that's ended or moved to someone else.
+  final async = ref.watch(activeOrdersProvider);
+  final orders = async.hasError ? const <Order>[] : async.valueOrNull ?? const <Order>[];
   return {
     for (final o in orders)
       if (o.driverId == driverId && (o.status == OrderStatus.driverAssigned || o.status == OrderStatus.pickedUp)) o.id,
@@ -286,20 +332,20 @@ final _trackedActiveOrderIdsProvider = Provider<Set<String>>((ref) {
 
 /// True while the signed-in Driver has a delivery in progress — what
 /// switches [DriverLocationTracker] into background mode.
-final _trackedDriverOnDeliveryProvider = Provider<bool>((ref) => ref.watch(_trackedActiveOrderIdsProvider).isNotEmpty);
+final _trackedDriverOnDeliveryProvider = Provider<bool>((ref) => ref.watch(trackedActiveOrderIdsProvider).isNotEmpty);
 
 /// Starts/stops [DriverLocationTracker] as a Driver session begins and ends,
 /// and flips its background mode as deliveries start and finish — called
 /// from `QuickyApp.build`, same pattern as `fcm_topics.dart`'s `listenFor...`
 /// helpers.
 void listenForDriverLocationTracking(WidgetRef ref) {
-  ref.listen<String?>(_trackedDriverIdProvider, (previous, next) {
+  ref.listen<String?>(trackedDriverIdProvider, (previous, next) {
     if (previous == next) return;
     final tracker = ref.read(driverLocationTrackerProvider);
     if (next == null) {
       tracker.stop();
     } else {
-      tracker.activeOrderIds = ref.read(_trackedActiveOrderIdsProvider);
+      tracker.activeOrderIds = ref.read(trackedActiveOrderIdsProvider);
       tracker.start(next).then((_) => tracker.setOnDelivery(ref.read(_trackedDriverOnDeliveryProvider)));
     }
   });
@@ -307,7 +353,7 @@ void listenForDriverLocationTracking(WidgetRef ref) {
     if (previous == next) return;
     ref.read(driverLocationTrackerProvider).setOnDelivery(next);
   });
-  ref.listen<Set<String>>(_trackedActiveOrderIdsProvider, (previous, next) {
+  ref.listen<Set<String>>(trackedActiveOrderIdsProvider, (previous, next) {
     ref.read(driverLocationTrackerProvider).activeOrderIds = next;
   });
 }

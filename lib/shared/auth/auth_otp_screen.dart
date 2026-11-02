@@ -22,11 +22,16 @@ class OtpScreenArgs {
     required this.verificationId,
     required this.phoneNumber,
     this.resendToken,
+    this.attempt,
   });
 
   final String verificationId;
   final String phoneNumber;
   final int? resendToken;
+
+  /// The verification that sent this code — cancelled when the OTP screen
+  /// goes away, so a late auto-retrieval can't sign in behind it.
+  final PhoneVerificationAttempt? attempt;
 }
 
 /// Verifies the SMS code with Firebase Phone Auth, then hands off to
@@ -66,7 +71,9 @@ class AuthOtpScreen extends ConsumerStatefulWidget {
 class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
   late String _verificationId = widget.args.verificationId;
   late int? _resendToken = widget.args.resendToken;
+  late PhoneVerificationAttempt? _attempt = widget.args.attempt;
   StreamSubscription<User?>? _authSub;
+  bool _resending = false;
   String? _error;
   bool _verifying = false;
   bool _finishing = false;
@@ -89,6 +96,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
   @override
   void dispose() {
     _authSub?.cancel();
+    _attempt?.cancel();
     super.dispose();
   }
 
@@ -151,7 +159,11 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
   }
 
   Future<void> _onResend() async {
+    // One resend in flight at a time (sendPhoneCode also enforces a
+    // per-number cooldown).
+    if (_resending || _finishing) return;
     setState(() {
+      _resending = true;
       _error = null;
       _canRetryLookup = false;
     });
@@ -159,10 +171,11 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
       final result = await sendPhoneCode(widget.args.phoneNumber, resendToken: _resendToken);
       if (!mounted) return;
       switch (result) {
-        case SmsCodeSent(:final verificationId, :final resendToken):
+        case SmsCodeSent(:final verificationId, :final resendToken, :final attempt):
           setState(() {
             _verificationId = verificationId;
             _resendToken = resendToken;
+            _attempt = attempt;
           });
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A new code is on its way.')));
         case PhoneVerifiedAutomatically():
@@ -171,6 +184,8 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _error = phoneAuthErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _resending = false);
     }
   }
 

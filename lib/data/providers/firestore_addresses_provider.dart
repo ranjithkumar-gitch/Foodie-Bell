@@ -90,6 +90,12 @@ Future<Address> addAddress(String userId, Address address) async {
 
 Future<void> removeAddress(String addressId) => addressesCollection.doc(addressId).delete();
 
+/// Saves the delivery point the User confirmed for an existing address
+/// (`pin_saved_address.dart`). Only the position changes; firestore.rules
+/// lets the owner update their own address.
+Future<void> pinSavedAddress(String addressId, {required double latitude, required double longitude}) =>
+    addressesCollection.doc(addressId).update({'latitude': latitude, 'longitude': longitude});
+
 /// The address selected during checkout — read by both the address-selection
 /// and payment screens.
 final selectedAddressProvider = StateProvider<Address?>((ref) => null);

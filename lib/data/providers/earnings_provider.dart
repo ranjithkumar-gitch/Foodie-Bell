@@ -15,7 +15,6 @@ import 'settlement_provider.dart';
 ///
 ///  - `earnings_daily/{party}_{day}` — one Vendor/Driver/Manager's day
 ///  - `earnings_totals/{party}`      — their running total
-///  - `territory_daily_stats/{territoryId}_{day}` — a territory's day (Manager)
 ///
 /// Only orders delivered since Phase 2 (with a money snapshot) are in them;
 /// older beta orders still show in the order history lists.
@@ -38,6 +37,33 @@ class EarningsFigures {
 
   /// Customer totals by weekday, Monday first (Vendor).
   List<double> get weekdayTotals => [for (var d = 1; d <= 7; d++) _rupees(data['weekday${d}Paise'])];
+
+  // ---- Vendor cancellation charges (Phase I.4), never part of [earnings] ----
+  // All kept by the server: charged when the shop cancels an accepted order,
+  // collected when the collector confirms a purpose-tagged payment,
+  // outstanding = what's still owed, reversed = Super-Admin-approved.
+
+  int get cancellationCharges => (data['cancellationCharges'] as num?)?.toInt() ?? 0;
+  double get cancellationChargesAssessed => _rupees(data['cancellationChargesPaise']);
+  double get cancellationChargesCollected => _rupees(data['cancellationChargesCollectedPaise']);
+  double get cancellationChargesOutstanding => _rupees(data['cancellationChargesOutstandingPaise']);
+  double get cancellationChargesReversed => _rupees(data['cancellationChargesReversedPaise']);
+
+  // Approved reversals (Phase I.4.1): the unpaid part waived, what the shop
+  // paid owed back until it confirms the refund.
+  double get cancellationChargesWaived => _rupees(data['cancellationChargesWaivedPaise']);
+  double get cancellationRefundDue => _rupees(data['cancellationRefundDuePaise']);
+  double get cancellationRefunded => _rupees(data['cancellationRefundedPaise']);
+
+  /// Refunds the collector recorded paying, not yet confirmed by the shop (Phase I.4.2).
+  double get cancellationRefundPending => _rupees(data['cancellationRefundPendingPaise']);
+
+  // ---- Driver cancellation compensation (Phase I.4), never part of [earnings] ----
+
+  int get cancellationCompensations => (data['cancellationCompensations'] as num?)?.toInt() ?? 0;
+  double get cancellationCompEarned => _rupees(data['cancellationCompPaise']);
+  double get cancellationCompPaid => _rupees(data['cancellationCompPaidPaise']);
+  double get cancellationCompPending => _rupees(data['cancellationCompPendingPaise']);
 }
 
 class EarningsDay extends EarningsFigures {
@@ -80,25 +106,16 @@ final myEarningsTotalsProvider = StreamProvider.autoDispose<EarningsFigures>((re
 EarningsFigures earningsOn(List<EarningsDay> days, String day) =>
     days.where((d) => d.day == day).firstOrNull ?? const EarningsFigures({});
 
-/// The signed-in Manager's territory today: delivered orders and their
-/// money (`territory_daily_stats`). Zeros before the first delivery.
-class TerritoryDayStats {
-  const TerritoryDayStats(this.data);
-  final Map<String, dynamic> data;
-  int get deliveredOrders => (data['deliveredOrders'] as num?)?.toInt() ?? 0;
-  double get customerTotal => _rupees(data['customerTotalPaise']);
-  double get itemValue => _rupees(data['itemValuePaise']);
-  double get commission => _rupees(data['commissionPaise']);
-  double get managerShare => _rupees(data['managerSharePaise']);
-}
-
-final territoryTodayStatsProvider = StreamProvider.autoDispose<TerritoryDayStats>((ref) {
+/// The signed-in Manager's own settlement day so far (Phase I.5): orders
+/// of their own shops delivered today and their share of the commission
+/// (`earnings_daily/manager:{id}_{day}`). Territory-wide figures, which
+/// include other Managers' shops, are the Super Admin's only.
+final managerTodayEarningsProvider = StreamProvider.autoDispose<EarningsFigures>((ref) {
   final scope = ref.watch(accessScopeProvider);
-  final territoryId = scope?.territoryId;
-  if (scope?.role != AppRole.manager || territoryId == null) return Stream.value(const TerritoryDayStats({}));
+  if (scope?.role != AppRole.manager) return Stream.value(const EarningsFigures({}));
   final cutoff = ref.watch(settlementCutoffProvider).valueOrNull ?? 22 * 60;
   return FirebaseFirestore.instance
-      .doc('territory_daily_stats/${territoryId}_${currentSettlementDay(cutoffMinutes: cutoff)}')
+      .doc('earnings_daily/${partyKeyFor(AppRole.manager, scope!.accountId)}_${currentSettlementDay(cutoffMinutes: cutoff)}')
       .snapshots()
-      .map((d) => TerritoryDayStats(d.data() ?? const {}));
+      .map((d) => EarningsFigures(d.data() ?? const {}));
 });

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../../core/maps/maps_availability.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -184,7 +185,7 @@ class _TripPreviewMapState extends State<TripPreviewMap> {
     final route = widget.route;
     final driver = widget.driver;
     final drop = widget.drop;
-    return GoogleMap(
+    return MapsGate(child: GoogleMap(
       initialCameraPosition: CameraPosition(target: widget.pickup, zoom: 14),
       onMapCreated: (controller) {
         _controller = controller;
@@ -247,7 +248,7 @@ class _TripPreviewMapState extends State<TripPreviewMap> {
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
       compassEnabled: false,
-    );
+    ));
   }
 }
 
@@ -296,7 +297,7 @@ class _DriverPositionMapState extends State<DriverPositionMap> {
 
   @override
   Widget build(BuildContext context) {
-    return GoogleMap(
+    return MapsGate(child: GoogleMap(
       initialCameraPosition: CameraPosition(target: widget.driver, zoom: 16),
       onMapCreated: (controller) => _controller = controller,
       markers: {
@@ -312,7 +313,7 @@ class _DriverPositionMapState extends State<DriverPositionMap> {
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
       compassEnabled: false,
-    );
+    ));
   }
 }
 
@@ -458,7 +459,7 @@ class _DriverRouteMapState extends State<DriverRouteMap> {
   Widget build(BuildContext context) {
     final driver = widget.driver;
     final route = widget.route;
-    return GoogleMap(
+    return MapsGate(child: GoogleMap(
       initialCameraPosition: CameraPosition(target: widget.destination, zoom: 15),
       onMapCreated: (controller) {
         _controller = controller;
@@ -512,6 +513,6 @@ class _DriverRouteMapState extends State<DriverRouteMap> {
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
       compassEnabled: false,
-    );
+    ));
   }
 }

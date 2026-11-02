@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../mock/mock_categories.dart';
+import '../models/account.dart';
 import '../models/category.dart';
 import '../models/territory.dart';
 
@@ -76,3 +77,11 @@ List<Category> categoriesForTerritory(List<Category> categories, Territory? terr
   if (territory == null || territory.disabledCategoryIds.isEmpty) return categories;
   return categories.where((c) => !territory.disabledCategoryIds.contains(c.id)).toList();
 }
+
+/// Whether [vendor] may be shown and ordered from in [territory]: its
+/// category isn't one the territory's Manager switched off
+/// (`Territory.disabledCategoryIds`). Applied on every customer surface —
+/// Home, Search and the storefront — and enforced again by the server in
+/// `quoteOrder` / `placeOrder`. `territory: null` (not loaded yet) allows.
+bool vendorCategoryEnabled(Account vendor, Territory? territory) =>
+    territory == null || vendor.category == null || !territory.disabledCategoryIds.contains(vendor.category);

@@ -14,7 +14,6 @@ import 'firestore_products_provider.dart';
 import 'firestore_promotions_provider.dart';
 import 'firestore_reviews_provider.dart';
 import 'settlement_provider.dart';
-import 'firestore_tax_categories_provider.dart';
 import 'firestore_territories_provider.dart';
 import 'firestore_ticket_chat_provider.dart';
 import 'firestore_tickets_provider.dart';
@@ -70,7 +69,6 @@ void resetFirestoreStreams(Ref ref) {
   ref.invalidate(firestoreListOrderRequestsProvider);
   ref.invalidate(listOrderRequestByIdProvider);
   ref.invalidate(firestoreUsersProvider);
-  ref.invalidate(firestoreTaxCategoriesProvider);
   ref.invalidate(orderChatProvider);
   ref.invalidate(firestoreTicketsProvider);
   ref.invalidate(ticketByIdProvider);

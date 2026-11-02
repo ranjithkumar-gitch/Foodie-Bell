@@ -16,7 +16,6 @@ import '../../../data/providers/vendor_product_storage_provider.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/document_source_sheet.dart';
-import '../../../shared/widgets/tax_category_field.dart';
 import '../vendor_session.dart';
 
 /// Add/Edit Product (spec §5.11): name, photo, price, unit, veg/non-veg,
@@ -81,6 +80,9 @@ class _VendorAddEditProductScreenState
   String? _error;
   bool _initialized = false;
   bool _saving = false;
+  // Legacy GST/HSN fields (Phase I.4.3): prices are tax-inclusive and Quicky
+  // adds no GST, so there is no tax picker any more. Whatever an existing
+  // product carries is saved back unchanged — never edited or dropped.
   String? _taxCategoryId;
   GstOverride? _gstOverride;
 
@@ -391,6 +393,7 @@ class _VendorAddEditProductScreenState
             children: [
               Expanded(
                 child: AppTextField(
+                  key: const Key('productPrice'),
                   label: 'Price (₹)',
                   controller: _priceController,
                   keyboardType: TextInputType.number,
@@ -405,6 +408,13 @@ class _VendorAddEditProductScreenState
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          // Phase I.4.3: the catalogue price is the final selling price; Quicky adds no tax on top.
+          Text(
+            'Enter the final selling price, inclusive of applicable taxes.',
+            key: const Key('priceTaxInclusiveHint'),
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 12.5),
           ),
           const SizedBox(height: 16),
           AppTextField(
@@ -430,15 +440,6 @@ class _VendorAddEditProductScreenState
               ],
             ),
           ],
-          const SizedBox(height: 16),
-          TaxCategoryField(
-            category: category,
-            productSubCategory: _subCategoryController.text,
-            taxCategoryId: _taxCategoryId,
-            onTaxCategoryIdChanged: (id) => setState(() => _taxCategoryId = id),
-            gstOverride: _gstOverride,
-            onGstOverrideChanged: (override) => _gstOverride = override,
-          ),
           const SizedBox(height: 16),
           if (isFood) ...[
             Text(

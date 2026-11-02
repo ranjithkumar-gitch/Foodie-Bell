@@ -1,1 +1,12 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
+// GMS_API_KEY (Google Maps SDK for iOS): local only, git-ignored.
+#include? "Secrets.xcconfig"
+
+// Profile builds share this file but are local test builds too: same as
+// Debug.xcconfig for them. Release itself is unchanged (plist bundled, FCM
+// auto-init on — Info.plist defaults it to YES).
+EXCLUDED_SOURCE_FILE_NAMES_Profile = GoogleService-Info.plist
+EXCLUDED_SOURCE_FILE_NAMES = $(inherited) $(EXCLUDED_SOURCE_FILE_NAMES_$(CONFIGURATION))
+FIREBASE_MESSAGING_AUTO_INIT_ENABLED_Profile = NO
+FIREBASE_MESSAGING_AUTO_INIT_ENABLED = $(FIREBASE_MESSAGING_AUTO_INIT_ENABLED_$(CONFIGURATION))

@@ -129,6 +129,11 @@ class VendorProfileScreen extends ConsumerWidget {
             onTap: () => context.go('/vendor/orders'),
           ),
           _MenuTile(
+            icon: Icons.currency_exchange_rounded,
+            label: 'Customer refunds',
+            onTap: () => context.push('/vendor/refunds'),
+          ),
+          _MenuTile(
             icon: Icons.account_balance_wallet_outlined,
             label: 'Earnings & Settlement',
             onTap: () => context.push('/vendor/earnings'),

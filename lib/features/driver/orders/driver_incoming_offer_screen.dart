@@ -127,11 +127,11 @@ class _DriverIncomingOfferScreenState extends ConsumerState<DriverIncomingOfferS
     // Google's road figures when it answers, else a rough on-device guess.
     RoadRoute? toPickupRoute;
     if (driver != null && vendor != null) {
-      toPickupRoute = ref.watch(roadRouteProvider(roadRouteRequest(from: driver, to: vendor))).valueOrNull;
+      toPickupRoute = ref.watch(roadRouteProvider(orderRouteRequest(widget.orderId, 'approach', origin: driver))).valueOrNull;
     }
     RoadRoute? toDropRoute;
     if (vendor != null && drop != null) {
-      toDropRoute = ref.watch(roadRouteProvider(roadRouteRequest(from: vendor, to: drop))).valueOrNull;
+      toDropRoute = ref.watch(roadRouteProvider(orderRouteRequest(widget.orderId, 'offer'))).valueOrNull;
     }
     final toPickup = toPickupRoute != null
         ? TravelEstimate.fromRoute(toPickupRoute)

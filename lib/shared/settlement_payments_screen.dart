@@ -59,11 +59,13 @@ class SettlementPaymentsScreen extends ConsumerWidget {
                 itemBuilder: (context, i) {
                   final t = list[i];
                   final incoming = t.to == me;
+                  final other = incoming ? t.from : t.to;
+                  final otherName = other == 'quicky' ? 'Quicky' : 'the Manager';
                   final mustAnswer = t.status == 'pendingAck' && t.counterparty == me;
                   final statusText = switch (t.status) {
                     'confirmed' => 'Confirmed',
                     'disputed' => 'Disputed',
-                    _ => mustAnswer ? 'Please confirm' : 'Waiting for the Manager to confirm',
+                    _ => mustAnswer ? 'Please confirm' : 'Waiting for ${otherName == 'Quicky' ? 'Quicky' : 'the Manager'} to confirm',
                   };
                   return Container(
                     padding: const EdgeInsets.all(14),
@@ -77,12 +79,13 @@ class SettlementPaymentsScreen extends ConsumerWidget {
                       children: [
                         Row(children: [
                           Expanded(
-                            child: Text(incoming ? 'Manager paid you' : 'You paid the Manager',
+                            child: Text(incoming ? '${otherName == 'Quicky' ? 'Quicky' : 'Manager'} paid you' : 'You paid $otherName',
                                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                           ),
                           CurrencyText(t.amountPaise / 100, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: incoming ? palette.success : palette.textPrimary)),
                         ]),
                         const SizedBox(height: 4),
+                        if (t.purpose != 'general') Text(settlementPurposeLabel(t.purpose), key: ValueKey('purpose:${t.id}'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                         Text('${t.settlementDay} · ${t.method == 'upi' ? 'UPI ${t.reference ?? ''}' : 'Cash'}', style: TextStyle(color: palette.textSecondary, fontSize: 14)),
                         Text(statusText, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
                             color: t.status == 'disputed' ? palette.error : (t.status == 'confirmed' ? palette.success : palette.warning))),

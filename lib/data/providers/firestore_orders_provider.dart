@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/session/access_scope.dart';
 import '../models/account.dart';
 import '../models/order.dart';
+import '../models/refund_case.dart';
 
 /// The persistent order lifecycle every role reads a slice of (User
 /// checkout, Vendor accept/reject, Driver assignment/pickup/delivery,
@@ -71,6 +72,8 @@ Order _orderFromDoc(String id, Map<String, dynamic> data) => Order(
   money: OrderMoney.tryParse(data['money']),
   payment: OrderPayment.tryParse(data['payment']),
   deliveryIssue: DeliveryIssue.tryParse(data['deliveryIssue']),
+  cancellation: OrderCancellation.tryParse(data['cancellation']),
+  refundStatus: data['refundStatus'] is String ? refundStatusFrom(data['refundStatus']) : null,
 );
 
 List<Order> _ordersOf(QuerySnapshot<Map<String, dynamic>> snapshot) =>
@@ -83,14 +86,18 @@ final activeOrderStatusNames = [
     if (!s.isTerminal) s.name,
 ];
 
-/// The field that scopes [scope]'s orders, as `firestore.rules` requires:
-/// the account's own orders, or the Manager's territory. Null for roles
-/// with no order list (Super Admin uses QuickyAdmin).
-(String, String)? _orderScopeField(AccessScope scope) => switch (scope.role) {
-  AppRole.user => ('userId', scope.accountId),
-  AppRole.vendor => ('vendorId', scope.accountId),
-  AppRole.driver => ('driverId', scope.accountId),
-  AppRole.manager => scope.territoryId == null ? null : ('territoryId', scope.territoryId!),
+/// [scope]'s orders, filtered as `firestore.rules` requires: the account's
+/// own orders, or — for a Manager (Phase I.5) — the orders of their own
+/// shops, i.e. snapshotted to them (`managerId`) in their territory, never
+/// the whole territory's. Null for roles with no order list (Super Admin
+/// uses QuickyAdmin).
+Query<Map<String, dynamic>>? _scopedOrders(AccessScope scope) => switch (scope.role) {
+  AppRole.user => ordersCollection.where('userId', isEqualTo: scope.accountId),
+  AppRole.vendor => ordersCollection.where('vendorId', isEqualTo: scope.accountId),
+  AppRole.driver => ordersCollection.where('driverId', isEqualTo: scope.accountId),
+  AppRole.manager => scope.territoryId == null
+      ? null
+      : ordersCollection.where('territoryId', isEqualTo: scope.territoryId).where('managerId', isEqualTo: scope.accountId),
   AppRole.admin => null,
 };
 
@@ -98,18 +105,16 @@ final activeOrderStatusNames = [
 ///  - Customer / Vendor: their own unfinished orders.
 ///  - Driver: their current deliveries, plus — once approved — open offers
 ///    (Vendor-accepted, unassigned) in their territory.
-///  - Manager: every unfinished order in their territory.
+///  - Manager: every unfinished order of their own shops.
 /// Finished orders are read a page at a time ([orderHistoryProvider]) and
 /// totals come from the server's read models (`earnings_provider.dart`), so
 /// no screen listens to an account's whole order history (Phase 3).
 final activeOrdersProvider = StreamProvider<List<Order>>((ref) {
   final scope = ref.watch(accessScopeProvider);
   if (scope == null) return Stream.value(const []);
-  final scoped = _orderScopeField(scope);
+  final scoped = _scopedOrders(scope);
   if (scoped == null) return Stream.value(const []);
-  final (field, value) = scoped;
-  final mine = ordersCollection
-      .where(field, isEqualTo: value)
+  final mine = scoped
       .where('status', whereIn: activeOrderStatusNames)
       .snapshots()
       .map(_ordersOf);
@@ -129,11 +134,10 @@ final activeOrdersProvider = StreamProvider<List<Order>>((ref) {
 /// Manager, live while a dashboard is open.
 final todaysOrdersProvider = StreamProvider.autoDispose<List<Order>>((ref) {
   final scope = ref.watch(accessScopeProvider);
-  final scoped = scope == null ? null : _orderScopeField(scope);
+  final scoped = scope == null ? null : _scopedOrders(scope);
   if (scoped == null) return Stream.value(const []);
   final now = DateTime.now();
-  return ordersCollection
-      .where(scoped.$1, isEqualTo: scoped.$2)
+  return scoped
       .where('placedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime(now.year, now.month, now.day)))
       .orderBy('placedAt', descending: true)
       .snapshots()
@@ -152,9 +156,9 @@ enum OrderHistoryFilter {
 }
 
 Query<Map<String, dynamic>>? _historyQuery(AccessScope? scope, OrderHistoryFilter filter) {
-  final scoped = scope == null ? null : _orderScopeField(scope);
+  final scoped = scope == null ? null : _scopedOrders(scope);
   if (scoped == null) return null;
-  var query = ordersCollection.where(scoped.$1, isEqualTo: scoped.$2);
+  var query = scoped;
   final statuses = filter.statuses;
   if (statuses != null) {
     query = statuses.length == 1 ? query.where('status', isEqualTo: statuses.single) : query.where('status', whereIn: statuses);
@@ -284,3 +288,30 @@ Future<void> updateOrderDriverLocation(String orderId, {required double latitude
       'longitude': longitude,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+/// One entry of an order's server-written history (`orders/{id}/events`,
+/// `orderEvent` in QuickyAdmin `functions/common.js`): what happened, who
+/// did it (role) and its details. Readable by the order's Manager.
+class OrderEvent {
+  const OrderEvent({required this.type, required this.role, required this.details, this.at});
+  final String type;
+  final String role;
+  final Map<String, dynamic> details;
+  final DateTime? at;
+}
+
+/// [orderId]'s latest history entries, newest first — bounded, live while
+/// a Manager has the order open.
+final orderEventsProvider = StreamProvider.autoDispose.family<List<OrderEvent>, String>((ref, orderId) {
+  return ordersCollection.doc(orderId).collection('events').orderBy('at', descending: true).limit(20).snapshots().map(
+    (snapshot) => [
+      for (final doc in snapshot.docs)
+        OrderEvent(
+          type: doc.data()['type'] as String? ?? '',
+          role: doc.data()['role'] as String? ?? '',
+          details: Map<String, dynamic>.from(doc.data()['details'] as Map? ?? const {}),
+          at: (doc.data()['at'] as Timestamp?)?.toDate(),
+        ),
+    ],
+  );
+});

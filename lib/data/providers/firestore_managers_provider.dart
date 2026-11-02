@@ -47,16 +47,54 @@ Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
   );
 }
 
+/// Every Manager's public card (Phase I.5.1, `manager_directory`): name,
+/// code, territory, avatar and whether they're available — what support
+/// screens and the shop directory need. The full Manager account (phone,
+/// email, status, fee) is readable only by that Manager and the Super Admin,
+/// so it's never listed here; [Account.phone] is empty and [Account.status]
+/// is `active` or `suspended` from `available`.
+const managerDirectoryCollectionPath = 'manager_directory';
+
+Account _accountFromCard(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data() ?? const <String, dynamic>{};
+  return Account(
+    id: doc.id,
+    role: AppRole.manager,
+    name: data['name'] as String? ?? '',
+    phone: '',
+    managerCode: data['managerCode'] as String?,
+    territory: data['territory'] as String?,
+    territoryId: data['territoryId'] as String?,
+    avatarUrl: data['avatarUrl'] as String?,
+    status: data['available'] == false ? AccountStatus.suspended : AccountStatus.active,
+    deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
+  );
+}
+
 final firestoreManagersProvider = StreamProvider<List<Account>>((ref) {
-  return managersCollection
-      .orderBy('createdAt', descending: true)
+  return FirebaseFirestore.instance
+      .collection(managerDirectoryCollectionPath)
       .snapshots()
       .map(
         (snapshot) => snapshot.docs
-            .map(_accountFromDoc)
+            .map(_accountFromCard)
             .where((a) => a.deletedAt == null)
-            .toList(),
+            .toList()
+          // Available Managers first, so support routing picks one who can answer.
+          ..sort((a, b) => (a.status == AccountStatus.active ? 0 : 1).compareTo(b.status == AccountStatus.active ? 0 : 1)),
       );
+});
+
+/// Whether one Manager is available (`active`) or not (`inactive`), live,
+/// from their public card; null if there's no such Manager. Used by a shop
+/// to know whether its assigned Manager can run it (Phase I.5; the card
+/// since Phase I.5.1, as the full account isn't readable by the shop).
+final managerStatusProvider = StreamProvider.autoDispose.family<String?, String>((ref, managerId) {
+  return FirebaseFirestore.instance.doc('$managerDirectoryCollectionPath/$managerId').snapshots().map((d) {
+    final data = d.data();
+    if (data == null || data['deletedAt'] != null) return null;
+    return data['available'] == false ? 'inactive' : 'active';
+  });
 });
 
 /// Soft-deletes a Manager (Admin-only, `manager_directory_screen.dart`/
