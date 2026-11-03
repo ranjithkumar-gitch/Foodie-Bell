@@ -67,13 +67,16 @@ bool _ignored(String path) => Process.runSync('git', ['check-ignore', '--no-inde
 String _read(String path) => File(path).readAsStringSync();
 
 void main() {
-  group('target selection (fail closed)', () {
-    test('development defaults to local isolation: no defines → no Firebase at all, no fallback', () {
-      final t = _debug();
+  group('target selection', () {
+    test('a plain run (no defines) uses live data (owner decision 2026-11-03)', () {
+      expect(_debug().isProduction, isTrue);
+      expect(_debug({'USE_FIREBASE_EMULATORS': 'false'}).isProduction, isTrue);
+    });
+
+    test('an emulator request without its host is refused, never silently live', () {
+      final t = _debug({'FIREBASE_TARGET': 'emulator'});
       expect(t.isMisconfigured, isTrue);
-      expect(t.isProduction, isFalse);
       expect(t.problem, contains('EMU_HOST'));
-      expect(t.problem, contains('will not fall back to the real project'));
     });
 
     test('missing or invalid emulator configuration fails closed', () {
@@ -114,9 +117,10 @@ void main() {
       expect(t.host, '10.0.2.2');
     });
 
-    test('a debug build reaches the real project only when it says so', () {
+    test('the emulators are used only when asked for', () {
       expect(_debug({'FIREBASE_TARGET': 'production'}).isProduction, isTrue);
-      expect(_debug({'USE_FIREBASE_EMULATORS': 'false'}).isProduction, isFalse);
+      expect(_debug({'FIREBASE_TARGET': 'emulator', 'EMU_HOST': '127.0.0.1'}).isEmulator, isTrue);
+      expect(_debug({'USE_FIREBASE_EMULATORS': 'true'}).isEmulator, isTrue);
     });
 
     test('release builds are unchanged: always the real project, whatever was defined', () {

@@ -1,20 +1,17 @@
 /// Which Firebase this build talks to — decided once at startup, before
-/// `Firebase.initializeApp`, so a local test run can never quietly reach
-/// the real project (`quickmandi-3b017`).
+/// `Firebase.initializeApp`.
 ///
-/// * **Release builds** always use the real project. Nothing here changes
-///   them; the defines below are ignored.
-/// * **Debug and profile builds** are local test builds and **default to
-///   the local Firebase Emulator Suite**. They reach the real project only
-///   when started with `--dart-define=FIREBASE_TARGET=production`.
-/// * An emulator build needs the emulators' address, e.g.
+/// * **Every build uses the live project (`quickmandi-3b017`) by default**
+///   — release, debug and profile alike; a plain `flutter run` connects to
+///   live data (owner decision, 2026-11-03).
+/// * The local Firebase Emulator Suite is used only when asked for, e.g.
 ///   `--dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=127.0.0.1`
 ///   (iOS simulator, web) or `EMU_HOST=10.0.2.2` (Android emulator). The
 ///   older `--dart-define=USE_FIREBASE_EMULATORS=true` still works and keeps
-///   its documented `10.0.2.2` default.
-/// * Anything missing or invalid is [FirebaseTargetKind.misconfigured]: the
-///   app shows a setup error and never initialises Firebase — it does not
-///   fall back to the real project.
+///   its documented `10.0.2.2` default. Release builds ignore these defines.
+/// * An invalid emulator request (no host, a non-local host, a bad port, an
+///   unknown target) is [FirebaseTargetKind.misconfigured]: the app shows a
+///   setup error instead of guessing.
 ///
 /// Ports default to the emulators' standard ones (`firebase.json`) and can
 /// be overridden with `EMU_AUTH_PORT`, `EMU_FS_PORT`, `EMU_FN_PORT` and
@@ -99,10 +96,10 @@ class FirebaseTarget {
   bool get isMisconfigured => kind == FirebaseTargetKind.misconfigured;
 }
 
-const setupHint = 'For the local emulators run, for example:\n'
+const setupHint = 'For the local emulators, run for example:\n'
     '  flutter run --dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=127.0.0.1\n'
-    '(EMU_HOST=10.0.2.2 on the Android emulator). To use the real project on purpose:\n'
-    '  flutter run --dart-define=FIREBASE_TARGET=production';
+    '(EMU_HOST=10.0.2.2 on the Android emulator). For live data, run without FIREBASE_TARGET:\n'
+    '  flutter run';
 
 /// Decides the target from the build mode and the compiled defines. Pure,
 /// so the rules are unit-tested (`test/phase_i8_b11_firebase_safety_test.dart`).
@@ -125,19 +122,21 @@ FirebaseTarget resolveFirebaseTarget({required bool isRelease, Map<String, Strin
       }
       return const FirebaseTarget.production();
     case '':
+      // Nothing asked for: live data, unless the legacy emulator flag is on.
+      if (!legacyEmulators) return const FirebaseTarget.production();
     case 'emulator':
       break;
     default:
       return FirebaseTarget.misconfigured('Unknown FIREBASE_TARGET "$target" (use emulator or production).');
   }
 
-  // Emulator — the default for debug and profile builds.
+  // Emulator — only when explicitly requested.
   var host = read('EMU_HOST');
   if (host.isEmpty && legacyEmulators) host = '10.0.2.2';
   if (host.isEmpty) {
     return const FirebaseTarget.misconfigured(
-        'This debug/profile build has no Firebase target. Local builds use the emulators by default, '
-        'but EMU_HOST (where the emulators run) was not given. The app will not fall back to the real project.');
+        'FIREBASE_TARGET=emulator was given without EMU_HOST (where the emulators run). '
+        'Add EMU_HOST, or drop FIREBASE_TARGET to use live data.');
   }
   if (!isLocalEmulatorHost(host)) {
     return FirebaseTarget.misconfigured(

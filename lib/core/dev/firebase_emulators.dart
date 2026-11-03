@@ -61,8 +61,8 @@ Future<void> initializeFirebaseAppFor(FirebaseTarget target, FirebaseOptions rea
       throw FirebaseSetupException(target.problem);
     case FirebaseTargetKind.production:
       if (!kReleaseMode) {
-        debugPrint('Firebase: ⚠ this ${kDebugMode ? 'debug' : 'profile'} build uses the REAL project '
-            '(${real.projectId}) because FIREBASE_TARGET=production was given.');
+        debugPrint('Firebase: this ${kDebugMode ? 'debug' : 'profile'} build uses LIVE data '
+            '(${real.projectId}). Pass FIREBASE_TARGET=emulator for the local emulators.');
       }
       await Firebase.initializeApp(options: real);
     case FirebaseTargetKind.emulator:
