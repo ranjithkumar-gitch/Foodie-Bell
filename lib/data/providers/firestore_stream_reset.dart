@@ -45,33 +45,45 @@ import 'firestore_vendors_provider.dart';
 final firestoreStreamResetProvider = Provider<void Function()>((ref) => () => resetFirestoreStreams(ref));
 
 void resetFirestoreStreams(Ref ref) {
-  ref.invalidate(firestoreAddressesProvider);
-  ref.invalidate(firestoreManagersProvider);
-  ref.invalidate(firestoreVendorsProvider);
-  ref.invalidate(firestoreDriversProvider);
-  ref.invalidate(driverLocationProvider);
-  ref.invalidate(firestoreTerritoriesProvider);
-  ref.invalidate(firestoreCategoriesProvider);
-  ref.invalidate(globalProductsProvider);
-  ref.invalidate(vendorProductsProvider);
-  ref.invalidate(activeOrdersProvider);
-  ref.invalidate(todaysOrdersProvider);
-  ref.invalidate(orderHistoryProvider);
-  ref.invalidate(driverPositionProvider);
-  ref.invalidate(orderByIdProvider);
-  ref.invalidate(vendorReviewsProvider);
-  ref.invalidate(driverReviewsProvider);
-  ref.invalidate(reviewForOrderProvider);
-  ref.invalidate(firestorePromotionsProvider);
-  ref.invalidate(territoryStatementsProvider);
-  ref.invalidate(myTransfersProvider);
-  ref.invalidate(firestoreCouponsProvider);
-  ref.invalidate(firestoreListOrderRequestsProvider);
-  ref.invalidate(listOrderRequestByIdProvider);
-  ref.invalidate(firestoreUsersProvider);
-  ref.invalidate(orderChatProvider);
-  ref.invalidate(firestoreTicketsProvider);
-  ref.invalidate(ticketByIdProvider);
-  ref.invalidate(ticketChatProvider);
-  ref.invalidate(brandThemeStreamProvider);
+  // Only rebuild streams that are already running. In Riverpod 2.6,
+  // `ref.invalidate` on a provider nobody has read yet *creates* it — so
+  // this reset used to open a listener on every collection below (the
+  // whole `users`, `vendors`, `drivers`… collections) at each sign-in,
+  // which the rules rightly refuse (PERMISSION_DENIED) and which, under
+  // the old open rules, downloaded data this session must never see.
+  // Families aren't affected (their invalidate only touches live members).
+  void reset(ProviderOrFamily provider) {
+    if (provider is ProviderBase<Object?> && !ref.exists(provider)) return;
+    ref.invalidate(provider);
+  }
+
+  reset(firestoreAddressesProvider);
+  reset(firestoreManagersProvider);
+  reset(firestoreVendorsProvider);
+  reset(firestoreDriversProvider);
+  reset(driverLocationProvider);
+  reset(firestoreTerritoriesProvider);
+  reset(firestoreCategoriesProvider);
+  reset(globalProductsProvider);
+  reset(vendorProductsProvider);
+  reset(activeOrdersProvider);
+  reset(todaysOrdersProvider);
+  reset(orderHistoryProvider);
+  reset(driverPositionProvider);
+  reset(orderByIdProvider);
+  reset(vendorReviewsProvider);
+  reset(driverReviewsProvider);
+  reset(reviewForOrderProvider);
+  reset(firestorePromotionsProvider);
+  reset(territoryStatementsProvider);
+  reset(myTransfersProvider);
+  reset(firestoreCouponsProvider);
+  reset(firestoreListOrderRequestsProvider);
+  reset(listOrderRequestByIdProvider);
+  reset(firestoreUsersProvider);
+  reset(orderChatProvider);
+  reset(firestoreTicketsProvider);
+  reset(ticketByIdProvider);
+  reset(ticketChatProvider);
+  reset(brandThemeStreamProvider);
 }
