@@ -343,6 +343,12 @@
 
   "vendorEtaRange": "{min}–{max} mins",
   "@vendorEtaRange": { "placeholders": { "min": { "type": "int" }, "max": { "type": "int" } } },
+  "vendorEtaHours": "{hours} hr",
+  "@vendorEtaHours": { "placeholders": { "hours": { "type": "int" } } },
+  "vendorEtaDays": "{days, plural, =1{1 day} other{{days} days}}",
+  "@vendorEtaDays": { "placeholders": { "days": { "type": "int" } } },
+  "vendorEtaDate": "By {date}",
+  "@vendorEtaDate": { "placeholders": { "date": {} } },
   "vendorDistanceKm": "{km} km",
   "@vendorDistanceKm": { "placeholders": { "km": {} } },
   "vendorOfferUseCode": "Use {code}",

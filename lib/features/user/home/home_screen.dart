@@ -16,7 +16,6 @@ import '../../../data/models/order.dart';
 import '../../../data/models/promotion.dart';
 import '../../../data/models/territory.dart';
 import '../../../data/providers/cart_provider.dart';
-import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_categories_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../data/providers/firestore_list_order_requests_provider.dart';
@@ -243,12 +242,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // isLiveNow requires status == active AND today within the vendor-picked
     // start/duration window — a Manager-approved promotion scheduled for a
     // future date, or one whose run has ended, correctly stays hidden here
-    // without needing its status flipped by anything.
+    // without needing its status flipped by anything. The provider already
+    // returns only this territory's promotions (by ID or by name).
     final promotedVendors =
         (ref.watch(firestorePromotionsProvider).valueOrNull ?? const [])
-            .where(
-              (p) => p.isLiveNow && p.matchesTerritory(selectedTerritory?.name),
-            )
+            .where((p) => p.isLiveNow)
             .toList();
     // Coupons published below Promotions — only from vendors that are
     // actually orderable right now (active + in the selected territory),
@@ -278,7 +276,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final dashboardThemeUrl = ref
         .watch(activeBrandThemeProvider)
         ?.dashboardThemeUrl;
-    final position = ref.watch(devicePositionProvider).valueOrNull;
+    final position = ref.watch(deliveryPointProvider);
     // The "Rated 4.0+" filter uses each vendor's server-kept average.
     double? ratingOf(Account vendor) => vendor.ratingCount == 0 ? null : vendor.ratingAverage;
 

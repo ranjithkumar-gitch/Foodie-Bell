@@ -104,8 +104,10 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
   }
 
   /// Opens the map at [start] for the User to place and confirm the pin;
-  /// keeps the pin only if they confirm. Only staged here — it's written
-  /// along with the rest of the form on "Save Address".
+  /// keeps the pin only if they confirm, and fills house/street, pincode
+  /// and city from where the pin was dropped — not from where the map
+  /// started — so the saved address always matches the pin. Only staged
+  /// here — it's written along with the rest of the form on "Save Address".
   Future<void> _confirmPin(LatLng start) async {
     final pinned = await Navigator.of(context).push<LatLng>(
       MaterialPageRoute(fullscreenDialog: true, builder: (_) => PinLocationScreen(initial: start)),
@@ -115,6 +117,15 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
       _latitude = pinned.latitude;
       _longitude = pinned.longitude;
       _error = null;
+      _locating = true;
+    });
+    // A convenience on top: when the lookup fails the pin is still kept and
+    // the User types the fields in themselves.
+    final place = await placemarkAt(pinned);
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      if (place != null) _fillFrom(place);
     });
   }
 
@@ -146,35 +157,19 @@ class _AddAddressSheetState extends ConsumerState<AddAddressSheet> {
     if (start != null) await _confirmPin(start);
   }
 
-  /// Fills the address fields from where the User's phone is right now and
-  /// starts the pin there — meant to be tapped while standing at the
-  /// address. The pin still has to be confirmed on the map.
+  /// Starts the pin where the User's phone is right now — meant to be
+  /// tapped while standing at the address. The pin still has to be
+  /// confirmed on the map, and the fields are filled from that pin.
   Future<void> _useCurrentLocation() async {
     setState(() {
       _locating = true;
       _error = null;
     });
     final (:position, :problem) = await _locate();
-    // Turning the coordinates into a street address is a convenience on
-    // top: when it fails the pin is still kept and the User types the
-    // fields in themselves.
-    Placemark? place;
-    if (position != null) {
-      try {
-        final places = await Geocoding().placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
-        );
-        if (places.isNotEmpty) place = places.first;
-      } catch (e) {
-        debugPrint('add_address_sheet: address lookup failed: $e');
-      }
-    }
     if (!mounted) return;
     setState(() {
       _locating = false;
       _error = problem;
-      if (place != null) _fillFrom(place);
     });
     if (position != null) await _confirmPin(LatLng(position.latitude, position.longitude));
   }

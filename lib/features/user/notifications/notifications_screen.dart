@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/notifications/chat_notifications.dart';
 import '../../../core/notifications/fcm_topics.dart';
 import '../../../data/models/personal_notification.dart';
 import '../../../data/providers/firestore_notifications_provider.dart';
@@ -46,6 +48,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             <PersonalNotification>[],
           )
         : ref.watch(firestorePersonalNotificationsProvider(accountId));
+    // The Driver's chat messages on deliveries in progress.
+    final chatItems = chatWallItems(
+      ref.watch(incomingChatProvider),
+      (orderId) => context.push('/user/order/$orderId/chat'),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.notificationsTitle)),
@@ -95,6 +102,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                               createdAt: b.sentAt,
                               deletable: false,
                             ),
+                          ...chatItems,
                         ]..sort(
                           (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
                             a.createdAt ?? DateTime(0),
@@ -127,6 +135,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     deletable: true,
                     icon: Icons.receipt_long_rounded,
                   ),
+                ...chatItems,
               ]..sort(
                 (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
                   a.createdAt ?? DateTime(0),

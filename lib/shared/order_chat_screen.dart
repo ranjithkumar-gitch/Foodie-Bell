@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/notifications/chat_notifications.dart';
 import '../core/theme/app_colors.dart';
 import '../data/models/order.dart';
 import '../data/providers/firestore_chat_provider.dart';
@@ -38,7 +39,14 @@ class _OrderChatScreenState extends ConsumerState<OrderChatScreen> {
   bool _sending = false;
 
   @override
+  void initState() {
+    super.initState();
+    openChatOrderId = widget.orderId;
+  }
+
+  @override
   void dispose() {
+    if (openChatOrderId == widget.orderId) openChatOrderId = null;
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();

@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-/// "Just now" / "5 min ago" / "2 hr ago" / "3 days ago" / "2 months ago" /
-/// "1 year ago" — how long ago [at] was, the one relative-time format the
-/// whole app uses (notifications, order-status times, reviews, …). Each
-/// unit rolls over to the next once it's full: 60 min → 1 hr, 24 hr → 1 day,
-/// 30 days → 1 month, 12 months → 1 year. A time in the future (device
-/// clock skew) reads as "Just now".
+/// "Just now" / "5 min ago" / "2 hr ago" / "3 days ago", then past a week
+/// the date itself ("12 Oct 2026") — how long ago [at] was, the one
+/// relative-time format the whole app uses (notifications, order-status
+/// times, reviews, …). Each unit rolls over to the next once it's full:
+/// 60 min → 1 hr, 24 hr → 1 day, 7 days → the date. A time in the future
+/// (device clock skew) reads as "Just now".
 String timeAgo(DateTime at, {DateTime? now, bool telugu = false}) {
   final diff = (now ?? DateTime.now()).difference(at);
   final minutes = diff.inMinutes;
@@ -16,15 +17,10 @@ String timeAgo(DateTime at, {DateTime? now, bool telugu = false}) {
   if (minutes < 1) return telugu ? 'ఇప్పుడే' : 'Just now';
   if (minutes < 60) return telugu ? '$minutes నిమి. క్రితం' : '$minutes min ago';
   if (hours < 24) return telugu ? '$hours గం. క్రితం' : '$hours hr ago';
-  if (days < 30) {
+  if (days <= 7) {
     return telugu ? '$days ${days == 1 ? 'రోజు' : 'రోజుల'} క్రితం' : '$days ${days == 1 ? 'day' : 'days'} ago';
   }
-  if (days < 365) {
-    final months = days ~/ 30;
-    return telugu ? '$months ${months == 1 ? 'నెల' : 'నెలల'} క్రితం' : '$months ${months == 1 ? 'month' : 'months'} ago';
-  }
-  final years = days ~/ 365;
-  return telugu ? '$years సం. క్రితం' : '$years ${years == 1 ? 'year' : 'years'} ago';
+  return DateFormat(telugu ? 'dd-MM-yyyy' : 'd MMM yyyy').format(at);
 }
 
 /// [timeAgo] in the app's current language (Telugu when the User picked it).

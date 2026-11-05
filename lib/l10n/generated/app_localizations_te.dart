@@ -992,6 +992,27 @@ class AppLocalizationsTe extends AppLocalizations {
   }
 
   @override
+  String vendorEtaHours(int hours) {
+    return '$hours గం.';
+  }
+
+  @override
+  String vendorEtaDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days రోజులు',
+      one: '1 రోజు',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String vendorEtaDate(Object date) {
+    return '$date నాటికి';
+  }
+
+  @override
   String vendorDistanceKm(Object km) {
     return '$km కి.మీ';
   }

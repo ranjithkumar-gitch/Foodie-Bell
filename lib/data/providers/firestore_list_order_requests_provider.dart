@@ -55,8 +55,23 @@ ListOrderRequest _requestFromData(String id, Map<String, dynamic> data) {
     ),
     createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     quotedAmount: (data['quotedAmount'] as num?)?.toDouble(),
+    quote: _quoteFromData(data['quote']),
     receiptImageUrl: data['receiptImageUrl'] as String?,
     orderId: data['orderId'] as String?,
+  );
+}
+
+ListOrderQuote? _quoteFromData(Object? raw) {
+  if (raw is! Map<String, dynamic>) return null;
+  final money = raw['money'];
+  if (money is! Map<String, dynamic>) return null;
+  int paise(String key) => (money[key] as num?)?.toInt() ?? 0;
+  return ListOrderQuote(
+    itemsPaise: paise('itemsSubtotal'),
+    deliveryFeePaise: paise('deliveryFee'),
+    platformFeePaise: paise('platformFee'),
+    totalPaise: paise('customerTotal'),
+    vendorUpiId: raw['vendorUpiId'] as String?,
   );
 }
 

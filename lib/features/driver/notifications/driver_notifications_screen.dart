@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/notifications/chat_notifications.dart';
 import '../../../core/notifications/fcm_topics.dart';
 import '../../../data/providers/firestore_personal_notifications_provider.dart';
 import '../../../shared/widgets/notification_count_badge.dart';
@@ -37,6 +39,11 @@ class _DriverNotificationsScreenState
     final async = accountId == null
         ? const AsyncValue.data(<Never>[])
         : ref.watch(firestorePersonalNotificationsProvider(accountId));
+    // The Customer's chat messages on deliveries in progress.
+    final chatItems = chatWallItems(
+      ref.watch(incomingChatProvider),
+      (orderId) => context.push('/driver/delivery/$orderId/chat'),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
@@ -52,7 +59,8 @@ class _DriverNotificationsScreenState
                 deletable: true,
                 icon: Icons.two_wheeler_rounded,
               ),
-          ],
+            ...chatItems,
+          ]..sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0))),
           emptySubtitle: 'New deliveries and order updates will show up here.',
           onDelete: (item) => deletePersonalNotification(item.id),
         ),

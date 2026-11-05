@@ -40,6 +40,7 @@ class ListOrderRequest {
     this.deliveryLatitude,
     this.deliveryLongitude,
     this.quotedAmount,
+    this.quote,
     this.receiptImageUrl,
     this.orderId,
   });
@@ -62,6 +63,10 @@ class ListOrderRequest {
 
   /// Set by the vendor once they've looked at the photos (`pending -> quoted`).
   final double? quotedAmount;
+
+  /// What [quotedAmount] is made of, from the server's quote
+  /// (`quoteListOrder`). Null until quoted.
+  final ListOrderQuote? quote;
 
   /// The vendor's photo of the receipt, set when they confirm
   /// (`paid -> accepted`) — the same moment [orderId] is stamped.
@@ -90,7 +95,30 @@ class ListOrderRequest {
     status: status ?? this.status,
     createdAt: createdAt,
     quotedAmount: quotedAmount ?? this.quotedAmount,
+    quote: quote,
     receiptImageUrl: receiptImageUrl ?? this.receiptImageUrl,
     orderId: orderId ?? this.orderId,
   );
+}
+
+/// The breakdown of a photo order's quote (`list_order_requests/{id}.quote`,
+/// written only by the server's `quoteListOrder`), in paise.
+class ListOrderQuote {
+  const ListOrderQuote({
+    required this.itemsPaise,
+    required this.deliveryFeePaise,
+    required this.platformFeePaise,
+    required this.totalPaise,
+    this.vendorUpiId,
+  });
+
+  final int itemsPaise;
+  final int deliveryFeePaise;
+  final int platformFeePaise;
+  final int totalPaise;
+
+  /// The shop's UPI ID to pay, when the quote carries one. Customers can't
+  /// read a shop's UPI IDs themselves (only the server can), so without it
+  /// the Customer pays the shop's QR code or the ID the shop gives them.
+  final String? vendorUpiId;
 }

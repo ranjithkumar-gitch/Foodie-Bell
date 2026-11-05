@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/payments/upi_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/list_order_request.dart';
 import '../../../data/providers/firestore_list_order_requests_provider.dart';
@@ -10,6 +13,7 @@ import '../../../shared/widgets/storage_image.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/upi_payment_card.dart' show UpiAppSheet;
 
 StatusTone _tone(ListOrderStatus status) => switch (status) {
   ListOrderStatus.pending => StatusTone.warning,
@@ -55,17 +59,70 @@ class _ListOrderStatusScreenState extends ConsumerState<ListOrderStatusScreen> {
     failedAction: 'Cancelling request',
   );
 
-  Future<void> _pay(double amount) async {
+  /// The shop is paid directly by UPI — nothing passes through the app —
+  /// so the request is only marked paid once the Customer says the money
+  /// went, and the shop still checks its own account before confirming
+  /// (`acceptListOrder`). With the shop's UPI ID on the quote, the UPI app
+  /// opens with the amount filled in; without it, the Customer pays the
+  /// shop's QR code or the ID the shop gives them.
+  Future<void> _pay(ListOrderRequest request) async {
+    final amount = request.quotedAmount ?? 0;
+    final upiId = request.quote?.vendorUpiId;
+    if (upiId != null) {
+      final paid = await _payWithUpiApp(request, upiId, amount);
+      if (paid != true || !mounted) return;
+    }
+    if (!mounted) return;
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => _PayConfirmSheet(amount: amount),
+      builder: (context) => _PayConfirmSheet(amount: amount, vendorName: request.vendorName, openedUpiApp: upiId != null),
     );
     if (confirmed != true) return;
     await _run(
       () => markListOrderRequestPaid(widget.requestId),
-      failedAction: 'Paying vendor',
+      failedAction: 'Marking as paid',
     );
+  }
+
+  /// Opens a UPI app to pay [upiId]; true when the payment may have gone
+  /// through (the app's answer is only a hint), false when it clearly
+  /// didn't, null when nothing was opened.
+  Future<bool?> _payWithUpiApp(ListOrderRequest request, String upiId, double amount) async {
+    final messenger = ScaffoldMessenger.of(context);
+    UpiApp? app;
+    if (Platform.isAndroid) {
+      final apps = await installedUpiApps();
+      if (!mounted) return null;
+      if (apps.isEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text('No UPI app found on this phone. Pay ${AppFormat.currency(amount)} to $upiId from any UPI app.')));
+        return null;
+      }
+      app = await showModalBottomSheet<UpiApp>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => UpiAppSheet(apps: apps, amount: amount),
+      );
+      if (app == null) return null;
+    }
+    try {
+      final result = await payWithUpi(
+        app: app,
+        upiId: upiId,
+        payeeName: request.vendorName,
+        amount: amount,
+        transactionRef: request.id,
+        note: 'Photo order ${request.id}',
+      );
+      if (result.status == UpiStatus.failure || result.status == UpiStatus.cancelled) {
+        messenger.showSnackBar(const SnackBar(content: Text('The payment did not go through. Nothing was paid.')));
+        return false;
+      }
+      return true;
+    } on UpiAppNotFoundException {
+      messenger.showSnackBar(SnackBar(content: Text('No UPI app found on this phone. Pay ${AppFormat.currency(amount)} to $upiId from any UPI app.')));
+      return null;
+    }
   }
 
   @override
@@ -133,7 +190,7 @@ class _StatusCard extends StatelessWidget {
   final ListOrderRequest request;
   final bool busy;
   final VoidCallback onCancel;
-  final ValueChanged<double> onPay;
+  final ValueChanged<ListOrderRequest> onPay;
 
   @override
   Widget build(BuildContext context) {
@@ -157,14 +214,26 @@ class _StatusCard extends StatelessWidget {
             ListOrderStatus.quoted => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Quoted amount', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
+                Text('Amount to pay', style: TextStyle(color: palette.textSecondary, fontSize: 14)),
                 const SizedBox(height: 4),
                 CurrencyText(request.quotedAmount ?? 0, style: Theme.of(context).textTheme.displaySmall),
+                if (request.quote case final quote?) ...[
+                  const SizedBox(height: 12),
+                  _QuoteLine(label: 'Items', paise: quote.itemsPaise),
+                  _QuoteLine(label: 'Delivery fee', paise: quote.deliveryFeePaise),
+                  if (quote.platformFeePaise > 0) _QuoteLine(label: 'Platform fee', paise: quote.platformFeePaise),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  'You pay ${request.vendorName} directly by UPI. ${request.vendorName} checks the money arrived, then confirms your order.',
+                  style: TextStyle(color: palette.textSecondary, fontSize: 14, height: 1.35),
+                ),
               ],
             ),
             ListOrderStatus.paid => Text(
-              'Payment received — waiting for ${request.vendorName} to confirm your order.',
-              style: TextStyle(color: palette.textSecondary),
+              'You said you paid ${AppFormat.currency(request.quotedAmount ?? 0)}. '
+              'Waiting for ${request.vendorName} to check the money arrived and confirm your order.',
+              style: TextStyle(color: palette.textSecondary, fontSize: 14, height: 1.35),
             ),
             ListOrderStatus.accepted => Text(
               'Order confirmed! Track your delivery below.',
@@ -195,7 +264,7 @@ class _StatusCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: busy ? null : () => onPay(request.quotedAmount ?? 0),
+                    onPressed: busy ? null : () => onPay(request),
                     child: Text('Pay ${AppFormat.currency(request.quotedAmount ?? 0)}'),
                   ),
                 ),
@@ -224,9 +293,34 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
+class _QuoteLine extends StatelessWidget {
+  const _QuoteLine({required this.label, required this.paise});
+  final String label;
+  final int paise;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: TextStyle(color: palette.textSecondary, fontSize: 14))),
+          Text(AppFormat.currency(paise / 100), style: TextStyle(color: palette.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Asks the Customer to confirm they really paid — the request is marked
+/// paid only on "I have paid". [openedUpiApp] says whether a UPI app was
+/// just opened for them; otherwise this also says how to pay.
 class _PayConfirmSheet extends StatelessWidget {
-  const _PayConfirmSheet({required this.amount});
+  const _PayConfirmSheet({required this.amount, required this.vendorName, required this.openedUpiApp});
   final double amount;
+  final String vendorName;
+  final bool openedUpiApp;
 
   @override
   Widget build(BuildContext context) {
@@ -242,18 +336,26 @@ class _PayConfirmSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Confirm payment', style: Theme.of(context).textTheme.headlineSmall),
+            Text(openedUpiApp ? 'Did the payment go through?' : 'Pay $vendorName by UPI', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
-              'Pay ${AppFormat.currency(amount)} to the vendor for this order.',
-              style: TextStyle(color: palette.textSecondary),
+              openedUpiApp
+                  ? 'Tap "I have paid" only if ${AppFormat.currency(amount)} left your account.'
+                  : 'Open any UPI app and pay ${AppFormat.currency(amount)} to $vendorName — scan their UPI QR code or use the UPI ID they give you. '
+                    'Come back and tap "I have paid" once the money has left your account.',
+              style: TextStyle(color: palette.textSecondary, fontSize: 15, height: 1.4),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$vendorName checks they received it before confirming your order.',
+              style: TextStyle(color: palette.textMuted, fontSize: 13.5),
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text('Pay ${AppFormat.currency(amount)}'),
+                child: Text('I have paid ${AppFormat.currency(amount)}'),
               ),
             ),
             const SizedBox(height: 10),
@@ -261,7 +363,7 @@ class _PayConfirmSheet extends StatelessWidget {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: const Text('Not yet'),
               ),
             ),
           ],

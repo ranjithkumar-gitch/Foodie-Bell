@@ -1832,6 +1832,24 @@ abstract class AppLocalizations {
   /// **'{min}–{max} mins'**
   String vendorEtaRange(int min, int max);
 
+  /// No description provided for @vendorEtaHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr'**
+  String vendorEtaHours(int hours);
+
+  /// No description provided for @vendorEtaDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =1{1 day} other{{days} days}}'**
+  String vendorEtaDays(int days);
+
+  /// No description provided for @vendorEtaDate.
+  ///
+  /// In en, this message translates to:
+  /// **'By {date}'**
+  String vendorEtaDate(Object date);
+
   /// No description provided for @vendorDistanceKm.
   ///
   /// In en, this message translates to:

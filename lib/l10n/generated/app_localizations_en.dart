@@ -990,6 +990,27 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String vendorEtaHours(int hours) {
+    return '$hours hr';
+  }
+
+  @override
+  String vendorEtaDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String vendorEtaDate(Object date) {
+    return 'By $date';
+  }
+
+  @override
   String vendorDistanceKm(Object km) {
     return '$km km';
   }

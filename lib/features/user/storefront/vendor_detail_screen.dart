@@ -10,7 +10,6 @@ import '../../../data/models/account.dart';
 import '../../../data/models/coupon.dart';
 import '../../../data/models/product.dart';
 import '../../../data/providers/cart_provider.dart';
-import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_categories_provider.dart';
 import '../../../data/providers/firestore_territories_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
@@ -290,10 +289,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
     final coverUrl = account.coverPhotoUrl;
     final reviewCount = account.ratingCount;
     final averageRating = reviewCount == 0 ? 0.0 : account.ratingAverage ?? 0.0;
-    final distanceKm = vendorDistanceKm(
-      account,
-      ref.watch(devicePositionProvider).valueOrNull,
-    );
+    final distanceKm = vendorDistanceKm(account, ref.watch(deliveryPointProvider));
     final eta = distanceKm == null ? null : estimatedDeliveryWindow(distanceKm);
     final liveCoupons =
         (ref.watch(firestoreCouponsProvider).valueOrNull ?? const [])
@@ -400,10 +396,7 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                         eta != null
                             ? _InfoStat(
                                 icon: Icons.schedule_rounded,
-                                label: context.l10n.vendorEtaRange(
-                                  eta.min,
-                                  eta.max,
-                                ),
+                                label: formatDeliveryWindow(context, eta),
                                 caption: context.l10n.vendorDistanceKm(
                                   formatDistanceKm(distanceKm!),
                                 ),

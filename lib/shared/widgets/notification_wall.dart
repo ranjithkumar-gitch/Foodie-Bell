@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../data/models/chat_message.dart';
 import '../time_ago.dart';
 
 /// One row on a Notifications screen — a common shape every role's wall
@@ -15,6 +16,7 @@ class WallItem {
     required this.createdAt,
     required this.deletable,
     this.icon = Icons.campaign_rounded,
+    this.onTap,
   });
 
   final String id;
@@ -30,7 +32,27 @@ class WallItem {
   final bool deletable;
 
   final IconData icon;
+
+  /// Where tapping the row leads (a chat message opens its chat); null for
+  /// a row that only informs.
+  final VoidCallback? onTap;
 }
+
+/// The other side's order-chat messages ([incomingChatProvider]) as wall
+/// rows; tapping one opens that order's chat via [openChat].
+List<WallItem> chatWallItems(Map<String, List<ChatMessage>> chats, void Function(String orderId) openChat) => [
+  for (final messages in chats.values)
+    for (final m in messages)
+      WallItem(
+        id: m.id,
+        title: 'Message from ${m.senderName}',
+        body: m.text,
+        createdAt: m.sentAt,
+        deletable: false,
+        icon: Icons.chat_bubble_rounded,
+        onTap: () => openChat(m.orderId),
+      ),
+];
 
 /// The rendering every role's Notifications screen shares: grouped
 /// Today/Earlier, a delete button only on [WallItem.deletable] rows, and a
@@ -122,7 +144,10 @@ class _WallTile extends StatelessWidget {
     final palette = context.colors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
+      child: GestureDetector(
+        onTap: item.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: palette.surface,
@@ -179,8 +204,11 @@ class _WallTile extends StatelessWidget {
                 tooltip: 'Delete',
                 visualDensity: VisualDensity.compact,
               ),
+            if (item.onTap != null)
+              Icon(Icons.chevron_right_rounded, color: palette.textMuted),
           ],
         ),
+      ),
       ),
     );
   }

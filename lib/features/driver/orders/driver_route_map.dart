@@ -351,7 +351,8 @@ class TravelEstimate {
     return TravelEstimate(meters: meters, minutes: minutes < 1 ? 1 : minutes);
   }
 
-  String get distanceLabel => meters < 1000 ? '${meters.round()} m' : '${(meters / 1000).toStringAsFixed(1)} km';
+  /// Always in km, never metres — "0.4 km", and "0.1 km" at the very least.
+  String get distanceLabel => '${(meters < 100 ? 0.1 : meters / 1000).toStringAsFixed(1)} km';
 }
 
 /// The Driver's current stop ([destination] — the shop on pickup, the

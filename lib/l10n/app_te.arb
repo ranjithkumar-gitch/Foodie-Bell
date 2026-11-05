@@ -312,6 +312,9 @@
   "editProfileCropPhotoTitle": "ఫోటోను క్రాప్ చేయండి",
 
   "vendorEtaRange": "{min}–{max} నిమిషాలు",
+  "vendorEtaHours": "{hours} గం.",
+  "vendorEtaDays": "{days, plural, =1{1 రోజు} other{{days} రోజులు}}",
+  "vendorEtaDate": "{date} నాటికి",
   "vendorDistanceKm": "{km} కి.మీ",
   "vendorOfferUseCode": "{code} వాడండి",
   "homeFilterOpenNow": "ఇప్పుడు తెరిచి ఉంది",

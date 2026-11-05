@@ -6,6 +6,8 @@ import '../../core/session/access_scope.dart';
 import '../../features/user/home/selected_territory_provider.dart';
 import '../models/account.dart';
 import '../models/promotion.dart';
+import '../models/territory.dart';
+import 'firestore_territories_provider.dart';
 import 'firestore_vendors_provider.dart';
 
 /// Vendor promotion requests — one flat `promotions` collection, same
@@ -90,13 +92,20 @@ final firestorePromotionsProvider = StreamProvider<List<Promotion>>((ref) {
         .whereType<Promotion>()
         .toList(),
   );
-  // Live promotions of one territory, by territory ID (Phase 3 — it used
-  // to stream every live promotion on the platform).
-  Stream<List<Promotion>> liveIn(String? territoryId) => territoryId == null
-      ? Stream.value(const [])
-      : run(promotionsCollection
-          .where('status', isEqualTo: PromotionStatus.active.name)
-          .where('territoryId', isEqualTo: territoryId));
+  // Live promotions of one territory (Phase 3 — it used to stream every
+  // live promotion on the platform). A Vendor's request carries the
+  // territory ID; one QuickyAdmin creates carries only the territory's name
+  // (or "All Territories"), so those are matched by name.
+  Stream<List<Promotion>> liveIn(String? territoryId) {
+    if (territoryId == null) return Stream.value(const []);
+    final live = promotionsCollection.where('status', isEqualTo: PromotionStatus.active.name);
+    final territories = ref.watch(firestoreTerritoriesProvider).valueOrNull ?? const <Territory>[];
+    final name = territories.where((t) => t.id == territoryId).firstOrNull?.name;
+    return mergeQueryStreams([
+      run(live.where('territoryId', isEqualTo: territoryId)),
+      run(live.where('territory', whereIn: [?name, kAllTerritoriesLabel])),
+    ], (p) => p.id);
+  }
   final territoryId = scope.territoryId;
   final myShops = scope.role == AppRole.manager
       ? {for (final v in ref.watch(firestoreVendorsProvider).valueOrNull ?? const <Account>[]) v.id}

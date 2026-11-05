@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/settlement_provider.dart';
 import '../../../data/models/account.dart';
-import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_coupons_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/widgets/app_network_image.dart';
@@ -45,10 +44,7 @@ class VendorAccountCard extends ConsumerWidget {
     final palette = context.colors;
     final coverUrl = account.coverPhotoUrl;
     final averageRating = account.ratingCount == 0 ? null : account.ratingAverage;
-    final distanceKm = vendorDistanceKm(
-      account,
-      ref.watch(devicePositionProvider).valueOrNull,
-    );
+    final distanceKm = vendorDistanceKm(account, ref.watch(deliveryPointProvider));
     final eta = distanceKm == null ? null : estimatedDeliveryWindow(distanceKm);
     final offer = bestLiveCoupon(
       ref.watch(firestoreCouponsProvider).valueOrNull ?? const [],
@@ -225,7 +221,7 @@ class VendorAccountCard extends ConsumerWidget {
                       if (eta != null) ...[
                         _MetaTag(
                           icon: Icons.schedule_rounded,
-                          label: context.l10n.vendorEtaRange(eta.min, eta.max),
+                          label: formatDeliveryWindow(context, eta),
                           emphasize: true,
                         ),
                         const SizedBox(width: 14),

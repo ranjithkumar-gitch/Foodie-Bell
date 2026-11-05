@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notifications/chat_notifications.dart';
 import '../../core/notifications/fcm_topics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/providers/firestore_notifications_provider.dart';
@@ -94,7 +95,13 @@ final notificationWallCountProvider = Provider.family<int, bool>((
         .length;
   }
 
-  return personalCount + broadcastCount;
+  final chatCount = [
+    for (final messages in ref.watch(incomingChatProvider).values)
+      for (final m in messages)
+        if (lastSeen == null || m.sentAt.isAfter(lastSeen)) m,
+  ].length;
+
+  return personalCount + broadcastCount + chatCount;
 });
 
 DateTime? _laterOf(DateTime? a, DateTime? b) {
