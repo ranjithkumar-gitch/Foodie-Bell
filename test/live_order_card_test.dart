@@ -1,9 +1,11 @@
 // Live order card (2026-11-12): one card per order for customers and
 // drivers; same wording as the server's pushes so a step alerts once.
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foodiebell/core/notifications/live_order_card.dart';
 import 'package:foodiebell/core/notifications/notification_taps.dart';
 import 'package:foodiebell/data/models/order.dart';
+import 'package:foodiebell/l10n/generated/app_localizations.dart';
 
 Order _order(OrderStatus status, {String? driverName = 'Ravi'}) => Order(
   id: 'ORD-1',
@@ -27,32 +29,46 @@ Order _order(OrderStatus status, {String? driverName = 'Ravi'}) => Order(
   driverName: driverName,
 );
 
+final _en = lookupAppLocalizations(const Locale('en'));
+
 void main() {
-  test('customer card: server wording at each step, progress over 5 steps', () {
+  LiveOrderCard card(OrderStatus status, String role, {String? otp}) =>
+      LiveOrderCard.build(LiveOrderFacts.fromOrder(_order(status), role, otp: otp), _en)!;
+
+  test('customer card: the home card words, 4-step bar, shop with items and total', () {
     final steps = {
-      OrderStatus.placed: ('Order placed', 'Your order from Fresh Mart has been placed.', 1),
-      OrderStatus.vendorAccepted: ('Order confirmed', 'Fresh Mart accepted your order.', 2),
-      OrderStatus.driverAssigned: ('Driver assigned', 'Ravi is picking up your order.', 3),
-      OrderStatus.pickedUp: ('On the way', 'Ravi has picked up your order.', 4),
+      OrderStatus.placed: ('Order placed!', 'Waiting for Fresh Mart to accept your order', 1),
+      OrderStatus.vendorAccepted: ('Preparing your order', 'Fresh Mart has accepted and is getting it ready', 2),
+      OrderStatus.driverAssigned: ('Partner heading to the vendor', 'Ravi will pick up your order soon', 3),
+      OrderStatus.pickedUp: ('On the way to you', 'Ravi has picked up your order', 4),
     };
     for (final e in steps.entries) {
-      final c = LiveOrderCard.forOrder(_order(e.key), 'user')!;
-      expect([c.title, c.body, c.step, c.steps, c.terminal], [e.value.$1, e.value.$2, e.value.$3, 5, false]);
+      final c = card(e.key, 'user');
+      expect([c.title, c.subtitle, c.step, c.steps, c.terminal, c.footerTitle], [e.value.$1, e.value.$2, e.value.$3, 4, false, 'Fresh Mart']);
+      expect(c.footerText, contains('₹125'));
     }
-    expect(LiveOrderCard.forOrder(_order(OrderStatus.delivered), 'user'), isNull); // the server's final push says it
+    expect(card(OrderStatus.pickedUp, 'user', otp: '4821').otp, '4821');
+    // The stream shows no final card; the server's push does.
+    expect(LiveOrderCard.build(LiveOrderFacts.fromOrder(_order(OrderStatus.delivered), 'user'), _en)!.terminal, isTrue);
   });
 
-  test('driver card: pick up, then deliver; nothing before they take it', () {
-    expect(LiveOrderCard.forOrder(_order(OrderStatus.driverAssigned), 'driver')!.title, 'Pick up from Fresh Mart');
-    final deliver = LiveOrderCard.forOrder(_order(OrderStatus.pickedUp), 'driver')!;
-    expect([deliver.title, deliver.step, deliver.steps], ['Deliver to Asha', 2, 3]);
-    expect(LiveOrderCard.forOrder(_order(OrderStatus.vendorAccepted), 'driver'), isNull);
+  test('a push and the app draw the very same card (no double alert)', () {
+    final fromApp = card(OrderStatus.pickedUp, 'user', otp: '4821');
+    final fromPush = LiveOrderCard.build(LiveOrderFacts.fromPush({
+      'live': '1', 'orderId': 'ORD-1', 'role': 'user', 'type': 'pickedUp', 'shop': 'Fresh Mart', 'driverName': 'Ravi',
+      'items': '0', 'total': '12500', 'payment': 'cod', 'otp': '4821', 'title': 'On the way', 'body': 'x',
+    })!, _en)!;
+    expect(fromPush.hash, fromApp.hash);
+    expect(fromPush.stage, 'pickedUp:otp');
+    expect(LiveOrderFacts.fromPush({'orderId': 'ORD-1', 'type': 'refund'}), isNull);
   });
 
-  test('a live push becomes the same card; anything else is ignored', () {
-    final c = LiveOrderCard.fromPush({'live': '1', 'orderId': 'ORD-1', 'role': 'user', 'type': 'delivered', 'title': 'Order delivered', 'body': 'Done', 'step': '5', 'steps': '5', 'shop': 'Fresh Mart'})!;
-    expect([c.terminal, c.step, c.subText], [true, 5, 'Fresh Mart']);
-    expect(LiveOrderCard.fromPush({'orderId': 'ORD-1', 'type': 'refund'}), isNull);
+  test('driver card: pick up, then deliver with cash to collect', () {
+    expect(card(OrderStatus.driverAssigned, 'driver').title, 'Pick up from Fresh Mart');
+    final deliver = card(OrderStatus.pickedUp, 'driver');
+    expect([deliver.title, deliver.step, deliver.steps], ['Deliver to Asha', 2, 2]);
+    expect(deliver.footerText, contains('Collect ₹125 cash'));
+    expect(LiveOrderCard.build(LiveOrderFacts.fromOrder(_order(OrderStatus.vendorAccepted), 'driver'), _en), isNull);
   });
 
   test('one stable notification id per order; taps open the right screen', () {

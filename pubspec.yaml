@@ -51,6 +51,9 @@ dependencies:
   firebase_storage: ^12.4.10
   firebase_messaging: ^15.1.6
   flutter_local_notifications: ^18.0.1
+  # The live order card in the Android notification bar (native layout).
+  order_live_card:
+    path: packages/order_live_card
   image_cropper: ^12.2.1
   url_launcher: ^6.3.1
   # google_mlkit_text_recognition: ^0.15.0

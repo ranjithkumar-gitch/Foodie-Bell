@@ -1,39 +1,39 @@
+import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseFirestore;
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:order_live_card/order_live_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/account.dart';
 import '../../data/models/order.dart';
 import '../../data/providers/firestore_orders_provider.dart';
+import '../../features/user/user_locale.dart';
+import '../../l10n/generated/app_localizations.dart';
+import '../../shared/widgets/currency_text.dart';
 import '../session/access_scope.dart';
 
 /// Live order card (2026-11-12, Swiggy/Zomato style) for customers and
-/// drivers: ONE notification per order in the Android notification bar,
-/// pinned while the order is in progress and updated in place at every step
-/// (title, text, progress bar), then left as an ordinary notification when it
-/// is delivered or cancelled.
+/// drivers: ONE card per order in the Android notification bar, drawn with a
+/// native layout that copies the home page's order card (packages/
+/// order_live_card): stage icon, title and subtitle, the step progress bar,
+/// the shop with items and total, and the delivery code once the order is on
+/// its way. Pinned while the order is in progress, updated in place at every
+/// step, left as an ordinary notification when it ends.
 ///
-/// Fed from two places, which draw the same card (same id and tag):
+/// Fed from two places that draw the same card (same id, tag and content):
 /// - the server's live pushes (`QuickyAdmin/functions/lib/live_order_push.js`),
-///   data-only on Android, handled even when the app is in the background or
-///   closed ([showLiveOrderCardFromPush], from the background handler);
-/// - the app's own live order stream while it runs ([listenForLiveOrderCards]),
+///   data-only on Android, handled even when the app is closed
+///   ([showLiveOrderCardFromPush], from the background handler);
+/// - the app's live order stream while it runs ([listenForLiveOrderCards]),
 ///   which also covers a driver's own steps (they get no push for those).
 ///
 /// iPhone gets the server's alerts with a collapse id instead (each step
 /// replaces the last); no card is drawn here on iOS.
-final _plugin = FlutterLocalNotificationsPlugin();
-
-const liveOrderChannel = AndroidNotificationChannel(
-  'order_live_v1',
-  'Order in progress',
-  description: 'Your current order or delivery, updated at every step.',
-  importance: Importance.high,
-  playSound: true,
-  enableVibration: true,
-);
-
 bool get _supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+/// The brand green (`AppColors.primary`).
+const _brandColor = 0xFF1B8A3D;
 
 /// The same notification id for an order in every isolate (FNV-1a, not
 /// [String.hashCode], which isn't guaranteed stable).
@@ -60,161 +60,250 @@ String liveOrderRoute({required String role, required String orderId, required S
   return '/user/order/$orderId';
 }
 
-/// What the card says. Matches the server's push wording for the same step,
-/// so a push and the app drawing the same step don't alert twice.
+/// What the card is built from — the same facts from an [Order] or a push,
+/// so both draw exactly the same card.
+class LiveOrderFacts {
+  const LiveOrderFacts({
+    required this.orderId,
+    required this.role,
+    required this.status,
+    this.shop = '',
+    this.driverName = '',
+    this.customerName = '',
+    this.address = '',
+    this.items = 0,
+    this.totalPaise = 0,
+    this.cod = false,
+    this.otp,
+    this.serverTitle = '',
+    this.serverBody = '',
+  });
+
+  final String orderId;
+  final String role;
+  final String status;
+  final String shop;
+  final String driverName;
+  final String customerName;
+  final String address;
+  final int items;
+  final int totalPaise;
+  final bool cod;
+  final String? otp;
+
+  /// The push's own wording, used for the final (delivered / cancelled) card.
+  final String serverTitle;
+  final String serverBody;
+
+  static LiveOrderFacts fromOrder(Order o, String role, {String? otp}) => LiveOrderFacts(
+    orderId: o.id,
+    role: role,
+    status: o.status.name,
+    shop: o.vendorName,
+    driverName: o.driverName ?? '',
+    customerName: o.userName,
+    address: o.deliveryAddressFull ?? o.deliveryAddressLabel,
+    items: o.items.fold<int>(0, (s, i) => s + i.quantity),
+    totalPaise: o.money?.customerTotal ?? (o.total * 100).round(),
+    cod: o.paymentMethod == PaymentMethod.cod,
+    otp: otp,
+  );
+
+  /// From a live push's data; null if it isn't one.
+  static LiveOrderFacts? fromPush(Map<String, dynamic> d) {
+    if (d['live'] != '1' || d['orderId'] is! String) return null;
+    String s(String k) => d[k] is String ? d[k] as String : '';
+    final otp = s('otp');
+    return LiveOrderFacts(
+      orderId: d['orderId'] as String,
+      role: s('role').isEmpty ? 'user' : s('role'),
+      status: s('type'),
+      shop: s('shop'),
+      driverName: s('driverName'),
+      customerName: s('customer'),
+      items: int.tryParse(s('items')) ?? 0,
+      totalPaise: int.tryParse(s('total')) ?? 0,
+      cod: s('payment') == 'cod',
+      otp: otp.isEmpty ? null : otp,
+      serverTitle: s('title'),
+      serverBody: s('body'),
+    );
+  }
+}
+
+/// One drawn card.
 class LiveOrderCard {
   const LiveOrderCard({
     required this.orderId,
     required this.role,
     required this.status,
     required this.title,
-    required this.body,
+    required this.subtitle,
+    required this.emoji,
     required this.step,
     required this.steps,
-    this.subText,
+    required this.footerTitle,
+    required this.footerText,
+    this.otp,
   });
 
   final String orderId;
   final String role;
   final String status;
   final String title;
-  final String body;
+  final String subtitle;
+  final String emoji;
+
+  /// 1-based current step; past [steps] means all done.
   final int step;
   final int steps;
-  final String? subText;
+  final String footerTitle;
+  final String footerText;
+  final String? otp;
+
+  static const otpLabel = 'Share this code with your delivery partner';
 
   bool get terminal => const {'delivered', 'cancelled', 'rejected'}.contains(status);
 
-  static const userSteps = ['placed', 'vendorAccepted', 'driverAssigned', 'pickedUp', 'delivered'];
-  static const driverSteps = ['driverAssigned', 'pickedUp', 'delivered'];
+  /// Alerting is per stage (a new step, or the code arriving); anything
+  /// else changing updates the card silently.
+  String get stage => '$status${otp == null ? '' : ':otp'}';
+  String get hash => [status, title, subtitle, emoji, step, steps, footerTitle, footerText, otp ?? ''].join('|');
 
-  /// The card for [o] as [role] sees it; null when there's nothing to show.
-  static LiveOrderCard? forOrder(Order o, String role) {
-    final status = o.status.name;
-    final shop = o.vendorName.isEmpty ? 'the shop' : o.vendorName;
-    final driver = (o.driverName ?? '').isEmpty ? 'Your driver' : o.driverName!;
-    final steps = role == 'driver' ? driverSteps : userSteps;
-    final step = steps.indexOf(status) + 1;
-    final (String, String)? text = role == 'driver'
-        ? switch (o.status) {
-            OrderStatus.driverAssigned => ('Pick up from $shop', 'Head to the shop and collect the order.'),
-            OrderStatus.pickedUp => ('Deliver to ${o.userName.isEmpty ? 'the customer' : o.userName}', o.deliveryAddressFull ?? o.deliveryAddressLabel),
-            _ => null,
-          }
-        : switch (o.status) {
-            OrderStatus.placed => ('Order placed', 'Your order from $shop has been placed.'),
-            OrderStatus.vendorAccepted => ('Order confirmed', '$shop accepted your order.'),
-            OrderStatus.driverAssigned => ('Driver assigned', '$driver is picking up your order.'),
-            OrderStatus.pickedUp => ('On the way', '$driver has picked up your order.'),
-            _ => null,
-          };
-    if (text == null || step == 0) return null;
-    return LiveOrderCard(orderId: o.id, role: role, status: status, title: text.$1, body: text.$2, step: step, steps: steps.length, subText: role == 'driver' ? 'Delivery ${o.id}' : shop);
-  }
+  /// The card for [f], in [l10n]'s language for customers (the home card's
+  /// own strings); null when there's nothing to show.
+  static LiveOrderCard? build(LiveOrderFacts f, AppLocalizations l10n) {
+    final shop = f.shop.isEmpty ? 'the shop' : f.shop;
+    final total = AppFormat.currency(f.totalPaise / 100);
+    final summary = f.items > 0 ? l10n.homeTrackItemsSummary(f.items, total) : total;
+    LiveOrderCard card(String title, String subtitle, String emoji, int step, int steps, {String? footerTitle, String? footerText, String? otp}) =>
+        LiveOrderCard(
+          orderId: f.orderId,
+          role: f.role,
+          status: f.status,
+          title: title,
+          subtitle: subtitle,
+          emoji: emoji,
+          step: step,
+          steps: steps,
+          footerTitle: footerTitle ?? shop,
+          footerText: footerText ?? summary,
+          otp: otp,
+        );
+    final ended = f.status == 'delivered';
+    final stopped = f.status == 'cancelled' || f.status == 'rejected';
 
-  /// The card from a live push's data (`live_order_push.js`); null if it isn't one.
-  static LiveOrderCard? fromPush(Map<String, dynamic> data) {
-    if (data['live'] != '1' || data['orderId'] is! String) return null;
-    return LiveOrderCard(
-      orderId: data['orderId'] as String,
-      role: data['role'] as String? ?? 'user',
-      status: data['type'] as String? ?? '',
-      title: data['title'] as String? ?? 'Your order',
-      body: data['body'] as String? ?? '',
-      step: int.tryParse('${data['step']}') ?? 0,
-      steps: int.tryParse('${data['steps']}') ?? 5,
-      subText: (data['shop'] as String?)?.isNotEmpty == true ? data['shop'] as String : null,
-    );
+    if (f.role == 'driver') {
+      final pay = f.cod ? 'Collect $total cash' : 'Paid online';
+      final customer = f.customerName.isEmpty ? 'the customer' : f.customerName;
+      return switch (f.status) {
+        'driverAssigned' => card('Pick up from $shop', 'Head to the shop and collect the order.', '🏪', 1, 2, footerText: '$summary · $pay'),
+        'pickedUp' => card('Deliver to $customer', f.address.isEmpty ? 'Take the order to the customer.' : f.address, '🛵', 2, 2,
+            footerTitle: customer, footerText: '$summary · $pay'),
+        _ when ended => card(f.serverTitle.isEmpty ? 'Delivery completed' : f.serverTitle, f.serverBody, '✅', 3, 2),
+        _ when stopped => card(f.serverTitle.isEmpty ? 'Delivery cancelled' : f.serverTitle, f.serverBody, '❌', 0, 0),
+        _ => null,
+      };
+    }
+    final driver = f.driverName.isEmpty ? l10n.homeTrackDefaultDriver : f.driverName;
+    return switch (f.status) {
+      'placed' => card(l10n.homeTrackPlacedTitle, l10n.homeTrackPlacedSubtitle(shop), '🧾', 1, 4),
+      'vendorAccepted' => card(l10n.homeTrackAcceptedTitle, l10n.homeTrackAcceptedSubtitle(shop), '🍳', 2, 4),
+      'driverAssigned' => card(l10n.homeTrackDriverAssignedTitle, l10n.homeTrackDriverAssignedSubtitle(driver), '🏍️', 3, 4),
+      'pickedUp' => card(l10n.homeTrackPickedUpTitle, l10n.homeTrackPickedUpSubtitle(driver), '🛵', 4, 4, otp: f.otp),
+      _ when ended => card(f.serverTitle.isEmpty ? 'Order delivered' : f.serverTitle, f.serverBody, '✅', 5, 4),
+      _ when stopped => card(f.serverTitle.isEmpty ? 'Order cancelled' : f.serverTitle, f.serverBody, '❌', 0, 0),
+      _ => null,
+    };
   }
 }
 
-/// Creates the channel; safe to call more than once and from a background isolate.
+/// The customer's app language, saved so the background isolate draws the
+/// card in it too.
+const _langKey = 'live_order_card_language';
+
+Future<AppLocalizations> _savedL10n() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return lookupAppLocalizations(Locale(prefs.getString(_langKey) == 'te' ? 'te' : 'en'));
+  } catch (_) {
+    return lookupAppLocalizations(const Locale('en'));
+  }
+}
+
+/// Sets up taps (no-op off Android).
 Future<void> initLiveOrderCards({void Function(String route)? onTap}) async {
-  if (!_supported) return;
-  await _plugin.initialize(
-    const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher'), iOS: DarwinInitializationSettings()),
-    onDidReceiveNotificationResponse: onTap == null
-        ? null
-        : (r) {
-            final route = r.payload;
-            if (route != null && route.startsWith('/')) onTap(route);
-          },
-  );
-  await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(liveOrderChannel);
+  if (!_supported || onTap == null) return;
+  OrderLiveCardNative.onTap((route) {
+    if (route.startsWith('/')) onTap(route);
+  });
 }
 
 /// The route of the card that launched the app, if one did.
 Future<String?> liveOrderLaunchRoute() async {
   if (!_supported) return null;
-  final details = await _plugin.getNotificationAppLaunchDetails();
-  final route = details?.didNotificationLaunchApp == true ? details!.notificationResponse?.payload : null;
-  return route != null && route.startsWith('/') ? route : null;
+  try {
+    return await OrderLiveCardNative.takeLaunchRoute();
+  } catch (_) {
+    return null;
+  }
 }
 
-/// The title of the card currently showing for [orderId], if any.
-Future<String?> _showingTitle(String orderId) async {
-  final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-  final active = await android?.getActiveNotifications() ?? const <ActiveNotification>[];
-  return active.where((n) => n.id == liveOrderNotificationId(orderId) && n.tag == _tag(orderId)).firstOrNull?.title;
-}
-
-/// Draws or updates [card]. Unchanged cards are left alone (no repeat
-/// sound); a new step alerts once.
+/// Draws or updates [card]. An unchanged card is left alone; a new stage
+/// alerts once; other changes update it silently.
 Future<void> showLiveOrderCard(LiveOrderCard card) async {
   if (!_supported) return;
-  if (await _showingTitle(card.orderId) == card.title) return;
-  await _plugin.show(
-    liveOrderNotificationId(card.orderId),
-    card.title,
-    card.body,
-    NotificationDetails(
-      android: AndroidNotificationDetails(
-        liveOrderChannel.id,
-        liveOrderChannel.name,
-        channelDescription: liveOrderChannel.description,
-        importance: Importance.high,
-        priority: Priority.high,
-        tag: _tag(card.orderId),
-        ongoing: !card.terminal,
-        autoCancel: card.terminal,
-        showProgress: !card.terminal && card.steps > 0,
-        maxProgress: card.steps,
-        progress: card.step.clamp(0, card.steps),
-        onlyAlertOnce: false,
-        category: AndroidNotificationCategory.status,
-        subText: card.subText,
-        styleInformation: BigTextStyleInformation(card.body),
-      ),
-    ),
-    payload: liveOrderRoute(role: card.role, orderId: card.orderId, status: card.status),
+  final id = liveOrderNotificationId(card.orderId);
+  final showing = await OrderLiveCardNative.active(id, _tag(card.orderId));
+  if (showing?.hash == card.hash) return;
+  await OrderLiveCardNative.show(
+    id: id,
+    tag: _tag(card.orderId),
+    stage: card.stage,
+    hash: card.hash,
+    title: card.title,
+    subtitle: card.subtitle,
+    emoji: card.emoji,
+    step: card.step,
+    steps: card.steps,
+    footerTitle: card.footerTitle,
+    footerText: card.footerText,
+    otp: card.otp,
+    otpLabel: LiveOrderCard.otpLabel,
+    ongoing: !card.terminal,
+    alert: showing?.stage != card.stage,
+    route: liveOrderRoute(role: card.role, orderId: card.orderId, status: card.status),
+    color: _brandColor,
   );
 }
 
-/// A live push (foreground or background): draws its card. True if it was one.
+/// A live push (foreground or background): draws its card. True if it was
+/// one (Android only — on iPhone the alert itself is the card).
 Future<bool> showLiveOrderCardFromPush(Map<String, dynamic> data) async {
-  // iPhone: the alert itself is the card (collapsed per order) — not handled here.
   if (!_supported) return false;
-  final card = LiveOrderCard.fromPush(data);
-  if (card == null) return false;
-  await showLiveOrderCard(card);
+  final facts = LiveOrderFacts.fromPush(data);
+  if (facts == null) return false;
+  final card = LiveOrderCard.build(facts, await _savedL10n());
+  if (card != null) await showLiveOrderCard(card);
   return true;
 }
 
-/// Removes [orderId]'s card if it is still the pinned in-progress one this
-/// app drew ([pinnedTitle]) — never a final "Delivered" / "Cancelled" one.
-Future<void> _clearIfStillPinned(String orderId, String pinnedTitle) async {
-  if (await _showingTitle(orderId) == pinnedTitle) await _plugin.cancel(liveOrderNotificationId(orderId), tag: _tag(orderId));
-}
+/// Delivery codes already fetched, by order id.
+final _otps = <String, String>{};
+
+/// Cards this app instance drew, by order id → hash.
+final _pinned = <String, String>{};
 
 /// While the app runs: keeps a card for every order of the signed-in
-/// customer, or delivery of the signed-in driver, in progress; drops it
-/// when the order leaves the in-progress list (the server's final push then
-/// says how it ended). Vendors and Managers get no card.
+/// customer, or delivery of the signed-in driver, in progress; drops it when
+/// the order leaves the in-progress list (the server's final push then says
+/// how it ended). Vendors and Managers get no card.
 void listenForLiveOrderCards(WidgetRef ref) {
   if (!_supported) return;
-  ref.listen<AsyncValue<List<Order>>>(activeOrdersProvider, (previous, next) {
+
+  void sync() {
     final scope = ref.read(accessScopeProvider);
-    final orders = next.valueOrNull;
+    final orders = ref.read(activeOrdersProvider).valueOrNull;
     if (scope == null || orders == null) return;
     final role = switch (scope.role) {
       AppRole.user => 'user',
@@ -222,22 +311,38 @@ void listenForLiveOrderCards(WidgetRef ref) {
       _ => null,
     };
     if (role == null) return;
-    final cards = <String, LiveOrderCard>{
-      for (final o in orders)
-        if (role == 'user' ? o.userId == scope.accountId : o.driverId == scope.accountId)
-          o.id: ?LiveOrderCard.forOrder(o, role),
-    };
+    final locale = ref.read(userLocaleProvider);
+    SharedPreferences.getInstance().then((p) => p.setString(_langKey, locale.languageCode)).catchError((_) => false);
+    final l10n = lookupAppLocalizations(locale);
+    final cards = <String, LiveOrderCard>{};
+    for (final o in orders) {
+      if (role == 'user' ? o.userId != scope.accountId : o.driverId != scope.accountId) continue;
+      if (role == 'user' && o.status == OrderStatus.pickedUp && !_otps.containsKey(o.id)) {
+        // The delivery code, once, for the card's code strip.
+        FirebaseFirestore.instance.doc('orders/${o.id}/codes/delivery').get().then((d) {
+          final code = d.data()?['code'];
+          if (code is String && code.isNotEmpty) {
+            _otps[o.id] = code;
+            sync();
+          }
+        }).catchError((_) {});
+      }
+      final card = LiveOrderCard.build(LiveOrderFacts.fromOrder(o, role, otp: _otps[o.id]), l10n);
+      if (card != null && !card.terminal) cards[o.id] = card;
+    }
     for (final card in cards.values) {
-      _pinned[card.orderId] = card.title;
+      _pinned[card.orderId] = card.hash;
       showLiveOrderCard(card);
     }
     for (final id in _pinned.keys.toList()) {
       if (cards.containsKey(id)) continue;
-      final title = _pinned.remove(id)!;
-      _clearIfStillPinned(id, title);
+      final hash = _pinned.remove(id)!;
+      _otps.remove(id);
+      OrderLiveCardNative.active(liveOrderNotificationId(id), _tag(id)).then((showing) {
+        if (showing?.hash == hash) OrderLiveCardNative.cancel(liveOrderNotificationId(id), _tag(id));
+      }).catchError((_) {});
     }
-  });
-}
+  }
 
-/// Cards this app instance drew, by order id → title.
-final _pinned = <String, String>{};
+  ref.listen<AsyncValue<List<Order>>>(activeOrdersProvider, (_, _) => sync());
+}
