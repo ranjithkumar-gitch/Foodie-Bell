@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
+import 'live_order_card.dart';
 import 'local_notifications.dart';
 
 /// Attached to `MaterialApp.router` (`app.dart`) — kept as general
@@ -17,7 +18,9 @@ final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 /// rather than a transient in-app `SnackBar` only visible while the app
 /// happens to be in the foreground at that exact moment.
 void registerForegroundNotificationHandler() {
-  FirebaseMessaging.onMessage.listen((message) {
+  FirebaseMessaging.onMessage.listen((message) async {
+    // A live order push (Android, data-only): the order's card, not a new row.
+    if (await showLiveOrderCardFromPush(message.data)) return;
     final notification = message.notification;
     if (notification == null) return;
     final title = notification.title;

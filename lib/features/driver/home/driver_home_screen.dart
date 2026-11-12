@@ -68,7 +68,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       builder: (context) => AlertDialog(
         icon: Icon(Icons.wifi_tethering_rounded, color: palette.primary, size: 32),
         title: const Text('Go online?'),
-        content: Text(_dayFeeNote('Turn on your availability to start receiving delivery requests.')),
+        content: const Text('Turn on your availability to start receiving delivery requests.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
           ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Go Online')),
@@ -78,29 +78,56 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     if (goOnline == true) _toggleOnline(true);
   }
 
-  /// [text], plus what turning on costs today (driver day fee, 2026-11-12).
-  String _dayFeeNote(String text) {
-    final fee = ref.read(driverDayFeeProvider).valueOrNull ?? 0;
-    if (fee <= 0) return text;
-    return '$text\n\nThe first time you turn on each day, a ${AppFormat.currency(fee / 100)} day fee is added. '
-        'You hand it to your Manager with your COD cash at settlement. Turning off and on again the same day is free. '
-        'Everyone is turned off at 11:59 PM.';
+  /// Asks the Driver to agree to today's day fee (2026-11-12). True only on
+  /// Confirm; Cancel or dismissing keeps them off.
+  Future<bool> _confirmDayFee(int feePaise) async {
+    final fee = AppFormat.currency(feePaise / 100);
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        key: const Key('dayFeeConfirmDialog'),
+        icon: Icon(Icons.currency_rupee_rounded, color: context.colors.primary, size: 32),
+        title: Text('$fee will be charged'),
+        content: Text(
+          'Turning on for today charges a $fee day fee. You hand it to your Manager with your COD cash at settlement.\n\n'
+          'You pay it once a day: turning off and on again today is free. Everyone is turned off at 11:59 PM.',
+        ),
+        actions: [
+          TextButton(key: const Key('dayFeeCancel'), onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(key: const Key('dayFeeConfirm'), onPressed: () => Navigator.pop(context, true), child: Text('Confirm & turn on')),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
-  /// Turning on/off goes through the server, which adds today's day fee the
-  /// first time each day; on failure the switch goes back.
+  /// Turning on/off goes through the server. The switch shows "on" only once
+  /// the server has turned the Driver on — after they confirmed today's fee
+  /// if it is due.
   bool _switching = false;
 
   Future<void> _toggleOnline(bool value) async {
     if (_switching) return;
-    final before = _online;
-    setState(() {
-      _online = value;
-      _switching = true;
-    });
+    setState(() => _switching = true);
     try {
-      final result = await setDriverOnline(value);
+      var result = await setDriverOnline(value);
+      if (value && result.needsConfirmation) {
+        if (!mounted) return;
+        if (!await _confirmDayFee(result.dayFeePaise)) {
+          if (mounted) setState(() => _online = false);
+          return;
+        }
+        result = await setDriverOnline(true, acceptDayFeePaise: result.dayFeePaise);
+        // The fee changed while the dialog was open: nothing was charged; ask again.
+        if (result.needsConfirmation && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('The day fee just changed. Please try again.')));
+          setState(() => _online = false);
+          return;
+        }
+      }
       if (!mounted) return;
+      setState(() => _online = result.online);
       if (result.chargedPaise > 0) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('You’re on for today. ${AppFormat.currency(result.chargedPaise / 100)} day fee added — hand it to your Manager with your COD cash.'),
@@ -108,7 +135,6 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       }
     } catch (e, st) {
       if (!mounted) return;
-      setState(() => _online = before);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e is OrderActionException ? e.message : friendlyError(e, action: 'Updating availability', stackTrace: st))),
       );

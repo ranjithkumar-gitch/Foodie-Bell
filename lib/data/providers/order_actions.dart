@@ -277,12 +277,20 @@ Future<void> recordSettlementTransfer({
 });
 
 /// Driver: turn on or off (driver day fee, 2026-11-12). The first time each
-/// day (IST) turning on adds the day fee, owed to the Driver's Manager and
-/// collected at the daily settlement with the COD cash. [chargedPaise] is
-/// what this call added (0 if today's was already added, or the fee is off).
-Future<({bool online, int chargedPaise})> setDriverOnline(bool online) async {
-  final data = await _call('setDriverOnline', {'online': online});
-  return (online: data['online'] == true, chargedPaise: (data['chargedPaise'] as num?)?.toInt() ?? 0);
+/// day (IST) turning on charges the day fee, owed to the Driver's Manager and
+/// collected at the daily settlement with the COD cash — but only with the
+/// Driver's consent: without [acceptDayFeePaise] the server turns nothing on
+/// and answers [needsConfirmation] with the fee ([dayFeePaise]); the app asks,
+/// and on Confirm calls again with that amount. [chargedPaise] is what this
+/// call charged (0 if today's was already paid, or the fee is off).
+Future<({bool online, int chargedPaise, bool needsConfirmation, int dayFeePaise})> setDriverOnline(bool online, {int? acceptDayFeePaise}) async {
+  final data = await _call('setDriverOnline', {'online': online, 'acceptDayFeePaise': ?acceptDayFeePaise});
+  return (
+    online: data['online'] == true,
+    chargedPaise: (data['chargedPaise'] as num?)?.toInt() ?? 0,
+    needsConfirmation: data['needsConfirmation'] == true,
+    dayFeePaise: (data['dayFeePaise'] as num?)?.toInt() ?? 0,
+  );
 }
 
 Future<void> acknowledgeSettlementTransfer(String transferId, {required bool confirm, String? note}) =>

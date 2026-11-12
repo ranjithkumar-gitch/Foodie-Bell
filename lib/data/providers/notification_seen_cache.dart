@@ -21,3 +21,20 @@ Future<void> saveNotificationsLastSeen(
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(_cacheKey(accountId), seenAt.toIso8601String());
 }
+
+/// When this account last tapped "Delete all" on their Notifications screen
+/// (`notification_wall.dart`). Personal notifications are deleted from the
+/// server; Admin broadcasts and chat messages are shared, so the wall on
+/// this device hides the ones from before this point instead.
+String _clearedKey(String accountId) => 'notifications_cleared_at_$accountId';
+
+Future<DateTime?> loadNotificationsClearedAt(String accountId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final iso = prefs.getString(_clearedKey(accountId));
+  return iso == null ? null : DateTime.tryParse(iso);
+}
+
+Future<void> saveNotificationsClearedAt(String accountId, DateTime at) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_clearedKey(accountId), at.toIso8601String());
+}

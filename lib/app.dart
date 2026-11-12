@@ -12,6 +12,8 @@ import 'core/router/app_router.dart';
 import 'core/router/exit_confirm_back_button_dispatcher.dart';
 import 'core/session/claim_sync.dart';
 import 'core/theme/app_theme.dart';
+import 'core/notifications/live_order_card.dart';
+import 'core/notifications/notification_taps.dart';
 import 'features/driver/driver_location_tracker.dart';
 import 'features/driver/new_offer_alert.dart';
 import 'features/user/home/selected_territory_provider.dart';
@@ -35,6 +37,9 @@ class QuickyApp extends ConsumerWidget {
     listenForChatNotifications(ref);
     listenForNewDriverOffers(ref);
     listenForClaimChanges(ref);
+    // Customers and drivers: the live order card in the notification bar.
+    listenForLiveOrderCards(ref);
+    listenForNotificationTaps(ref);
     return MaterialApp.router(
       title: 'Quicky',
       scaffoldMessengerKey: rootScaffoldMessengerKey,

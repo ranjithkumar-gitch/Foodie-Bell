@@ -51,3 +51,22 @@ final firestorePersonalNotificationsProvider =
 /// anyone else's copy of the same event.
 Future<void> deletePersonalNotification(String id) =>
     personalNotificationsCollection.doc(id).delete();
+
+/// Deletes every personal notification of [accountId] ("Delete all" on the
+/// Notifications screen) — all of them, not only the newest 100 the wall
+/// shows, a few hundred per batch. Only the recipient's own docs, which the
+/// rules let them delete.
+Future<int> deleteAllPersonalNotifications(String accountId) async {
+  var deleted = 0;
+  while (true) {
+    final page = await personalNotificationsCollection.where('recipientId', isEqualTo: accountId).limit(300).get();
+    if (page.docs.isEmpty) return deleted;
+    final batch = FirebaseFirestore.instance.batch();
+    for (final d in page.docs) {
+      batch.delete(d.reference);
+    }
+    await batch.commit();
+    deleted += page.docs.length;
+    if (page.docs.length < 300) return deleted;
+  }
+}

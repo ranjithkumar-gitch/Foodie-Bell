@@ -1,8 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notifications/fcm_topics.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/chat_message.dart';
+import '../../data/providers/firestore_personal_notifications_provider.dart';
+import '../../data/providers/notification_seen_cache.dart';
 import '../time_ago.dart';
+
+/// When this account last tapped "Delete all" (persisted per account), or
+/// null. Items the wall can't delete (Admin broadcasts, chat messages)
+/// from before then are hidden on this device.
+class NotificationsClearedAt extends StateNotifier<DateTime?> {
+  NotificationsClearedAt(this.accountId) : super(null) {
+    loadNotificationsClearedAt(accountId).then((v) {
+      if (mounted && v != null && (state == null || v.isAfter(state!))) state = v;
+    }).catchError((_) {});
+  }
+  final String accountId;
+
+  void clear(DateTime at) {
+    state = at;
+    saveNotificationsClearedAt(accountId, at).catchError((_) {});
+  }
+}
+
+final notificationsClearedAtProvider = StateNotifierProvider.family<NotificationsClearedAt, DateTime?, String>(
+  (ref, accountId) => NotificationsClearedAt(accountId),
+);
+
+/// The rows still shown after "Delete all" at [clearedAt]: every deletable
+/// row (deleted ones are gone from the server anyway) and anything newer.
+List<WallItem> visibleWallItems(List<WallItem> items, DateTime? clearedAt) => [
+  for (final i in items)
+    if (clearedAt == null || i.deletable || (i.createdAt != null && i.createdAt!.isAfter(clearedAt))) i,
+];
 
 /// One row on a Notifications screen — a common shape every role's wall
 /// (`notifications_screen.dart` for User, and the Vendor/Manager/Driver
@@ -58,7 +90,7 @@ List<WallItem> chatWallItems(Map<String, List<ChatMessage>> chats, void Function
 /// Today/Earlier, a delete button only on [WallItem.deletable] rows, and a
 /// consistent empty state. [items] should already be merged (if this role
 /// has more than one source) and sorted newest-first by the caller.
-class NotificationWall extends StatelessWidget {
+class NotificationWall extends ConsumerWidget {
   const NotificationWall({
     super.key,
     required this.items,
@@ -70,9 +102,40 @@ class NotificationWall extends StatelessWidget {
   final ValueChanged<WallItem> onDelete;
   final String emptySubtitle;
 
+  /// "Delete all": asks first, then deletes every personal notification of
+  /// the account on the server and clears the rest off this wall.
+  Future<void> _deleteAll(BuildContext context, WidgetRef ref, String accountId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        key: const Key('deleteAllNotificationsDialog'),
+        title: const Text('Delete all notifications?'),
+        content: const Text('This removes every notification from this list. It can’t be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          ElevatedButton(key: const Key('confirmDeleteAllNotifications'), onPressed: () => Navigator.pop(d, true), child: const Text('Delete all')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final at = DateTime.now();
+    try {
+      await deleteAllPersonalNotifications(accountId);
+      ref.read(notificationsClearedAtProvider(accountId).notifier).clear(at);
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All notifications deleted.')));
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Couldn’t delete all notifications. Check your connection and try again.')));
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
+    final accountId = ref.watch(currentAccountIdProvider);
+    final clearedAt = accountId == null ? null : ref.watch(notificationsClearedAtProvider(accountId));
+    final items = visibleWallItems(this.items, clearedAt);
 
     if (items.isEmpty) {
       return Center(
@@ -118,6 +181,16 @@ class NotificationWall extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       children: [
+        if (accountId != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              key: const Key('deleteAllNotifications'),
+              onPressed: () => _deleteAll(context, ref, accountId),
+              icon: Icon(Icons.delete_sweep_rounded, color: palette.error),
+              label: Text('Delete all', style: TextStyle(color: palette.error, fontWeight: FontWeight.w700)),
+            ),
+          ),
         if (today.isNotEmpty) ...[
           Text('Today', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 10),
