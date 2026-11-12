@@ -2,7 +2,12 @@
 
 **Date:** 2026-11-02. The same file is in both repositories.
 
-This handoff is for **source sharing and internal testing only**. Production deployment, migrations against live data, release signing and store publication are **not approved**.
+This handoff is for **source sharing and internal testing**.
+
+**Update 2026-11-12:**
+- Apps run against **live data by default**.
+- Pre-release QA on production is approved (owner decision): test orders, deliveries and cash records **count in the real totals** and can't be removed later. Keep test activity identifiable.
+- Release signing and store publication are still pending.
 
 ## 1. Repositories
 
@@ -110,22 +115,26 @@ cd Foodie-Bell
 flutter pub get
 ```
 
-**A plain `flutter run` (debug) fails closed.** The app shows "Firebase is not configured for this build" and never touches Firebase. Always pass a target:
+**A plain `flutter run` uses LIVE data** (`quickmandi-3b017`). There's no setting to pass. The log line `Firebase: this debug build uses LIVE data` confirms it. Everything you do in the app is real: orders, sign-ups, deliveries.
+
+The **local emulators** are used only when you ask for them:
 
 | Where | Command |
 |---|---|
+| Live data (default) | `flutter run` |
 | Android **emulator** | `flutter run --dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=10.0.2.2` |
 | iOS **simulator** / desktop | `flutter run --dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=127.0.0.1` |
 | Physical phone (same Wi-Fi) | `EMU_HOST=<your Mac/PC LAN IP>`, **and** start the emulators listening on that interface (set `host` to `0.0.0.0` for each emulator in a local, uncommitted copy of `firebase.json`) |
 
 - **`10.0.2.2`** is the Android *emulator's* alias for your computer. It does **not** work on a physical phone.
 - **Emulator builds** show a red **EMULATOR** ribbon and use project `demo-quickmandi` with a placeholder API key.
-- **`FIREBASE_TARGET=production`** exists, but production use is **not approved**. Don't use it.
+- **An emulator request without `EMU_HOST`** stops at a setup screen; it never silently goes live.
 
-**Debug APK for internal testing** (emulator target):
+**Debug APK for internal testing:**
 
 ```
-flutter build apk --debug --dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=10.0.2.2
+flutter build apk --debug          # live data (default)
+# emulator build: add --dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=10.0.2.2
 # → build/app/outputs/flutter-apk/app-debug.apk ; adb install -r <apk>
 ```
 
@@ -143,7 +152,8 @@ It's signed only with your own debug key. Never upload it to a store. See `Quick
 ```
 cd QuickyAdmin
 flutter pub get
-flutter run -d chrome --dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=127.0.0.1
+flutter run -d chrome          # live data (default)
+# local emulators: flutter run -d chrome --dart-define=FIREBASE_TARGET=emulator --dart-define=EMU_HOST=127.0.0.1
 ```
 
 Then sign in with the emulator Super Admin (§4). The admin console signs out after 30 minutes idle.
