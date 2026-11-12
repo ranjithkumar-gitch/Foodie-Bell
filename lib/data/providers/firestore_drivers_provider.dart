@@ -138,9 +138,13 @@ Future<void> clearDriverDocumentPath(String driverId, DriverDocumentType type) =
 Future<void> updateDriverConsent(String driverId, bool accepted) =>
     driversCollection.doc(driverId).update({'riskConsentAccepted': accepted});
 
-// Turning on/off goes through `setDriverOnline` (order_actions.dart): the
-// server charges the driver day fee, and the rules no longer let a Driver set
-// `isOnline: true` themselves.
+// Turning ON goes through `setDriverOnline` (order_actions.dart): the server
+// charges the driver day fee, and the rules don't let a Driver set
+// `isOnline: true` themselves. Turning OFF is a direct write (below) — the
+// rules allow it, and it is instant, even offline.
+
+/// Turns the Driver off duty right away (no server round trip).
+Future<void> setDriverOffDuty(String driverId) => driversCollection.doc(driverId).update({'isOnline': false});
 
 /// Stamps the Driver's current GPS position onto their own doc — called by
 /// `driver_location_tracker.dart` once at login/registration and then again

@@ -107,8 +107,49 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   /// if it is due.
   bool _switching = false;
 
+  /// "Go off duty?" — with a word about deliveries still in progress.
+  Future<bool> _confirmOffDuty() async {
+    final driverId = ref.read(currentDriverAccountProvider).id;
+    final busy = (ref.read(activeOrdersProvider).valueOrNull ?? const <Order>[])
+        .where((o) => o.driverId == driverId && (o.status == OrderStatus.driverAssigned || o.status == OrderStatus.pickedUp))
+        .length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('offDutyConfirmDialog'),
+        icon: Icon(Icons.power_settings_new_rounded, color: context.colors.primary, size: 32),
+        title: const Text('Go off duty?'),
+        content: Text(
+          [
+            'You won’t get new delivery requests.',
+            if (busy > 0) 'You still have $busy ${busy == 1 ? 'delivery' : 'deliveries'} in progress — finish ${busy == 1 ? 'it' : 'them'} as usual.',
+            'Turning on again today is free.',
+          ].join('\n\n'),
+        ),
+        actions: [
+          TextButton(key: const Key('offDutyCancel'), onPressed: () => Navigator.pop(context, false), child: const Text('Stay on duty')),
+          ElevatedButton(key: const Key('offDutyConfirm'), onPressed: () => Navigator.pop(context, true), child: const Text('Go off duty')),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   Future<void> _toggleOnline(bool value) async {
     if (_switching) return;
+    if (!value) {
+      // Off: ask, then switch at once — a direct write, no server wait.
+      if (!await _confirmOffDuty() || !mounted) return;
+      setState(() => _online = false);
+      try {
+        await setDriverOffDuty(ref.read(currentDriverAccountProvider).id);
+      } catch (e, st) {
+        if (!mounted) return;
+        setState(() => _online = true);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e, action: 'Going off duty', stackTrace: st))));
+      }
+      return;
+    }
     setState(() => _switching = true);
     try {
       var result = await setDriverOnline(value);
@@ -253,7 +294,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            _DutyCard(online: _online, onChanged: _toggleOnline),
+            _DutyCard(online: _online, busy: _switching, onChanged: _toggleOnline),
             const SizedBox(height: 14),
             _EarningsCard(
               todayEarnings: todaysFigures.earnings,
@@ -335,7 +376,10 @@ class _SectionTitle extends StatelessWidget {
 /// offline, the whole card tappable (not just a tiny switch) like the
 /// partner apps' "GO ONLINE" slider.
 class _DutyCard extends StatelessWidget {
-  const _DutyCard({required this.online, required this.onChanged});
+  const _DutyCard({required this.online, required this.onChanged, this.busy = false});
+
+  /// Turning on is being checked with the server.
+  final bool busy;
   final bool online;
   final ValueChanged<bool> onChanged;
 
@@ -361,7 +405,7 @@ class _DutyCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => onChanged(!online),
+          onTap: busy ? null : () => onChanged(!online),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
             child: Row(
@@ -373,18 +417,24 @@ class _DutyCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        online ? "You're ON DUTY" : "You're OFF DUTY",
+                        busy ? 'Turning on…' : (online ? "You're ON DUTY" : "You're OFF DUTY"),
                         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17, letterSpacing: 0.3),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        online ? 'Receiving orders near you' : 'Go online to start earning',
+                        busy ? 'One moment' : (online ? 'Receiving orders near you' : 'Go online to start earning'),
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                 ),
-                Switch(
+                if (busy)
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)),
+                  )
+                else
+                  Switch(
                   value: online,
                   onChanged: onChanged,
                   activeThumbColor: Colors.white,
