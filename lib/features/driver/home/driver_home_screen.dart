@@ -12,6 +12,7 @@ import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
+import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/order_codes_provider.dart';
 import '../../../data/providers/settlement_provider.dart';
 import '../../../data/providers/order_drop_off.dart';
@@ -67,7 +68,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       builder: (context) => AlertDialog(
         icon: Icon(Icons.wifi_tethering_rounded, color: palette.primary, size: 32),
         title: const Text('Go online?'),
-        content: const Text('Turn on your availability to start receiving delivery requests.'),
+        content: Text(_dayFeeNote('Turn on your availability to start receiving delivery requests.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
           ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Go Online')),
@@ -77,15 +78,42 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     if (goOnline == true) _toggleOnline(true);
   }
 
+  /// [text], plus what turning on costs today (driver day fee, 2026-11-12).
+  String _dayFeeNote(String text) {
+    final fee = ref.read(driverDayFeeProvider).valueOrNull ?? 0;
+    if (fee <= 0) return text;
+    return '$text\n\nThe first time you turn on each day, a ${AppFormat.currency(fee / 100)} day fee is added. '
+        'You hand it to your Manager with your COD cash at settlement. Turning off and on again the same day is free. '
+        'Everyone is turned off at 11:59 PM.';
+  }
+
+  /// Turning on/off goes through the server, which adds today's day fee the
+  /// first time each day; on failure the switch goes back.
+  bool _switching = false;
+
   Future<void> _toggleOnline(bool value) async {
-    setState(() => _online = value);
+    if (_switching) return;
+    final before = _online;
+    setState(() {
+      _online = value;
+      _switching = true;
+    });
     try {
-      await setDriverOnlineStatus(ref.read(currentDriverAccountProvider).id, value);
+      final result = await setDriverOnline(value);
+      if (!mounted) return;
+      if (result.chargedPaise > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('You’re on for today. ${AppFormat.currency(result.chargedPaise / 100)} day fee added — hand it to your Manager with your COD cash.'),
+        ));
+      }
     } catch (e, st) {
       if (!mounted) return;
+      setState(() => _online = before);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError(e, action: 'Updating availability', stackTrace: st))),
+        SnackBar(content: Text(e is OrderActionException ? e.message : friendlyError(e, action: 'Updating availability', stackTrace: st))),
       );
+    } finally {
+      if (mounted) setState(() => _switching = false);
     }
   }
 
@@ -93,6 +121,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   Widget build(BuildContext context) {
     final palette = context.colors;
     final driver = ref.watch(currentDriverAccountProvider);
+    ref.watch(driverDayFeeProvider);
+    // Follow the server: the 23:59 switch-off (or another device) turns the
+    // Driver off.
+    ref.listen<bool?>(liveDriverAccountProvider(driver.id).select((a) => a?.isOnline), (_, next) {
+      if (next != null && next != _online && !_switching) setState(() => _online = next);
+    });
     // In-progress deliveries and open offers only; totals come from the
     // server's per-day figures.
     final orders = ref.watch(activeOrdersProvider).valueOrNull ?? const [];

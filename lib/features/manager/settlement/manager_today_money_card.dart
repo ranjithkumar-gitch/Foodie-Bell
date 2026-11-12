@@ -1,0 +1,251 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../data/providers/settlement_provider.dart';
+import '../../../shared/settlement/daily_money.dart';
+import '../../../shared/widgets/currency_text.dart';
+
+String _rupees(int paise) => AppFormat.currency(paise / 100);
+
+String _orders(int n) => n == 1 ? '1 order' : '$n orders';
+
+/// What a Manager line is, in words: "₹350 COD cash · 2 orders".
+String managerLineText(ManagerMoneyLine l, int amountPaise) {
+  final amount = _rupees(amountPaise);
+  final what = switch (l.kind) {
+    MoneyLineKind.codCash => l.dayFeePaise > 0 ? '$amount COD cash + day fee (${_rupees(l.dayFeePaise)})' : '$amount COD cash',
+    MoneyLineKind.deliveryFees => '$amount delivery fees',
+    MoneyLineKind.shopPayout => '$amount for COD orders',
+    MoneyLineKind.shopUpiDues => '$amount commission + delivery (UPI orders)',
+    MoneyLineKind.quicky => '$amount Quicky’s share (commission, platform & day fees)',
+    MoneyLineKind.other => '$amount order money',
+  };
+  final parts = [
+    what,
+    if (l.orders > 0 && l.kind != MoneyLineKind.quicky) _orders(l.orders),
+    if (l.openingPaise > 0) 'incl. ${_rupees(l.openingPaise)} from earlier days',
+  ];
+  return parts.join(' · ');
+}
+
+/// The top of the Manager's daily settlement: one line per person and
+/// direction, one button each, amounts filled in from the server's
+/// statement. Collect (Drivers' COD cash, shops' UPI dues) and Pay
+/// (Drivers' delivery fees, shops' COD payouts, Quicky). A line ticks once
+/// the other side has confirmed the payment.
+class ManagerTodayMoneyCard extends StatelessWidget {
+  const ManagerTodayMoneyCard({
+    super.key,
+    required this.statement,
+    required this.managerKey,
+    required this.transfers,
+    required this.partyName,
+    required this.onRecord,
+    required this.onAnswer,
+  });
+
+  final SettlementStatement statement;
+  final PartyKey managerKey;
+
+  /// The Manager's live settlement payments.
+  final List<SettlementTransfer> transfers;
+  final String Function(PartyKey) partyName;
+
+  /// Record a payment for [line] (Received / Paid), pre-filled with [amountPaise].
+  final void Function(ManagerMoneyLine line, int amountPaise) onRecord;
+
+  /// Confirm or reject a payment the other side recorded.
+  final void Function(SettlementTransfer transfer, bool confirm) onAnswer;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    final lines = managerMoneyLines(statement, managerKey, transfers: transfers);
+    final known = statementPaymentIds(statement);
+    final done = lines.where((l) => l.state(known) == MoneyLineState.done).length;
+    final waiting = lines.where((l) => l.state(known) == MoneyLineState.waiting).length;
+    final collect = lines.where((l) => l.collect).toList();
+    final pay = lines.where((l) => !l.collect).toList();
+    final settled = statement.status == SettlementStatus.completed;
+
+    return Container(
+      key: const Key('todayMoneyCard'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: settled ? palette.success : palette.border, width: settled ? 1.6 : 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text('Today’s money', style: Theme.of(context).textTheme.titleLarge)),
+              if (settled)
+                Text(
+                  'Day settled ✓',
+                  key: const Key('daySettled'),
+                  style: TextStyle(color: palette.success, fontWeight: FontWeight.w800),
+                )
+              else if (lines.isNotEmpty)
+                Text(
+                  '$done of ${lines.length} done',
+                  key: const Key('dayProgress'),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+            ],
+          ),
+          if (lines.isEmpty) ...[
+            const SizedBox(height: 8),
+            Text(settled ? 'Nothing to settle for this day.' : 'No order money for this day yet.', style: TextStyle(color: palette.textSecondary)),
+          ],
+          if (collect.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _GroupTitle('COLLECT', palette.textSecondary),
+            for (final l in collect) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer),
+          ],
+          if (pay.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _GroupTitle('PAY', palette.textSecondary),
+            for (final l in pay) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer),
+          ],
+          if (waiting > 0) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Waiting for the other side to confirm: $waiting',
+              key: const Key('waitingCount'),
+              style: TextStyle(color: palette.warning, fontWeight: FontWeight.w700),
+            ),
+          ],
+          if (!settled && lines.isNotEmpty && done == lines.length) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Order money is done. Anything still open is below (cancellations, refunds or problems).',
+              style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupTitle extends StatelessWidget {
+  const _GroupTitle(this.text, this.color);
+  final String text;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.1),
+  );
+}
+
+class _LineTile extends StatelessWidget {
+  const _LineTile({required this.line, required this.known, required this.managerKey, required this.partyName, required this.onRecord, required this.onAnswer});
+  final ManagerMoneyLine line;
+  final Set<String> known;
+  final PartyKey managerKey;
+  final String Function(PartyKey) partyName;
+  final void Function(ManagerMoneyLine line, int amountPaise) onRecord;
+  final void Function(SettlementTransfer transfer, bool confirm) onAnswer;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    final state = line.state(known);
+    final toRecord = line.toRecordPaise(known);
+    final name = partyName(line.party);
+    final theirs = [
+      for (final t in line.pending)
+        if (t.counterparty == managerKey) t,
+    ];
+    final mine = [
+      for (final t in line.pending)
+        if (t.counterparty != managerKey) t,
+    ];
+    final key = '${line.collect ? 'collect' : 'pay'}:${line.party}';
+
+    return Padding(
+      key: ValueKey(key),
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                switch (state) {
+                  MoneyLineState.done => Icons.check_circle_rounded,
+                  MoneyLineState.waiting => Icons.hourglass_top_rounded,
+                  MoneyLineState.open => Icons.radio_button_unchecked_rounded,
+                },
+                size: 20,
+                color: switch (state) {
+                  MoneyLineState.done => palette.success,
+                  MoneyLineState.waiting => palette.warning,
+                  MoneyLineState.open => palette.textMuted,
+                },
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(
+                      state == MoneyLineState.done
+                          ? (line.settledTogether ? 'Settled together with their other line ✓' : 'Done ✓')
+                          : managerLineText(line, state == MoneyLineState.open ? toRecord : line.outstandingPaise),
+                      style: TextStyle(color: palette.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              if (state == MoneyLineState.open)
+                ElevatedButton(key: ValueKey('record:$key'), onPressed: () => onRecord(line, toRecord), child: Text(line.collect ? 'Received' : 'Paid')),
+            ],
+          ),
+          for (final t in mine)
+            Padding(
+              padding: const EdgeInsets.only(left: 30, top: 2),
+              child: Text(
+                'You recorded ${_rupees(t.amountPaise)} — waiting for them to confirm',
+                style: TextStyle(color: palette.warning, fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+          for (final t in theirs)
+            Padding(
+              padding: const EdgeInsets.only(left: 30, top: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${line.collect ? 'They say they paid you' : 'They say you paid them'} ${_rupees(t.amountPaise)}'
+                    '${t.method == 'upi' ? ' by UPI ${t.reference ?? ''}' : ' in cash'}',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  Row(
+                    children: [
+                      TextButton(key: ValueKey('reject:${t.id}'), onPressed: () => onAnswer(t, false), child: const Text('Something’s wrong')),
+                      const SizedBox(width: 6),
+                      ElevatedButton(key: ValueKey('confirm:${t.id}'), onPressed: () => onAnswer(t, true), child: const Text('Yes, correct')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          if (line.disputed.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 30, top: 2),
+              child: Text(
+                'A payment here was disputed — see “Problems to sort out”.',
+                style: TextStyle(color: palette.error, fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

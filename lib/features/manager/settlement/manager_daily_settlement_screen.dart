@@ -14,7 +14,9 @@ import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/settlement_provider.dart';
+import '../../../shared/settlement/daily_money.dart';
 import 'cancellation_settlement_section.dart';
+import 'manager_today_money_card.dart';
 import 'propose_adjustment_sheet.dart';
 import 'settlement_payment_sheet.dart';
 import '../../../shared/widgets/currency_text.dart';
@@ -56,6 +58,10 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
   SettlementStatement? _statement;
   bool _loading = false;
   String? _error;
+
+  /// The full statement (totals, net balances, adjustments) under the
+  /// simple Today's-money lines.
+  bool _showDetails = false;
 
   String get _territoryId => ref.read(accessScopeProvider)?.territoryId ?? '';
 
@@ -108,7 +114,42 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     return '${kind == 'vendor' ? 'Shop' : 'Driver'}: ${name ?? id}';
   }
 
-  Future<void> _recordPayment(PartyKey party, int balance, String managerKey) async {
+  /// A "Received" / "Paid" tap on a Today's-money line: the same general
+  /// payment as "Who owes whom", for that one pair and direction.
+  Future<void> _recordLine(ManagerMoneyLine line, int amountPaise, String managerKey) =>
+      _recordPayment(line.party, line.collect ? amountPaise : -amountPaise, managerKey, cash: line.kind == MoneyLineKind.codCash);
+
+  /// Confirms or rejects a payment the other side recorded.
+  Future<void> _answer(SettlementTransfer t, bool confirm) async {
+    String? note;
+    if (!confirm) {
+      final c = TextEditingController();
+      note = await showDialog<String>(
+        context: context,
+        builder: (d) => AlertDialog(
+          title: const Text('What is wrong with this payment?'),
+          content: TextField(
+            controller: c,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'e.g. I did not get this money'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Back')),
+            ElevatedButton(onPressed: () => c.text.trim().isEmpty ? null : Navigator.pop(d, c.text.trim()), child: const Text('Send')),
+          ],
+        ),
+      );
+      if (note == null) return;
+    }
+    try {
+      await acknowledgeSettlementTransfer(t.id, confirm: confirm, note: note);
+      if (mounted && _day != null) await _load(_day!);
+    } on OrderActionException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _recordPayment(PartyKey party, int balance, String managerKey, {bool cash = false}) async {
     final fromParty = balance > 0 ? party : managerKey;
     final toParty = balance > 0 ? managerKey : party;
     final result = await showModalBottomSheet<SettlementPaymentInput>(
@@ -117,6 +158,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
       builder: (context) => SettlementPaymentSheet(
         title: balance > 0 ? 'Payment received from ${_partyName(party, managerKey.split(':').last)}' : 'Payment made to ${_partyName(party, managerKey.split(':').last)}',
         suggestedPaise: balance.abs(),
+        initialUpi: !cash,
       ),
     );
     if (result == null || _day == null) return;
@@ -172,6 +214,9 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     ref.watch(firestoreVendorsProvider);
     ref.watch(firestoreDriversProvider);
     final s = _statement;
+    // Cancellation money keeps its own section, shown up front only when
+    // the day has some.
+    final hasCancellation = s != null && (s.obligations.any((o) => o.isCancellation) || !(s.cancellationFinance?.isEmpty ?? true));
     final adjustments = _day == null ? const <SettlementAdjustment>[] : ref.watch(dayAdjustmentsProvider(_day!)).valueOrNull ?? const <SettlementAdjustment>[];
     final attention = (ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[])
         .where((o) => o.paymentStatus == OrderPaymentStatus.disputed || (o.deliveryIssue != null && !o.deliveryIssue!.resolved && o.status == OrderStatus.pickedUp))
@@ -196,8 +241,6 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
               for (final o in attention) _AttentionCard(order: o),
               const SizedBox(height: 20),
             ],
-            const _PricingCard(),
-            const SizedBox(height: 16),
             Row(children: [
               Expanded(child: Text(_day == null ? 'Settlement' : 'Settlement day $_day', style: Theme.of(context).textTheme.titleLarge)),
               if (s != null) _StatusChip(status: s.status),
@@ -208,6 +251,72 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
             if (_loading) const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
             if (_error != null) Text(_error!, style: TextStyle(color: palette.error, fontWeight: FontWeight.w600)),
             if (s != null && !_loading) ...[
+              ManagerTodayMoneyCard(
+                statement: s,
+                managerKey: managerKey,
+                transfers: ref.watch(myTransfersProvider).valueOrNull ?? const <SettlementTransfer>[],
+                partyName: (p) => _partyName(p, managerId),
+                onRecord: (line, amount) => _recordLine(line, amount, managerKey),
+                onAnswer: _answer,
+              ),
+              if (s.customerRefunds case final r? when r.values.any((v) => v != 0)) ...[
+                const SizedBox(height: 18),
+                Text('Customer refunds (owed by shops, not you)', key: const Key('statementCustomerRefunds'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 6),
+                _Box(children: [
+                  _Line('Owed (assessed)', _rupees(r['owedPaise'] ?? 0)),
+                  _Line('Refund confirmed', _rupees(r['refundedPaise'] ?? 0)),
+                  _Line('Refund initiated — awaiting confirmation', _rupees(r['awaitingConfirmationPaise'] ?? 0)),
+                  _Line('Refund disputed', _rupees(r['disputedPaise'] ?? 0)),
+                  _Line('Still owed', _rupees(r['outstandingPaise'] ?? 0), strong: true),
+                ]),
+              ],
+              if (hasCancellation) ...[
+              const SizedBox(height: 18),
+              CancellationSettlementSection(
+                statement: s,
+                territoryId: _territoryId,
+                managerKey: managerKey,
+                partyName: (p) => _partyName(p, managerId),
+                onRecorded: () => _load(_day!),
+              ),
+              ],
+              if (s.discrepancies.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Text('Problems to sort out', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: palette.error)),
+                for (final d in s.discrepancies)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.report_problem_rounded, color: palette.error),
+                    title: Text(settlementDiscrepancyText(d, (p) => _partyName(p, managerId))),
+                    subtitle: Text(
+                      adjustmentDraftFor(d, s, managerKey) == null
+                          ? 'Sort this out with the people involved.'
+                          : adjustments.any((a) => a.orderId == d['orderId'] && a.status == 'pending')
+                          ? 'An adjustment is waiting for the Super Admin.'
+                          : 'Once you know what happened, propose an adjustment for the Super Admin to decide.',
+                    ),
+                    trailing: adjustmentDraftFor(d, s, managerKey) == null || adjustments.any((a) => a.orderId == d['orderId'] && a.status != 'rejected')
+                        ? null
+                        : TextButton(
+                            onPressed: () => _proposeAdjustment(managerKey, draft: adjustmentDraftFor(d, s, managerKey)),
+                            child: const Text('Propose adjustment'),
+                          ),
+                  ),
+              ],
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const Key('settlementDetailsToggle'),
+                  onPressed: () => setState(() => _showDetails = !_showDetails),
+                  icon: Icon(_showDetails ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+                  label: Text(_showDetails ? 'Hide details' : 'Details'),
+                ),
+              ),
+              if (_showDetails) ...[
+                const _PricingCard(),
+                const SizedBox(height: 16),
               _Box(children: [
                 _Line('Orders delivered', '${s.total('orders')}'),
                 _Line('Customers paid', _rupees(s.total('customerTotalPaise'))),
@@ -225,27 +334,16 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                 _Line('Total to pay Quicky', _rupees(s.total('quickyRevenuePaise')), strong: true),
                 _Line('Driver earnings (delivery fees)', _rupees(s.total('driverEarningsPaise'))),
                 _Line('Shops’ earnings (goods)', _rupees(s.total('vendorEntitlementPaise'))),
+                // Driver day fees (2026-11-12): collected from Drivers with
+                // their COD cash; your share stays with you, Quicky's is in
+                // what you pay Quicky.
+                if (s.total('driverDayFees') > 0) ...[
+                  const Divider(),
+                  _Line('Driver day fees (${s.total('driverDayFees')})', _rupees(s.total('driverDayFeePaise'))),
+                  _Line('Your share of day fees', _rupees(s.total('driverDayFeeManagerPaise')), strong: true),
+                  _Line('Quicky’s share of day fees', _rupees(s.total('driverDayFeeQuickyPaise'))),
+                ],
               ]),
-              if (s.customerRefunds case final r? when r.values.any((v) => v != 0)) ...[
-                const SizedBox(height: 18),
-                Text('Customer refunds (owed by shops, not you)', key: const Key('statementCustomerRefunds'), style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 6),
-                _Box(children: [
-                  _Line('Owed (assessed)', _rupees(r['owedPaise'] ?? 0)),
-                  _Line('Refund confirmed', _rupees(r['refundedPaise'] ?? 0)),
-                  _Line('Refund initiated — awaiting confirmation', _rupees(r['awaitingConfirmationPaise'] ?? 0)),
-                  _Line('Refund disputed', _rupees(r['disputedPaise'] ?? 0)),
-                  _Line('Still owed', _rupees(r['outstandingPaise'] ?? 0), strong: true),
-                ]),
-              ],
-              const SizedBox(height: 18),
-              CancellationSettlementSection(
-                statement: s,
-                territoryId: _territoryId,
-                managerKey: managerKey,
-                partyName: (p) => _partyName(p, managerId),
-                onRecorded: () => _load(_day!),
-              ),
               const SizedBox(height: 18),
               Text('Who owes whom', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 4),
@@ -277,29 +375,6 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                     trailing: Text(_rupees((p['amountPaise'] as num).toInt()), style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
               ],
-              if (s.discrepancies.isNotEmpty) ...[
-                const SizedBox(height: 18),
-                Text('Problems to sort out', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: palette.error)),
-                for (final d in s.discrepancies)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.report_problem_rounded, color: palette.error),
-                    title: Text(settlementDiscrepancyText(d, (p) => _partyName(p, managerId))),
-                    subtitle: Text(
-                      adjustmentDraftFor(d, s, managerKey) == null
-                          ? 'Sort this out with the people involved.'
-                          : adjustments.any((a) => a.orderId == d['orderId'] && a.status == 'pending')
-                          ? 'An adjustment is waiting for the Super Admin.'
-                          : 'Once you know what happened, propose an adjustment for the Super Admin to decide.',
-                    ),
-                    trailing: adjustmentDraftFor(d, s, managerKey) == null || adjustments.any((a) => a.orderId == d['orderId'] && a.status != 'rejected')
-                        ? null
-                        : TextButton(
-                            onPressed: () => _proposeAdjustment(managerKey, draft: adjustmentDraftFor(d, s, managerKey)),
-                            child: const Text('Propose adjustment'),
-                          ),
-                  ),
-              ],
               const SizedBox(height: 18),
               Text('Adjustments for this day', style: Theme.of(context).textTheme.titleMedium),
               if (adjustments.isEmpty)
@@ -328,6 +403,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                   label: const Text('Propose an adjustment'),
                 ),
               ),
+              ],
             ],
           ],
         ),

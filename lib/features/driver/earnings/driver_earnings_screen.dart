@@ -9,6 +9,9 @@ import '../../../data/models/order.dart';
 import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/settlement_provider.dart';
+import '../../../data/models/account.dart';
+import '../../../shared/settlement/daily_money.dart';
+import '../../../shared/settlement/party_today_money_card.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../driver_session.dart';
@@ -123,6 +126,20 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         children: [
+          // Today's money with the Manager: COD cash to hand over, delivery
+          // fees to receive (last two weeks of delivery days, so anything
+          // left from earlier days shows too).
+          PartyTodayMoneyCard(
+            me: partyKeyFor(AppRole.driver, driver.id),
+            lines: driverMoneyLines(
+              days.take(14).toList(),
+              currentSettlementDay(cutoffMinutes: cutoff),
+              partyKeyFor(AppRole.driver, driver.id),
+              ref.watch(myTransfersProvider).valueOrNull ?? const <SettlementTransfer>[],
+            ),
+            onOpenPayments: () => context.push('/driver/settlement-payments'),
+          ),
+          const SizedBox(height: 16),
           SegmentedButton<_Period>(
             segments: [for (final p in _Period.values) ButtonSegment(value: p, label: Text(p.label))],
             selected: {_period},

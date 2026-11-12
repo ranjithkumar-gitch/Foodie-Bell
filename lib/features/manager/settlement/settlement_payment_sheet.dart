@@ -10,9 +10,12 @@ typedef SettlementPaymentInput = ({int amountPaise, bool upi, String? reference}
 /// starts at the server's outstanding figure; the Manager enters what
 /// actually changed hands.
 class SettlementPaymentSheet extends StatefulWidget {
-  const SettlementPaymentSheet({super.key, required this.title, required this.suggestedPaise});
+  const SettlementPaymentSheet({super.key, required this.title, required this.suggestedPaise, this.initialUpi = true});
   final String title;
   final int suggestedPaise;
+
+  /// UPI selected to start with (cash for COD cash handed over).
+  final bool initialUpi;
 
   @override
   State<SettlementPaymentSheet> createState() => _SettlementPaymentSheetState();
@@ -21,7 +24,7 @@ class SettlementPaymentSheet extends StatefulWidget {
 class _SettlementPaymentSheetState extends State<SettlementPaymentSheet> {
   late final _amount = TextEditingController(text: (widget.suggestedPaise / 100).toStringAsFixed(2));
   final _reference = TextEditingController();
-  bool _upi = true;
+  late bool _upi = widget.initialUpi;
   String? _error;
 
   @override

@@ -49,6 +49,10 @@ class SettlementStatement {
   Map<String, int> get vendorEntitlements => _amounts('vendorEntitlements');
   Map<String, int> get driverEarnings => _amounts('driverEarnings');
 
+  /// Driver day fees owed to the Manager this day, per Driver (2026-11-12);
+  /// already inside that Driver's hand-over obligation.
+  Map<PartyKey, int> get driverDayFees => _amounts('driverDayFees');
+
   List<Map<String, dynamic>> _list(String key) =>
       [for (final e in (data[key] as List? ?? const [])) Map<String, dynamic>.from(e as Map)];
   List<Map<String, dynamic>> get orders => _list('orders');
@@ -264,6 +268,19 @@ final myTransfersProvider = StreamProvider<List<SettlementTransfer>>((ref) {
       .snapshots()
       .map((s) => [for (final d in s.docs) SettlementTransfer.fromDoc(d)]);
 });
+
+/// The live driver day fee (`app_config/driver_day_fee`, public read; only
+/// the Super Admin changes it): what turning on for a day costs, in paise,
+/// 0 when it's off. Until an admin saves one the server's built-in ₹25
+/// applies, so that is shown too.
+final driverDayFeeProvider = StreamProvider<int>((ref) => FirebaseFirestore.instance
+    .doc('app_config/driver_day_fee')
+    .snapshots()
+    .map((d) {
+      final x = d.data();
+      if (x == null) return 2500;
+      return x['enabled'] == true ? (x['amountPaise'] as num?)?.toInt() ?? 0 : 0;
+    }));
 
 /// Today's settlement day in IST with the given cutoff (minutes after
 /// midnight; after it, things count towards the next day) — the same rule

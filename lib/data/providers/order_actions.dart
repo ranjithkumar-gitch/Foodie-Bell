@@ -276,6 +276,15 @@ Future<void> recordSettlementTransfer({
   'purpose': ?purpose,
 });
 
+/// Driver: turn on or off (driver day fee, 2026-11-12). The first time each
+/// day (IST) turning on adds the day fee, owed to the Driver's Manager and
+/// collected at the daily settlement with the COD cash. [chargedPaise] is
+/// what this call added (0 if today's was already added, or the fee is off).
+Future<({bool online, int chargedPaise})> setDriverOnline(bool online) async {
+  final data = await _call('setDriverOnline', {'online': online});
+  return (online: data['online'] == true, chargedPaise: (data['chargedPaise'] as num?)?.toInt() ?? 0);
+}
+
 Future<void> acknowledgeSettlementTransfer(String transferId, {required bool confirm, String? note}) =>
     _call('acknowledgeSettlementTransfer', {'transferId': transferId, 'confirm': confirm, 'note': ?note});
 

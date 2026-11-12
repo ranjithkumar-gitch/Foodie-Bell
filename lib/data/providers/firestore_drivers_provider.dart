@@ -138,11 +138,9 @@ Future<void> clearDriverDocumentPath(String driverId, DriverDocumentType type) =
 Future<void> updateDriverConsent(String driverId, bool accepted) =>
     driversCollection.doc(driverId).update({'riskConsentAccepted': accepted});
 
-/// Persists the Home screen's online/offline toggle so it's remembered
-/// across app restarts and re-logins instead of always resetting to
-/// offline.
-Future<void> setDriverOnlineStatus(String driverId, bool isOnline) =>
-    driversCollection.doc(driverId).update({'isOnline': isOnline});
+// Turning on/off goes through `setDriverOnline` (order_actions.dart): the
+// server charges the driver day fee, and the rules no longer let a Driver set
+// `isOnline: true` themselves.
 
 /// Stamps the Driver's current GPS position onto their own doc — called by
 /// `driver_location_tracker.dart` once at login/registration and then again

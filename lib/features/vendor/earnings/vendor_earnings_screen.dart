@@ -9,6 +9,9 @@ import '../../../data/providers/settlement_provider.dart';
 import '../../../data/models/order.dart';
 import '../../../data/providers/earnings_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
+import '../../../data/models/account.dart';
+import '../../../shared/settlement/daily_money.dart';
+import '../../../shared/settlement/party_today_money_card.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../vendor_session.dart';
 
@@ -27,6 +30,8 @@ class VendorEarningsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.colors;
     final vendorId = ref.watch(currentVendorIdProvider);
+    final me = partyKeyFor(AppRole.vendor, vendorId);
+    final cutoff = ref.watch(settlementCutoffProvider).valueOrNull ?? 22 * 60;
     // All-time totals kept by the server; the order list is read a page at a time.
     final totals = ref.watch(myEarningsTotalsProvider).valueOrNull ?? const EarningsFigures({});
     final history = ref.watch(orderHistoryProvider(OrderHistoryFilter.delivered));
@@ -53,6 +58,22 @@ class VendorEarningsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // Today's money with the Manager: the COD payout to receive and
+          // the UPI orders' commission + delivery to pay (last two weeks of
+          // delivery days, so anything left from earlier days shows too).
+          PartyTodayMoneyCard(
+            me: me,
+            lines: vendorMoneyLines(
+              ref.watch(myEarningsDaysProvider(14)).valueOrNull ?? const <EarningsDay>[],
+              currentSettlementDay(cutoffMinutes: cutoff),
+              me,
+              ref.watch(myTransfersProvider).valueOrNull ?? const <SettlementTransfer>[],
+              deliveredOrders: delivered,
+              cutoffMinutes: cutoff,
+            ),
+            onOpenPayments: () => context.push('/vendor/settlement-payments'),
+          ),
+          const SizedBox(height: 20),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
