@@ -11,6 +11,13 @@ import '../../data/models/order.dart';
 import '../../data/providers/firestore_drivers_provider.dart';
 import '../../data/providers/firestore_orders_provider.dart';
 
+/// PARKED (2026-11-17, owner decision): live GPS tracking of Drivers is
+/// switched off — `app.dart` no longer calls
+/// [listenForDriverLocationTracking], so nothing below runs and no Driver
+/// position is written (each write ran a Cloud Function; see QuickyAdmin
+/// `FUNCTIONS_COST_AUDIT_2026-11-17.md`). Kept as is for when tracking comes
+/// back. Pickup and delivery are confirmed with the handover/delivery codes.
+///
 /// Reports the signed-in Driver's GPS position to their own Firestore doc
 /// (`updateDriverLocation`) — once as soon as a Driver session starts (a
 /// login, a fresh registration, or a session restored on cold start), then

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../shared/format_duration.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/geocode_provider.dart';
@@ -13,7 +13,6 @@ import '../../../data/providers/road_route_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/mock_map_view.dart';
 import '../driver_location_tracker.dart';
-import '../driver_session.dart';
 import 'driver_route_map.dart';
 
 /// Active Delivery — Navigate to Vendor (spec §6 item 8): a real map of the
@@ -73,23 +72,16 @@ class _DriverNavigateVendorScreenState extends ConsumerState<DriverNavigateVendo
         ? LatLng(vendorAccount!.latitude!, vendorAccount.longitude!)
         : null;
     // No pinned shop location — look the typed address up instead, so the
-    // map still has a real pickup point to draw. Less exact than a pin, so
-    // "Arrived" isn't locked against it (see [atVendor]).
+    // map still has a real pickup point to draw.
     final geocodedVendor = pinnedVendor != null || vendorAddress.isEmpty
         ? null
         : ref.watch(geocodedAddressProvider(vendorAddress)).valueOrNull;
     final vendor = pinnedVendor ?? geocodedVendor;
 
-    // This phone's own GPS first; the position on the Driver's Firestore
-    // doc only as a stand-in until the first fix comes through.
+    // This phone's own GPS, shown on this screen only — never sent
+    // anywhere (live tracking is parked, 2026-11-17).
     final devicePosition = ref.watch(driverDevicePositionProvider).valueOrNull;
-    final driverId = ref.watch(currentDriverAccountProvider).id;
-    final reportedLocation = driverId.isEmpty ? null : ref.watch(driverLocationProvider(driverId)).valueOrNull;
-    final driver = devicePosition != null
-        ? LatLng(devicePosition.latitude, devicePosition.longitude)
-        : reportedLocation != null
-        ? LatLng(reportedLocation.latitude, reportedLocation.longitude)
-        : null;
+    final driver = devicePosition == null ? null : LatLng(devicePosition.latitude, devicePosition.longitude);
 
     // Google's road route when it's available; otherwise the map falls
     // back to a straight link and the time to a rough on-device figure.
@@ -106,15 +98,9 @@ class _DriverNavigateVendorScreenState extends ConsumerState<DriverNavigateVendo
         : null;
     final canNavigate = vendor != null || vendorAddress.isNotEmpty;
 
-    // "Arrived at Vendor" stays disabled until the Driver is actually at
-    // the shop. GPS never lands on the exact same coordinates twice, so
-    // "at the shop" means within [kDriverArrivalRadiusMeters] of its pinned
-    // location. A Vendor with no pinned location gives nothing exact to
-    // measure against (a geocoded address can be a street or more off), so
-    // the button stays enabled there rather than leaving the Driver stuck.
-    final metersToVendor = metersBetween(driver, vendor);
-    final atVendor =
-        pinnedVendor == null || (metersToVendor != null && metersToVendor <= kDriverArrivalRadiusMeters);
+    // "Arrived at Vendor" is always enabled (2026-11-17): no location
+    // check. The pickup itself is proven by the vendor's handover code on
+    // the next screen.
     const mapRadius = BorderRadius.all(Radius.circular(18));
 
     return Scaffold(
@@ -210,7 +196,7 @@ class _DriverNavigateVendorScreenState extends ConsumerState<DriverNavigateVendo
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                estimate == null ? '—' : '${estimate.approximate ? '~' : ''}${estimate.minutes} min',
+                                estimate == null ? '—' : '${estimate.approximate ? '~' : ''}${formatDuration(context, estimate.minutes)}',
                                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: palette.textPrimary),
                               ),
                               Text(
@@ -229,17 +215,9 @@ class _DriverNavigateVendorScreenState extends ConsumerState<DriverNavigateVendo
               ],
             ),
             const SizedBox(height: 14),
-            ArrivalHint(
-              arrived: atVendor,
-              metersAway: metersToVendor,
-              hasDriverPosition: driver != null,
-              arrivedText: 'You\'re at the vendor. Mark yourself arrived to collect this order.',
-              awayText: 'Head to the vendor to collect this order.',
-            ),
-            const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: atVendor ? () => context.go('/driver/delivery/${order.id}/pickup-confirm') : null,
-              icon: Icon(atVendor ? Icons.check_circle_rounded : Icons.lock_outline_rounded, size: 20),
+              onPressed: () => context.go('/driver/delivery/${order.id}/pickup-confirm'),
+              icon: const Icon(Icons.check_circle_rounded, size: 20),
               label: const Text('Arrived at Vendor'),
             ),
           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
 
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../../../data/providers/mock_accounts_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../user/addresses/pin_location_screen.dart';
 
 /// Edit the signed-in Vendor's own shop name, owner name, email, and shop
 /// address/map location — reached via the pencil icon on
@@ -95,7 +97,11 @@ class _VendorProfileEditScreenState
         }
       }
     } catch (e, st) {
-      problem = friendlyError(e, action: 'Getting your location', stackTrace: st);
+      problem = friendlyError(
+        e,
+        action: 'Getting your location',
+        stackTrace: st,
+      );
     }
     if (!mounted) return;
     setState(() {
@@ -106,6 +112,47 @@ class _VendorProfileEditScreenState
         _longitude = position.longitude;
       }
     });
+  }
+
+  /// Opens the map (with search and "my location") for the Vendor to drop
+  /// the pin on the shop by hand (2026-11-17) — for when they aren't
+  /// standing at the shop. Starts at the saved pin, else where the phone
+  /// last was, else the middle of India. Only staged, like the GPS button;
+  /// fills the address field from the pin when it's still empty.
+  Future<void> _pickOnMap() async {
+    var start = _latitude != null && _longitude != null
+        ? LatLng(_latitude!, _longitude!)
+        : null;
+    if (start == null) {
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) start = LatLng(last.latitude, last.longitude);
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    final pinned = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => PinLocationScreen(
+          initial: start ?? const LatLng(20.5937, 78.9629),
+          title: 'Shop location',
+          hint: 'Search or move the map so the pin sits on your shop.',
+          confirmLabel: 'Use this as my shop location',
+        ),
+      ),
+    );
+    if (pinned == null || !mounted) return;
+    setState(() {
+      _latitude = pinned.latitude;
+      _longitude = pinned.longitude;
+      _error = null;
+    });
+    if (_addressController.text.trim().isEmpty) {
+      final place = await placemarkAt(pinned);
+      if (place != null && mounted && _addressController.text.trim().isEmpty) {
+        _addressController.text = placemarkLine(place);
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -336,25 +383,33 @@ class _VendorProfileEditScreenState
             ),
           ),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _saving || _locating ? null : _useCurrentLocation,
-              icon: _locating
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.my_location_rounded, size: 18),
-              label: Text(
-                _locating
-                    ? 'Getting your location…'
-                    : _latitude != null
-                    ? 'Update to my current location'
-                    : 'Use my current location',
+          Wrap(
+            spacing: 4,
+            children: [
+              TextButton.icon(
+                key: const Key('vendorPickShopOnMap'),
+                onPressed: _saving || _locating ? null : _pickOnMap,
+                icon: const Icon(Icons.map_outlined, size: 18),
+                label: Text(
+                  _latitude != null ? 'Change on map' : 'Choose on map',
+                ),
               ),
-            ),
+              TextButton.icon(
+                onPressed: _saving || _locating ? null : _useCurrentLocation,
+                icon: _locating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location_rounded, size: 18),
+                label: Text(
+                  _locating
+                      ? 'Getting your location…'
+                      : 'Use my current location',
+                ),
+              ),
+            ],
           ),
           if (_error != null) ...[
             const SizedBox(height: 14),

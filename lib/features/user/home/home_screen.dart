@@ -27,7 +27,6 @@ import '../../../data/providers/firestore_territories_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/order_codes_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
-import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/currency_text.dart';
@@ -41,6 +40,8 @@ import '../translation/translated_text.dart';
 import '../widgets/category_chip.dart';
 import '../widgets/vendor_account_card.dart';
 import '../widgets/vendor_distance.dart';
+import '../../../data/providers/territory_cache.dart';
+import 'hot_selling.dart';
 import 'selected_territory_provider.dart';
 
 /// User Home (spec §4.4): territory picker, category chips, and the list of
@@ -55,16 +56,16 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Every launch starts on "All" (2026-11-17): no category, no picked
+  // item and no quick filter — none of them is saved.
   Category? _selectedCategory;
-  // Categories load async (Firestore), so the "default to Food" pick can't
-  // happen in initState — this fires once, the first build after the real
-  // category list arrives, and never again, so it doesn't fight a User's
-  // own selection (including deliberately clearing back to "all").
-  bool _defaultCategoryApplied = false;
-  // Null = "All" — the trending-dish filter row shown only under the Food
-  // category (see `_isFoodCategory`), same idea as Search's own trending
-  // chips (`search_screen.dart`) but selectable/highlightable here since
-  // it filters the vendor list below instead of firing off a search.
+
+  /// First visit (no territory chosen or remembered yet): ask once which
+  /// territory to browse (2026-11-17, guests start here straight from
+  /// the splash screen).
+  static bool _territoryAsked = false;
+  // Null = "All" — the picked item of the "Hot selling" row
+  // (`hot_selling.dart`): it narrows the shop list below to shops selling it.
   String? _selectedTrendingItem;
 
   // Swiggy/Zomato-style quick filters above the vendor list — independent
@@ -83,25 +84,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _filterPureVeg = false;
     _sortNearest = false;
   });
-
-  bool get _isFoodCategory =>
-      _selectedCategory != null &&
-      (_selectedCategory!.id.toLowerCase() == 'food' ||
-          _selectedCategory!.name.toLowerCase() == 'food');
-
-  List<String> _fallbackTrending(AppLocalizations l10n) => [
-    l10n.searchFallbackBiryani,
-    l10n.searchFallbackBurgers,
-    l10n.searchFallbackVitaminC,
-    l10n.searchFallbackFreshVegetables,
-    l10n.searchFallbackMilkshake,
-  ];
-
-  /// Same list as Search's trending row — the territory's most-ordered
-  /// dishes this week (`trendingDishesProvider`, computed by the server),
-  /// falling back to a small static list until there are any.
-  List<String> _trendingTerms(List<String> dishes, AppLocalizations l10n) =>
-      dishes.isEmpty ? _fallbackTrending(l10n) : dishes.take(6).toList();
 
   // viewportFraction < 1 is what gives the peeking-neighbor-card look
   // (Swiggy/Zomato's promo carousel) instead of one full-width card per
@@ -141,6 +123,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     if (picked != null) {
       ref.read(selectedTerritoryProvider.notifier).state = picked;
+      // Remembered on this phone, for guests too.
+      saveCachedTerritoryId(picked.id);
       // A category chip selected for the previous territory may not apply
       // to this one at all — leaving it selected would silently filter the
       // new territory down to zero vendors, which reads as "nothing was
@@ -170,6 +154,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     final territoriesAsync = ref.watch(firestoreTerritoriesProvider);
     final territories = territoriesAsync.valueOrNull ?? const [];
+    if (!_territoryAsked &&
+        territories.isNotEmpty &&
+        ref.read(selectedTerritoryProvider) == null &&
+        ref.read(cachedTerritoryIdProvider) == null) {
+      _territoryAsked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && ref.read(selectedTerritoryProvider) == null) _openTerritoryPicker(territories);
+      });
+    }
     final selectedTerritory =
         ref.watch(selectedTerritoryProvider) ??
         resolveDefaultTerritory(territories);
@@ -178,15 +171,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       categoriesAsync.valueOrNull ?? const [],
       selectedTerritory,
     );
-    if (!_defaultCategoryApplied && categories.isNotEmpty) {
-      _defaultCategoryApplied = true;
-      _selectedCategory = categories
-          .where(
-            (c) =>
-                c.id.toLowerCase() == 'food' || c.name.toLowerCase() == 'food',
-          )
-          .firstOrNull;
-    }
     final vendorsAsync = ref.watch(firestoreVendorsProvider);
     final firstName = account?.name.split(' ').first ?? 'there';
     final activeOrders =
@@ -199,27 +183,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final catalog = selectedTerritory == null
         ? const <CatalogEntry>[]
         : ref.watch(catalogIndexProvider(selectedTerritory.id)).valueOrNull ?? const <CatalogEntry>[];
-    // Trending-dish chips under the Food category — same "most-ordered
-    // product names, platform-wide" computation Search's own trending row
-    // uses (`search_screen.dart`), just selectable here instead of firing
-    // a search: picking one narrows the Food vendor list below to vendors
-    // that actually sell it.
-    final trendingTerms = _isFoodCategory && selectedTerritory != null
-        ? _trendingTerms(ref.watch(trendingDishesProvider(selectedTerritory.id)).valueOrNull ?? const [], context.l10n)
-        : _isFoodCategory
-        ? _fallbackTrending(context.l10n)
-        : const <String>[];
-    final trendingVendorIds = (_isFoodCategory && _selectedTrendingItem != null)
-        ? catalog
-              .where(
-                (e) =>
-                    e.inStock &&
-                    e.name.toLowerCase() ==
-                        _selectedTrendingItem!.toLowerCase(),
-              )
-              .map((e) => e.vendorId)
-              .toSet()
-        : null;
+    // "Hot selling" (2026-11-17): the territory's best-selling items the
+    // shops on screen have in stock — under every category, not only Food —
+    // topped up with the most widely stocked items while sales are few
+    // (`hot_selling.dart`). Picking one shows the shops selling it.
+    bool inSelectedCategory(Account v) =>
+        _selectedCategory == null ||
+        v.category == _selectedCategory!.id ||
+        v.category?.toLowerCase() == _selectedCategory!.name.toLowerCase();
+    final shopsInView = {
+      for (final v in vendorsAsync.valueOrNull ?? const <Account>[])
+        if (v.status == AccountStatus.active && inSelectedCategory(v)) v.id,
+    };
+    final stocked = [
+      for (final e in catalog)
+        if (e.inStock && shopsInView.contains(e.vendorId)) e,
+    ];
+    final hotSelling = selectedTerritory == null
+        ? (items: const <String>[], fromSales: false)
+        : hotSellingItems(
+            bestSellers: ref.watch(trendingDishesProvider(selectedTerritory.id)).valueOrNull ?? const [],
+            stocked: stocked,
+          );
+    final trendingTerms = hotSelling.items;
+    final trendingVendorIds = _selectedTrendingItem == null ? null : vendorsSellingItem(stocked, _selectedTrendingItem!);
     // Photo-order requests that haven't become a real Order yet (see
     // `list_order_status_screen.dart`) — once the vendor confirms
     // (`accepted`), the request hands off to a real `Order` which already
@@ -462,14 +449,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ),
                               ),
-                              // Was the notification bell — this spot now
-                              // just shows who's signed in: the account's
-                              // avatar, or its first-name initial when
-                              // there isn't one. Plain display, no
-                              // onTap/action.
-                              account?.avatarUrl != null
+                              // The profile button (2026-11-17, Profile left the
+                              // bottom bar): the account's avatar or initial,
+                              // or a person icon for a guest — who is asked
+                              // to verify their phone first.
+                              Semantics(
+                                button: true,
+                                label: 'Profile',
+                                child: InkWell(
+                                  key: const Key('homeProfileButton'),
+                                  customBorder: const CircleBorder(),
+                                  onTap: () => context.push('/user/profile'),
+                                  child: account == null
+                                      ? Container(
+                                          width: 44,
+                                          height: 44,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: palette.primary.withValues(alpha: 0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(Icons.person_rounded, color: palette.primary),
+                                        )
+                                      : account.avatarUrl != null
                                   ? AppNetworkImage(
-                                      url: account!.avatarUrl!,
+                                      url: account.avatarUrl!,
                                       width: 44,
                                       height: 44,
                                       borderRadius: BorderRadius.circular(22),
@@ -495,6 +499,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ),
                                       ),
                                     ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 20),
@@ -789,8 +795,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ? null
                                         : category;
                                     // Switching category (or clearing it)
-                                    // drops the trending-dish filter — it
-                                    // only ever applied to Food.
+                                    // drops the picked item — the hot
+                                    // selling list is per category.
                                     _selectedTrendingItem = null;
                                   }),
                                   translate: true,
@@ -801,7 +807,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  if (_isFoodCategory && trendingTerms.isNotEmpty)
+                  if (trendingTerms.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              hotSelling.fromSales ? Icons.local_fire_department_rounded : Icons.thumb_up_alt_rounded,
+                              size: 18,
+                              color: hotSelling.fromSales ? palette.warning : palette.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              hotSelling.fromSales
+                                  ? 'Hot selling in ${selectedTerritory?.name ?? 'your area'}'
+                                  : 'Popular picks',
+                              key: const Key('hotSellingTitle'),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (trendingTerms.isNotEmpty)
                     SliverToBoxAdapter(
                       child: SizedBox(
                         height: 38,
@@ -820,7 +849,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               const SizedBox(width: 8),
                               _TrendingItemChip(
                                 label: term,
-                                icon: Icons.trending_up_rounded,
+                                icon: hotSelling.fromSales ? Icons.local_fire_department_rounded : Icons.trending_up_rounded,
                                 selected: _selectedTrendingItem == term,
                                 onTap: () => setState(
                                   () => _selectedTrendingItem =
@@ -834,7 +863,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                     ),
-                  if (_isFoodCategory && trendingTerms.isNotEmpty)
+                  if (trendingTerms.isNotEmpty)
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   SliverToBoxAdapter(
                     child: SizedBox(
@@ -1104,7 +1133,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // active Category doc — see `matchesCategory`/`categoryLabelFor`
                         // above), instead of one flat list mixing every category.
                         final byCategoryLabel = <String, List<Account>>{};
-                        for (final vendor in territoryVendors) {
+                        // A picked hot-selling item narrows "All" too.
+                        for (final vendor in territoryVendors.where((v) => trendingVendorIds == null || trendingVendorIds.contains(v.id))) {
                           byCategoryLabel
                               .putIfAbsent(categoryLabelFor(vendor), () => [])
                               .add(vendor);

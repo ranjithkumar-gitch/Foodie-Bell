@@ -52,10 +52,6 @@ List<RouteBase> get userRoutes => [
               label: 'Cart',
               badgeCount: cartCount,
             ),
-            const BottomNavItemData(
-              icon: Icons.person_rounded,
-              label: 'Profile',
-            ),
           ],
         );
       },
@@ -88,16 +84,14 @@ List<RouteBase> get userRoutes => [
           ),
         ],
       ),
-      StatefulShellBranch(
-        routes: [
-          GoRoute(
-            path: '/user/profile',
-            name: 'userProfile',
-            builder: (context, state) => const ProfileScreen(),
-          ),
-        ],
-      ),
     ],
+  ),
+  // Profile is no longer a tab (2026-11-17): it opens from the avatar at the
+  // top of Home, and asks a guest to verify their phone first.
+  GoRoute(
+    path: '/user/profile',
+    name: 'userProfile',
+    builder: (context, state) => const ProfileScreen(),
   ),
   GoRoute(
     path: '/user/vendor/:id',

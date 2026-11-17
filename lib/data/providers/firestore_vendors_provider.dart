@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/session/access_scope.dart';
 import '../models/account.dart';
+import '../models/store_hours.dart';
 import '../models/vendor_document.dart';
 import '../../features/user/home/selected_territory_provider.dart';
 import 'mock_accounts_provider.dart';
@@ -103,6 +104,7 @@ Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     coverPhotoUrl: data['coverPhotoUrl'] as String?,
     status: AccountStatus.values.byName(data['status'] as String? ?? 'active'),
     isOpen: data['isOpen'] as bool? ?? true,
+    storeHours: StoreHours.fromMap(data['storeHours']),
     upiIds: (data['upiIds'] as List<dynamic>? ?? const []).cast<String>(),
     deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
     ratingAverage: ((data['rating'] as Map?)?['average'] as num?)?.toDouble(),
@@ -131,13 +133,14 @@ Account _accountFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
 // provider. Docs missing it just sort last instead of disappearing.
 final firestoreVendorsProvider = StreamProvider<List<Account>>((ref) {
   final scope = ref.watch(accessScopeProvider);
-  if (scope == null) return Stream.value(const []);
   Stream<List<(Account, Timestamp?)>> run(Query<Map<String, dynamic>> query) => query.snapshots().map(
     (snapshot) => [for (final doc in snapshot.docs) (_accountFromDoc(doc), doc.data()['createdAt'] as Timestamp?)],
   );
   Stream<List<(Account, Timestamp?)>> approvedIn(String? territoryId) => territoryId == null
       ? Stream.value(const [])
       : run(vendorDirectoryCollection.where('status', isEqualTo: AccountStatus.active.name).where('territoryId', isEqualTo: territoryId));
+  // A guest (nobody signed in) browses like a customer (2026-11-17).
+  if (scope == null) return _newestLive(approvedIn(ref.watch(browsingTerritoryIdProvider)));
   final territoryId = scope.territoryId;
   final Stream<List<(Account, Timestamp?)>> vendors = switch (scope.role) {
     AppRole.user => approvedIn(ref.watch(browsingTerritoryIdProvider)),
@@ -155,18 +158,21 @@ final firestoreVendorsProvider = StreamProvider<List<Account>>((ref) {
           ),
     AppRole.admin => Stream.value(const []),
   };
-  return vendors.map((entries) {
-    final live = entries.where((e) => e.$1.deletedAt == null).toList()
-      ..sort((a, b) {
-        final aTime = a.$2;
-        final bTime = b.$2;
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime);
-      });
-    return [for (final e in live) e.$1];
-  });
+  return _newestLive(vendors);
+});
+
+/// Live (not deleted) shops, newest first.
+Stream<List<Account>> _newestLive(Stream<List<(Account, Timestamp?)>> vendors) => vendors.map((entries) {
+  final live = entries.where((e) => e.$1.deletedAt == null).toList()
+    ..sort((a, b) {
+      final aTime = a.$2;
+      final bTime = b.$2;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+  return [for (final e in live) e.$1];
 });
 
 /// Every shop in the signed-in Manager's territory — theirs and other
@@ -268,6 +274,10 @@ Future<void> updateVendorStatus(
 /// [Account.isOpen] to keep a closed vendor from being ordered from.
 Future<void> setVendorOpen(String vendorId, bool isOpen) =>
     vendorsCollection.doc(vendorId).update({'isOpen': isOpen});
+
+/// Vendor's own weekly opening hours (`vendor_store_hours_screen.dart`).
+Future<void> setVendorStoreHours(String vendorId, StoreHours hours) =>
+    vendorsCollection.doc(vendorId).update({'storeHours': hours.toMap()});
 
 /// Vendor's own UPI IDs (`vendor_upi_screen.dart`) — the whole list is
 /// written at once since order matters (the first is the one customers

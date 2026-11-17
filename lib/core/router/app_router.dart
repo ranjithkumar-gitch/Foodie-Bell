@@ -38,7 +38,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: refreshNotifier,
     redirect: (context, state) =>
-        sessionRedirect(state.matchedLocation, refreshNotifier.session),
+        sessionRedirect(state.matchedLocation, refreshNotifier.session, location: state.uri.toString()),
     routes: [
       GoRoute(
         path: '/splash',

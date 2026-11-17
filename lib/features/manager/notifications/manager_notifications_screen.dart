@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/notifications/notification_routes.dart';
+import '../../../data/models/account.dart';
+
 import '../../../core/notifications/fcm_topics.dart';
 import '../../../data/providers/firestore_personal_notifications_provider.dart';
 import '../../../shared/widgets/notification_count_badge.dart';
@@ -50,6 +53,12 @@ class _ManagerNotificationsScreenState
                 createdAt: p.createdAt,
                 deletable: true,
                 icon: Icons.receipt_long_rounded,
+                onTap: notificationTap(
+                  context,
+                  AppRole.manager,
+                  orderId: p.orderId,
+                  type: p.type,
+                ),
               ),
           ],
           emptySubtitle: 'Order updates from your territory will show up here.',

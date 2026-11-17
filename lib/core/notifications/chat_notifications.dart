@@ -8,6 +8,7 @@ import '../../data/providers/firestore_orders_provider.dart';
 import '../session/session_controller.dart';
 import 'fcm_topics.dart';
 import 'local_notifications.dart';
+import 'notification_routes.dart';
 
 /// Order chat (`order_chat_screen.dart`) as notifications. No Cloud Function
 /// sends a push for a chat message, so the app itself watches the chats of
@@ -68,7 +69,11 @@ void listenForChatNotifications(WidgetRef ref) {
       final known = {for (final m in before) m.id};
       for (final m in entry.value) {
         if (known.contains(m.id)) continue;
-        showLocalNotification(title: 'Message from ${m.senderName}', body: m.text);
+        showLocalNotification(
+          title: 'Message from ${m.senderName}',
+          body: m.text,
+          payload: notificationPayload({'orderId': entry.key, 'type': 'chat'}),
+        );
       }
     }
   });

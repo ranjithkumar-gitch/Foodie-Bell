@@ -85,7 +85,6 @@ final firestorePromotionsProvider = StreamProvider<List<Promotion>>((ref) {
   // Scoped to what firestore.rules lets each role read: live promotions for
   // everyone, a Vendor's own requests, and a Manager's territory's requests.
   final scope = ref.watch(accessScopeProvider);
-  if (scope == null) return Stream.value(const []);
   Stream<List<Promotion>> run(Query<Map<String, dynamic>> query) => query.snapshots().map(
     (snapshot) => snapshot.docs
         .map((doc) => _tryPromotionFromDoc(doc.id, doc.data()))
@@ -106,6 +105,8 @@ final firestorePromotionsProvider = StreamProvider<List<Promotion>>((ref) {
       run(live.where('territory', whereIn: [?name, kAllTerritoriesLabel])),
     ], (p) => p.id);
   }
+  // A guest (nobody signed in) browses like a customer (2026-11-17).
+  if (scope == null) return liveIn(ref.watch(browsingTerritoryIdProvider));
   final territoryId = scope.territoryId;
   final myShops = scope.role == AppRole.manager
       ? {for (final v in ref.watch(firestoreVendorsProvider).valueOrNull ?? const <Account>[]) v.id}

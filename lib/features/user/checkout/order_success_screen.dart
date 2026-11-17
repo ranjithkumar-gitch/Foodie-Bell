@@ -23,13 +23,11 @@ class OrderSuccessScreen extends ConsumerWidget {
 
     if (order == null) {
       return Scaffold(
-        backgroundColor: palette.background,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: palette.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(28),

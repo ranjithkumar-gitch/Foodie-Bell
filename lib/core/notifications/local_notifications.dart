@@ -1,5 +1,8 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'notification_routes.dart';
+import 'order_buzzer.dart';
+
 /// Posts a real system-tray notification for a push that arrives while the
 /// app is open — FCM's `notification` payload only auto-displays in the
 /// tray while the app is backgrounded/terminated (`fcm_topics.dart`'s
@@ -23,18 +26,40 @@ const _channel = AndroidNotificationChannel(
   enableVibration: true,
 );
 
+/// New-order buzzer (2026-11-17, `order_buzzer.dart`): its own channel,
+/// since an Android channel's sound can't change once created.
+const _buzzerChannel = AndroidNotificationChannel(
+  kOrderBuzzerChannelId,
+  'New orders',
+  description: 'Rings when a new order or delivery comes in.',
+  importance: Importance.max,
+  playSound: true,
+  sound: RawResourceAndroidNotificationSound('order_buzzer'),
+  enableVibration: true,
+);
+
 Future<void> initLocalNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
   await _plugin.initialize(
     const InitializationSettings(android: androidInit, iOS: iosInit),
+    // Tapping one opens its page (2026-11-17, `notification_routes.dart`).
+    onDidReceiveNotificationResponse: (r) => handleLocalNotificationTap(r.payload),
   );
-  await _plugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(_channel);
+  // A tap on one of these that launched the app from closed.
+  try {
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      handleLocalNotificationTap(launch!.notificationResponse?.payload);
+    }
+  } catch (_) {}
+  final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  await android?.createNotificationChannel(_channel);
+  await android?.createNotificationChannel(_buzzerChannel);
 }
 
-Future<void> showLocalNotification({required String title, required String body}) {
+/// [buzzer]: rings the new-order buzzer instead of the usual sound.
+Future<void> showLocalNotification({required String title, required String body, String? payload, bool buzzer = false}) {
   // Millisecond-based id: any two pushes landing in the same millisecond
   // would collide and one would silently replace the other in the tray —
   // acceptable here since a human can't trigger two real pushes that close
@@ -48,16 +73,28 @@ Future<void> showLocalNotification({required String title, required String body}
     title,
     body,
     NotificationDetails(
-      android: AndroidNotificationDetails(
-        _channel.id,
-        _channel.name,
-        channelDescription: _channel.description,
-        importance: Importance.high,
-        priority: Priority.high,
-        playSound: true,
-        enableVibration: true,
-      ),
-      iOS: const DarwinNotificationDetails(),
+      android: buzzer
+          ? AndroidNotificationDetails(
+              _buzzerChannel.id,
+              _buzzerChannel.name,
+              channelDescription: _buzzerChannel.description,
+              importance: Importance.max,
+              priority: Priority.max,
+              playSound: true,
+              sound: const RawResourceAndroidNotificationSound('order_buzzer'),
+              enableVibration: true,
+            )
+          : AndroidNotificationDetails(
+              _channel.id,
+              _channel.name,
+              channelDescription: _channel.description,
+              importance: Importance.high,
+              priority: Priority.high,
+              playSound: true,
+              enableVibration: true,
+            ),
+      iOS: DarwinNotificationDetails(sound: buzzer ? 'order_buzzer.wav' : null),
     ),
+    payload: payload,
   );
 }

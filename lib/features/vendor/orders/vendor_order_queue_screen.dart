@@ -71,7 +71,6 @@ class _VendorOrderQueueScreenState extends ConsumerState<VendorOrderQueueScreen>
         .length;
 
     return Scaffold(
-      backgroundColor: palette.background,
       appBar: AppBar(
         title: const Text('Orders'),
         bottom: TabBar(

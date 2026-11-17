@@ -1108,13 +1108,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeTrackDefaultDriver => 'Your delivery partner';
 
   @override
-  String trackArrivingIn(int minutes) {
-    return 'Arriving in $minutes min';
+  String trackArrivingIn(Object time) {
+    return 'Arriving in $time';
   }
 
   @override
-  String trackReachingShopIn(int minutes) {
-    return 'Reaching the shop in $minutes min';
+  String trackReachingShopIn(Object time) {
+    return 'Reaching the shop in $time';
   }
 
   @override
@@ -1463,4 +1463,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refundThanks => 'Thanks — we\'ve recorded your answer.';
+
+  @override
+  String durationMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String durationHours(int hours) {
+    return '$hours hr';
+  }
+
+  @override
+  String durationHoursMinutes(int hours, int minutes) {
+    return '$hours hr $minutes min';
+  }
+
+  @override
+  String storefrontHours(Object times, Object days) {
+    return '$times · $days';
+  }
+
+  @override
+  String get storefrontHoursEveryDay => 'Every day';
+
+  @override
+  String get storefrontHoursClosedAllWeek => 'Closed all week';
+
+  @override
+  String productCouponOffer(Object discount, Object code) {
+    return '$discount with code $code';
+  }
+
+  @override
+  String get vendorOfferSelectedItems => 'On selected items';
+
+  @override
+  String get pinScreenSearchHint => 'Search area, street or landmark';
+
+  @override
+  String get pinScreenSearchNoResults =>
+      'Couldn\'t find that place. Try another name.';
+
+  @override
+  String get pinScreenMyLocation => 'Use my current location';
 }

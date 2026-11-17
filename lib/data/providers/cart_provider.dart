@@ -68,6 +68,12 @@ class CartNotifier extends StateNotifier<CartState> {
   /// silently wiped out when the load resolves.
   Future<void> loadForUser(String userId) async {
     _userId = userId;
+    if (state.items.isNotEmpty) {
+      // A guest's cart (2026-11-17: browse before verifying) becomes the
+      // account's cart at login — saved now, not only on the next change.
+      _persist();
+      return;
+    }
     final items = await loadCart(userId);
     if (!mounted || state.items.isNotEmpty) return;
     state = CartState(items: items);

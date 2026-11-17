@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../theme/brand_backdrop.dart';
 import 'app_build.dart';
 
 /// The minimum-supported-build policy, `app_config/app_version`, written
@@ -81,7 +82,8 @@ class UpdateRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => PopScope(
         canPop: false,
-        child: Scaffold(
+        // Shown outside the page routes, so it brings its own backdrop.
+        child: BrandBackdrop(child: Scaffold(
           body: SafeArea(
             child: Center(
               child: Padding(
@@ -109,6 +111,7 @@ class UpdateRequiredScreen extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       );
 }

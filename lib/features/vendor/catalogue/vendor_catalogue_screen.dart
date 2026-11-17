@@ -50,7 +50,6 @@ class _VendorCatalogueScreenState extends ConsumerState<VendorCatalogueScreen> {
     final productsAsync = ref.watch(vendorProductsProvider(vendorId));
 
     return Scaffold(
-      backgroundColor: palette.background,
       appBar: AppBar(
         title: const Text('Products'),
         actions: [
@@ -67,7 +66,7 @@ class _VendorCatalogueScreenState extends ConsumerState<VendorCatalogueScreen> {
                 value: _Tool.global,
                 child: _MenuText(
                   icon: Icons.library_add_outlined,
-                  text: 'Add from ready list',
+                  text: 'Add from Global Catalogue',
                 ),
               ),
               PopupMenuItem(
@@ -103,13 +102,9 @@ class _VendorCatalogueScreenState extends ConsumerState<VendorCatalogueScreen> {
                     onCta: () => context.push('/vendor/catalogue/product/add'),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: TextButton.icon(
-                    onPressed: () => context.push('/vendor/catalogue/global'),
-                    icon: const Icon(Icons.library_add_outlined),
-                    label: const Text('Add from ready list'),
-                  ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: _GlobalCatalogueCard(),
                 ),
               ],
             );
@@ -128,6 +123,8 @@ class _VendorCatalogueScreenState extends ConsumerState<VendorCatalogueScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
             children: [
+              const _GlobalCatalogueCard(),
+              const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
                 onChanged: (v) => setState(() => _query = v),
@@ -386,5 +383,60 @@ class _ProductRow extends ConsumerWidget {
     if (confirmed == true) {
       await removeProduct(vendorId, product.id);
     }
+  }
+}
+
+/// The way into the Global Catalogue, at the top of the Products page
+/// (2026-11-17: it used to be only in the ⋮ menu, which Vendors missed).
+class _GlobalCatalogueCard extends StatelessWidget {
+  const _GlobalCatalogueCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return Material(
+      color: palette.primary.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        key: const Key('addFromGlobalCatalogue'),
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => context.push('/vendor/catalogue/global'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: palette.primary.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: palette.primary, shape: BoxShape.circle),
+                child: const Icon(Icons.library_add_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add from Global Catalogue',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: palette.textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Pick ready-made products instead of typing each one',
+                      style: TextStyle(fontSize: 12.5, color: palette.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: palette.primary),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

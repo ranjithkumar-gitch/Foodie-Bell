@@ -133,11 +133,14 @@ class _UserProfileEditScreenState extends ConsumerState<UserProfileEditScreen> {
     }
 
     if (!mounted) return;
-    // `/user/profile/edit` is a top-level route, not nested inside the
-    // shell's Profile branch (see user_routes.dart), so context.pop() —
-    // wrong tool for coming back to a shell tab regardless — is skipped
-    // here in favor of going straight to the Profile page explicitly.
-    context.go('/user/profile');
+    // Profile is a normal page now (not a tab), opened from Home's avatar:
+    // back to it, keeping Home underneath.
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/user/home');
+      context.push('/user/profile');
+    }
   }
 
   @override

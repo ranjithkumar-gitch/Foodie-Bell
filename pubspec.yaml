@@ -51,9 +51,6 @@ dependencies:
   firebase_storage: ^12.4.10
   firebase_messaging: ^15.1.6
   flutter_local_notifications: ^18.0.1
-  # The live order card in the Android notification bar (native layout).
-  order_live_card:
-    path: packages/order_live_card
   image_cropper: ^12.2.1
   url_launcher: ^6.3.1
   # google_mlkit_text_recognition: ^0.15.0
@@ -64,6 +61,8 @@ dependencies:
   geocoding: ^5.0.0
   cloud_functions: ^5.1.6
   firebase_app_check: ^0.3.2+10
+  # New-order buzzer for Vendors and Drivers (2026-11-17).
+  audioplayers: ^6.5.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -100,6 +99,7 @@ flutter:
     - assets/images/login_bg1.png
     - assets/images/login_bg2.png
     - assets/images/quicky_text.png
+    - assets/sounds/order_buzzer.wav
 
   # To add assets to your application, add an assets section, like this:
   # assets:

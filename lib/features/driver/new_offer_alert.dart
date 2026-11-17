@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notifications/order_buzzer.dart';
 import '../../core/router/app_router.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
@@ -52,11 +53,14 @@ void listenForNewDriverOffers(WidgetRef ref) {
     if (router.routerDelegate.currentConfiguration.uri.path == '/driver/offer/${order.id}') return;
     _dialogOpen = true;
     HapticFeedback.heavyImpact();
-    SystemSound.play(SystemSoundType.alert);
+    // Rings until the Driver answers (2026-11-17, `order_buzzer.dart`).
+    OrderBuzzer.start();
     showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (_) => _NewOfferDialog(order: order),
     ).then((view) {
+      OrderBuzzer.stop();
       _dialogOpen = false;
       if (view == true) router.push('/driver/offer/${order.id}');
     });

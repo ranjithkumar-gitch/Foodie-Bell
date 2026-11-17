@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/notifications/notification_routes.dart';
+import '../../../data/models/account.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/notifications/chat_notifications.dart';
@@ -134,6 +137,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     createdAt: p.createdAt,
                     deletable: true,
                     icon: Icons.receipt_long_rounded,
+                    onTap: notificationTap(
+                      context,
+                      AppRole.user,
+                      orderId: p.orderId,
+                      type: p.type,
+                    ),
                   ),
                 ...chatItems,
               ]..sort(

@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/personal_notification.dart';
@@ -31,8 +35,17 @@ PersonalNotification? _fromDoc(
 /// Every personal notification for [accountId], newest first — feeds every
 /// role's Notifications screen (`notification_wall.dart`). A `family`
 /// provider since each role watches their own account's id, not a fixed one.
-final firestorePersonalNotificationsProvider =
-    StreamProvider.family<List<PersonalNotification>, String>((ref, accountId) {
+///
+/// Self-healing (2026-11-17): a Vendor saw pushes arrive but their
+/// Notifications screen didn't update. The stream used to live for the
+/// whole session, so one failure (say, a permission error from a sign-in
+/// token that didn't carry the account's role yet) left it dead until the
+/// app restarted. Now it's dropped when no screen watches it, and after a
+/// failure it refreshes the sign-in token and listens again.
+final firestorePersonalNotificationsProvider = StreamProvider.autoDispose
+    .family<List<PersonalNotification>, String>((ref, accountId) {
+      Timer? retry;
+      ref.onDispose(() => retry?.cancel());
       return personalNotificationsCollection
           .where('recipientId', isEqualTo: accountId)
           .orderBy('createdAt', descending: true)
@@ -43,7 +56,17 @@ final firestorePersonalNotificationsProvider =
                 .map(_fromDoc)
                 .whereType<PersonalNotification>()
                 .toList(),
-          );
+          )
+          .handleError((Object e, StackTrace st) {
+            debugPrint('personal notifications ($accountId) failed: $e');
+            retry ??= Timer(const Duration(seconds: 4), () async {
+              try {
+                await FirebaseAuth.instance.currentUser?.getIdToken(true);
+              } catch (_) {}
+              ref.invalidateSelf();
+            });
+            Error.throwWithStackTrace(e, st);
+          });
     });
 
 /// Deletes one recipient's own notification (`notification_wall.dart`'s

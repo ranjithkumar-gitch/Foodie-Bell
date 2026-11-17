@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/format_duration.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -147,11 +148,10 @@ class _DriverIncomingOfferScreenState extends ConsumerState<DriverIncomingOfferS
     final itemCount = order.items.fold<int>(0, (sum, i) => sum + i.quantity);
 
     String legLabel(TravelEstimate? e, String fallback, String suffix) =>
-        e == null ? fallback : '${e.distanceLabel} · ${e.approximate ? '~' : ''}${e.minutes} min $suffix';
+        e == null ? fallback : '${e.distanceLabel} · ${e.approximate ? '~' : ''}${formatDuration(context, e.minutes)} $suffix';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Delivery request')),
-      backgroundColor: palette.background,
       body: SafeArea(
         top: false,
         child: Column(
@@ -339,7 +339,7 @@ class _DriverIncomingOfferScreenState extends ConsumerState<DriverIncomingOfferS
     final minutes = (a?.minutes ?? 0) + (b?.minutes ?? 0);
     final approximate = (a?.approximate ?? false) || (b?.approximate ?? false) || a == null || b == null;
     final distance = meters < 1000 ? '${meters.round()} m' : '${(meters / 1000).toStringAsFixed(1)} km';
-    return '$distance · ${approximate ? '~' : ''}$minutes min';
+    return '$distance · ${approximate ? '~' : ''}${formatDuration(context, minutes)}';
   }
 }
 

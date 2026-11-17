@@ -1,4 +1,5 @@
 import 'driver_document.dart';
+import 'store_hours.dart';
 import 'vendor_document.dart';
 
 enum AppRole { user, vendor, driver, manager, admin }
@@ -53,6 +54,7 @@ class Account {
     this.riskConsentAccepted = false,
     this.isOnline = false,
     this.isOpen = true,
+    this.storeHours,
     this.languageCode,
     this.deletedAt,
     this.bankAccountHolder,
@@ -173,6 +175,9 @@ class Account {
   /// vendor from being ordered from.
   final bool isOpen;
 
+  /// Vendor-only: weekly opening hours the Vendor set; null until set.
+  final StoreHours? storeHours;
+
   /// User-only: preferred app language ('en'/'te') set from Profile's
   /// language switcher — null means "no preference set yet", which the
   /// User module treats as English. Persisted so it survives logout/app
@@ -267,6 +272,7 @@ class Account {
     bool? riskConsentAccepted,
     bool? isOnline,
     bool? isOpen,
+    StoreHours? storeHours,
     String? languageCode,
     String? bankAccountHolder,
     String? bankAccountNumber,
@@ -300,6 +306,7 @@ class Account {
     riskConsentAccepted: riskConsentAccepted ?? this.riskConsentAccepted,
     isOnline: isOnline ?? this.isOnline,
     isOpen: isOpen ?? this.isOpen,
+    storeHours: storeHours ?? this.storeHours,
     languageCode: languageCode ?? this.languageCode,
     deletedAt: deletedAt,
     bankAccountHolder: bankAccountHolder ?? this.bankAccountHolder,

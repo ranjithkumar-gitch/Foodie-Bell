@@ -31,7 +31,15 @@ class VendorGlobalCatalogueScreen extends ConsumerStatefulWidget {
 class _VendorGlobalCatalogueScreenState
     extends ConsumerState<VendorGlobalCatalogueScreen> {
   final _selected = <String>{};
+  final _searchController = TextEditingController();
+  String _query = '';
   bool _copying = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _copySelected(
     String vendorId,
@@ -79,132 +87,199 @@ class _VendorGlobalCatalogueScreenState
         .whereType<String>()
         .toSet();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Copy from Global Catalogue')),
-      body: globalAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) {
-          debugPrint('Global catalogue load failed: $error\n$stackTrace');
-          return Center(
+    final products = (globalAsync.valueOrNull ?? const <GlobalProduct>[])
+        .where((p) => p.category == category)
+        .toList();
+    final tabs = <String>{for (final p in products) p.subCategory}.toList()
+      ..sort();
+    final q = _query.trim().toLowerCase();
+    bool matches(GlobalProduct p) =>
+        q.isEmpty ||
+        p.name.toLowerCase().contains(q) ||
+        p.subCategory.toLowerCase().contains(q) ||
+        p.description.toLowerCase().contains(q);
+    final shown = products.where(matches).toList();
+    final available = shown.where((p) => !alreadyAdded.contains(p.id)).toList();
+
+    Widget listFor(List<GlobalProduct> items) {
+      if (items.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
             child: Text(
-              "Couldn't load the global catalogue.",
-              style: TextStyle(color: palette.error),
+              q.isEmpty
+                  ? 'Nothing in this section yet.'
+                  : 'No products match "${_query.trim()}".',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: palette.textSecondary, fontSize: 15),
             ),
-          );
-        },
-        data: (all) {
-          final products = all.where((p) => p.category == category).toList();
-          final available = products
-              .where((p) => !alreadyAdded.contains(p.id))
-              .toList();
+          ),
+        );
+      }
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        children: [
+          for (final product in items)
+            _GlobalProductRow(
+              product: product,
+              added: alreadyAdded.contains(product.id),
+              selected: _selected.contains(product.id),
+              onToggle: () => setState(() {
+                if (!_selected.remove(product.id)) _selected.add(product.id);
+              }),
+            ),
+        ],
+      );
+    }
 
-          if (products.isEmpty) {
-            return EmptyState(
-              icon: category.icon,
-              title: 'Nothing here yet',
-              subtitle:
-                  'Admin hasn\'t added any ${category.label} template products to the Global Catalogue yet.',
-            );
-          }
-
-          final grouped = <String, List<GlobalProduct>>{};
-          for (final p in products) {
-            grouped.putIfAbsent(p.subCategory, () => []).add(p);
-          }
-
-          return Column(
-            children: [
-              if (available.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: Row(
+    return DefaultTabController(
+      // Rebuilt when the set of sections changes (first load, Admin adds one).
+      key: ValueKey(tabs.join('|')),
+      length: tabs.length + 1,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Add from Global Catalogue'),
+          bottom: products.isEmpty
+              ? null
+              : PreferredSize(
+                  preferredSize: const Size.fromHeight(112),
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: Text(
-                          '${_selected.length} of ${available.length} selected',
-                          style: TextStyle(
-                            color: palette.textSecondary,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (v) => setState(() => _query = v),
+                          textInputAction: TextInputAction.search,
+                          decoration: InputDecoration(
+                            hintText: 'Search ${category.label} products',
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            isDense: true,
+                            suffixIcon: _query.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Clear',
+                                    icon: const Icon(Icons.close_rounded),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _query = '');
+                                    },
+                                  ),
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: () => setState(() {
-                          if (_selected.length == available.length) {
-                            _selected.clear();
-                          } else {
-                            _selected
-                              ..clear()
-                              ..addAll(available.map((p) => p.id));
-                          }
-                        }),
-                        child: Text(
-                          _selected.length == available.length
-                              ? 'Deselect all'
-                              : 'Select all',
-                        ),
+                      TabBar(
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        tabs: [
+                          Tab(text: 'All (${shown.length})'),
+                          for (final t in tabs)
+                            Tab(
+                              text:
+                                  '$t (${shown.where((p) => p.subCategory == t).length})',
+                            ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                  children: [
-                    for (final entry in grouped.entries) ...[
-                      Text(
-                        entry.key,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 10),
-                      for (final product in entry.value)
-                        _GlobalProductRow(
-                          product: product,
-                          added: alreadyAdded.contains(product.id),
-                          selected: _selected.contains(product.id),
-                          onToggle: () => setState(() {
-                            if (_selected.contains(product.id)) {
-                              _selected.remove(product.id);
+        ),
+        body: globalAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) {
+            debugPrint('Global catalogue load failed: $error\n$stackTrace');
+            return Center(
+              child: Text(
+                "Couldn't load the global catalogue.",
+                style: TextStyle(color: palette.error),
+              ),
+            );
+          },
+          data: (_) {
+            if (products.isEmpty) {
+              return EmptyState(
+                icon: category.icon,
+                title: 'Nothing here yet',
+                subtitle:
+                    'Admin hasn\'t added any ${category.label} template products to the Global Catalogue yet.',
+              );
+            }
+            return Column(
+              children: [
+                if (available.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${_selected.length} selected',
+                            style: TextStyle(
+                              color: palette.textSecondary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            final ids = available.map((p) => p.id);
+                            if (ids.every(_selected.contains)) {
+                              _selected.removeAll(ids);
                             } else {
-                              _selected.add(product.id);
+                              _selected.addAll(ids);
                             }
                           }),
-                        ),
-                      const SizedBox(height: 12),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-      bottomNavigationBar: _selected.isEmpty
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                child: ElevatedButton(
-                  onPressed: _copying
-                      ? null
-                      : () => _copySelected(
-                          vendorId,
-                          globalAsync.valueOrNull ?? const [],
-                        ),
-                  child: _copying
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                          child: Text(
+                            available.every((p) => _selected.contains(p.id))
+                                ? 'Deselect shown'
+                                : 'Select all shown',
                           ),
-                        )
-                      : Text('Copy ${_selected.length} to my catalogue'),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      listFor(shown),
+                      for (final t in tabs)
+                        listFor(
+                          shown.where((p) => p.subCategory == t).toList(),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        bottomNavigationBar: _selected.isEmpty
+            ? null
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: ElevatedButton(
+                    onPressed: _copying
+                        ? null
+                        : () => _copySelected(
+                            vendorId,
+                            globalAsync.valueOrNull ?? const [],
+                          ),
+                    child: _copying
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text('Add ${_selected.length} to my catalogue'),
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }

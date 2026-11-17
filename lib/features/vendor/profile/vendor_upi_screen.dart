@@ -79,7 +79,6 @@ class _VendorUpiScreenState extends ConsumerState<VendorUpiScreen> {
     final upiIds = account?.upiIds ?? const <String>[];
 
     return Scaffold(
-      backgroundColor: palette.background,
       appBar: AppBar(title: const Text('UPI for payments')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../format_duration.dart';
 import '../../core/maps/maps_availability.dart';
 import 'dart:ui' as ui;
 
@@ -12,8 +13,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/order.dart';
 import '../../data/providers/device_position_provider.dart';
-import '../../data/providers/firestore_drivers_provider.dart';
-import '../../data/providers/firestore_orders_provider.dart';
 import '../../data/providers/firestore_vendors_provider.dart';
 import '../../data/providers/geocode_provider.dart';
 import '../../data/providers/order_drop_off.dart';
@@ -233,26 +232,11 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
     var home = watchOrderDropOff(ref, order).position;
     if (widget.viewerIsCustomer) home ??= ref.watch(devicePositionProvider).valueOrNull;
 
-    LatLng? reported;
-    if (driverId != null && widget.driverPosition != null) {
-      reported = widget.driverPosition;
-    } else if (driverId != null && widget.viewerIsCustomer) {
-      // Customers follow their Driver through the order's tracking document
-      // (`order_tracking`) — they can't read any Driver's record.
-      LatLng? positionOf(DriverPosition? p) => p == null ? null : LatLng(p.latitude, p.longitude);
-      reported = positionOf(ref.watch(driverPositionProvider(order.id)).valueOrNull);
-      ref.listen(driverPositionProvider(order.id), (previous, next) {
-        final moved = positionOf(next.valueOrNull);
-        if (moved != null) _moveTo(moved);
-      });
-    } else if (driverId != null) {
-      final location = ref.watch(driverLocationProvider(driverId)).valueOrNull;
-      if (location != null) reported = LatLng(location.latitude, location.longitude);
-      ref.listen(driverLocationProvider(driverId), (previous, next) {
-        final moved = next.valueOrNull;
-        if (moved != null) _moveTo(LatLng(moved.latitude, moved.longitude));
-      });
-    }
+    // Live Driver tracking is parked (2026-11-17): no phone reports a
+    // Driver's position, so the customer's map shows just the shop and the
+    // drop-off. Only the Driver's own phone passes its GPS
+    // ([driverPosition]) for its own map.
+    final LatLng? reported = driverId != null ? widget.driverPosition : null;
     if (reported == null) _shown = null;
     final shown = reported == null ? null : (_shown ??= reported);
 
@@ -432,7 +416,7 @@ class _DriverLiveMapState extends ConsumerState<DriverLiveMap> with SingleTicker
                   // Before pickup the line (and so the time) only runs to
                   // the shop, so it says that instead of "Arriving in".
                   label:
-                      '${pickedUp ? context.l10n.trackArrivingIn(eta.minutes) : context.l10n.trackReachingShopIn(eta.minutes)} · ${context.l10n.trackDistanceKm(eta.km < 10 ? eta.km.toStringAsFixed(1) : eta.km.toStringAsFixed(0))}',
+                      '${pickedUp ? context.l10n.trackArrivingIn(formatDuration(context, eta.minutes)) : context.l10n.trackReachingShopIn(formatDuration(context, eta.minutes))} · ${context.l10n.trackDistanceKm(eta.km < 10 ? eta.km.toStringAsFixed(1) : eta.km.toStringAsFixed(0))}',
                   color: context.colors.primary,
                 ),
               ),

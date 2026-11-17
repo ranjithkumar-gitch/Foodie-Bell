@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/notifications/fcm_topics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -44,7 +45,10 @@ class VendorAccountCard extends ConsumerWidget {
     final palette = context.colors;
     final coverUrl = account.coverPhotoUrl;
     final averageRating = account.ratingCount == 0 ? null : account.ratingAverage;
-    final distanceKm = vendorDistanceKm(account, ref.watch(deliveryPointProvider));
+    // A guest (not logged in) sees just the delivery fee — no time or
+    // distance until we know where they are ordering to (2026-11-17).
+    final signedIn = ref.watch(currentAccountIdProvider) != null;
+    final distanceKm = signedIn ? vendorDistanceKm(account, ref.watch(deliveryPointProvider)) : null;
     final eta = distanceKm == null ? null : estimatedDeliveryWindow(distanceKm);
     final offer = bestLiveCoupon(
       ref.watch(firestoreCouponsProvider).valueOrNull ?? const [],
@@ -244,7 +248,7 @@ class VendorAccountCard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                      ] else if (account.territory != null) ...[
+                      ] else if (signedIn && account.territory != null) ...[
                         const SizedBox(width: 14),
                         Expanded(
                           child: _MetaTag(

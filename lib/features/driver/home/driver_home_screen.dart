@@ -239,7 +239,6 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     final firstName = driver.name.split(' ').first;
 
     return Scaffold(
-      backgroundColor: palette.background,
       body: SafeArea(
         bottom: false,
         child: ListView(

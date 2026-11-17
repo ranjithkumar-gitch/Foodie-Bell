@@ -343,8 +343,8 @@
   "homeTrackPickedUpTitle": "మీ వద్దకు వస్తోంది",
   "homeTrackPickedUpSubtitle": "{driverName} మీ ఆర్డర్‌ను తీసుకున్నారు",
   "homeTrackDefaultDriver": "మీ డెలివరీ పార్ట్‌నర్",
-  "trackArrivingIn": "{minutes} నిమిషాల్లో వస్తారు",
-  "trackReachingShopIn": "{minutes} నిమిషాల్లో షాప్‌కు చేరుకుంటారు",
+  "trackArrivingIn": "{time}లో వస్తారు",
+  "trackReachingShopIn": "{time}లో షాప్‌కు చేరుకుంటారు",
   "trackDistanceKm": "{km} కి.మీ దూరంలో",
   "trackLocationStale": "లొకేషన్ అప్‌డేట్: {ago}",
   "homeTrackItemsSummary": "{count, plural, one{{count} ఐటెమ్} other{{count} ఐటెమ్‌లు}} · {total}",
@@ -440,5 +440,16 @@
   "refundConfirmedNote": "రీఫండ్ నిర్ధారించబడింది: {amount} తిరిగి వచ్చింది.",
   "refundLoadError": "రీఫండ్‌ను లోడ్ చేయలేకపోయాం.",
   "refundRetry": "మళ్లీ ప్రయత్నించండి",
-  "refundThanks": "ధన్యవాదాలు — మీ సమాధానం నమోదైంది."
+  "refundThanks": "ధన్యవాదాలు — మీ సమాధానం నమోదైంది.",
+  "durationMinutes": "{minutes} ని.",
+  "durationHours": "{hours} గం.",
+  "durationHoursMinutes": "{hours} గం. {minutes} ని.",
+  "storefrontHours": "{times} · {days}",
+  "storefrontHoursEveryDay": "ప్రతి రోజు",
+  "storefrontHoursClosedAllWeek": "వారమంతా మూసి ఉంటుంది",
+  "productCouponOffer": "{code} కోడ్‌తో {discount}",
+  "vendorOfferSelectedItems": "ఎంపిక చేసిన వస్తువులపై",
+  "pinScreenSearchHint": "ప్రాంతం, వీధి లేదా ల్యాండ్‌మార్క్ వెతకండి",
+  "pinScreenSearchNoResults": "ఆ ప్రదేశం దొరకలేదు. మరో పేరుతో ప్రయత్నించండి.",
+  "pinScreenMyLocation": "నా ప్రస్తుత స్థానం ఉపయోగించండి"
 }

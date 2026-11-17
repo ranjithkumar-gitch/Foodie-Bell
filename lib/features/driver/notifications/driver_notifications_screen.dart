@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/notifications/notification_routes.dart';
+import '../../../data/models/account.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/notifications/chat_notifications.dart';
@@ -49,18 +52,29 @@ class _DriverNotificationsScreenState
       appBar: AppBar(title: const Text('Notifications')),
       body: async.when(
         data: (items) => NotificationWall(
-          items: [
-            for (final p in items)
-              WallItem(
-                id: p.id,
-                title: p.title,
-                body: p.body,
-                createdAt: p.createdAt,
-                deletable: true,
-                icon: Icons.two_wheeler_rounded,
+          items:
+              [
+                for (final p in items)
+                  WallItem(
+                    id: p.id,
+                    title: p.title,
+                    body: p.body,
+                    createdAt: p.createdAt,
+                    deletable: true,
+                    icon: Icons.two_wheeler_rounded,
+                    onTap: notificationTap(
+                      context,
+                      AppRole.driver,
+                      orderId: p.orderId,
+                      type: p.type,
+                    ),
+                  ),
+                ...chatItems,
+              ]..sort(
+                (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+                  a.createdAt ?? DateTime(0),
+                ),
               ),
-            ...chatItems,
-          ]..sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0))),
           emptySubtitle: 'New deliveries and order updates will show up here.',
           onDelete: (item) => deletePersonalNotification(item.id),
         ),

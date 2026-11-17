@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/maps/maps_availability.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -37,10 +38,18 @@ String placemarkLine(Placemark place) {
 /// taps Confirm — closing the screen any other way pins nothing. The
 /// delivery fee and the Driver's route are worked out from this point
 /// (`quoteOrder`), so it's never filled in silently.
+///
+/// 2026-11-17: a search bar (area, street, landmark — the phone's own
+/// geocoder, no extra API) and a "my location" button move the map; the
+/// pin is still only what's confirmed. Also used by Vendors to set their
+/// shop location ([title]/[hint]/[confirmLabel] override the wording).
 class PinLocationScreen extends StatefulWidget {
-  const PinLocationScreen({super.key, required this.initial});
+  const PinLocationScreen({super.key, required this.initial, this.title, this.hint, this.confirmLabel});
 
   final LatLng initial;
+  final String? title;
+  final String? hint;
+  final String? confirmLabel;
 
   @override
   State<PinLocationScreen> createState() => _PinLocationScreenState();
@@ -49,6 +58,11 @@ class PinLocationScreen extends StatefulWidget {
 class _PinLocationScreenState extends State<PinLocationScreen> {
   late LatLng _center = widget.initial;
   String? _address;
+  GoogleMapController? _map;
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  bool _locating = false;
+  String? _message;
 
   /// Bumped on every lookup so a slow answer for an earlier spot never
   /// replaces the one for where the pin is now.
@@ -60,6 +74,12 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
     _lookUpAddress();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _lookUpAddress() async {
     final lookup = ++_lookup;
     final place = await placemarkAt(_center);
@@ -67,11 +87,82 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
     setState(() => _address = place == null ? null : placemarkLine(place));
   }
 
+  Future<void> _moveTo(LatLng target) async {
+    _center = target;
+    final map = _map;
+    if (map != null) {
+      await map.animateCamera(CameraUpdate.newLatLngZoom(target, 17));
+    } else {
+      _lookUpAddress();
+    }
+  }
+
+  Future<void> _search(String raw) async {
+    final query = raw.trim();
+    if (query.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    final noResults = context.l10n.pinScreenSearchNoResults;
+    setState(() {
+      _searching = true;
+      _message = null;
+    });
+    LatLng? found;
+    try {
+      // Biased to India: a bare area name ("Gandhi Nagar") is ambiguous worldwide.
+      final hits = await Geocoding().locationFromAddress(query.toLowerCase().contains('india') ? query : '$query, India');
+      if (hits.isNotEmpty) found = LatLng(hits.first.latitude, hits.first.longitude);
+    } catch (e) {
+      debugPrint('pin_location_screen: search failed: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _searching = false;
+      if (found == null) _message = noResults;
+    });
+    if (found != null) await _moveTo(found);
+  }
+
+  Future<void> _useMyLocation() async {
+    final l10n = context.l10n;
+    setState(() {
+      _locating = true;
+      _message = null;
+    });
+    String? problem;
+    LatLng? here;
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        problem = l10n.addAddressLocationGpsOff;
+      } else {
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+          problem = l10n.addAddressLocationPermissionNeeded;
+        } else {
+          final p = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 20)),
+          );
+          here = LatLng(p.latitude, p.longitude);
+        }
+      }
+    } catch (e) {
+      debugPrint('pin_location_screen: current location failed: $e');
+      problem = l10n.addAddressLocationPermissionNeeded;
+    }
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      _message = problem;
+    });
+    if (here != null) await _moveTo(here);
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.pinScreenTitle)),
+      appBar: AppBar(title: Text(widget.title ?? l10n.pinScreenTitle)),
       body: Stack(
         alignment: Alignment.center,
         children: [
@@ -79,6 +170,7 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
             initialCameraPosition: CameraPosition(target: widget.initial, zoom: 18),
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
+            onMapCreated: (c) => _map = c,
             onCameraMove: (position) => _center = position.target,
             onCameraIdle: _lookUpAddress,
           )),
@@ -93,14 +185,72 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
             top: 12,
             left: 16,
             right: 16,
-            child: Material(
-              color: palette.surface,
-              borderRadius: BorderRadius.circular(12),
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(context.l10n.pinScreenHint, textAlign: TextAlign.center, style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600)),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Material(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  elevation: 3,
+                  child: TextField(
+                    key: const Key('pinSearchField'),
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: _search,
+                    decoration: InputDecoration(
+                      hintText: l10n.pinScreenSearchHint,
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: _searching
+                          ? const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                            )
+                          : IconButton(
+                              tooltip: l10n.pinScreenSearchHint,
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                              onPressed: () => _search(_searchController.text),
+                            ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Material(
+                  color: palette.surface.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text(
+                      _message ?? widget.hint ?? l10n.pinScreenHint,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _message != null ? palette.error : palette.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: FloatingActionButton.small(
+              key: const Key('pinMyLocation'),
+              heroTag: null,
+              tooltip: l10n.pinScreenMyLocation,
+              backgroundColor: palette.surface,
+              foregroundColor: palette.primary,
+              onPressed: _locating ? null : _useMyLocation,
+              child: _locating
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location_rounded),
             ),
           ),
         ],
@@ -127,7 +277,7 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
               ],
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, _center),
-                child: Text(context.l10n.pinScreenConfirm),
+                child: Text(widget.confirmLabel ?? l10n.pinScreenConfirm),
               ),
             ],
           ),

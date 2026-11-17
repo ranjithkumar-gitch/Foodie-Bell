@@ -9,23 +9,13 @@ import 'core/branding/branding_controller.dart';
 import 'core/dev/firebase_emulators.dart';
 import 'core/dev/firebase_setup_error_app.dart';
 import 'core/notifications/foreground_notification_handler.dart';
-import 'core/notifications/live_order_card.dart';
 import 'core/notifications/local_notifications.dart';
-import 'core/notifications/notification_taps.dart';
+import 'core/notifications/notification_routes.dart';
 import 'core/security/app_check.dart';  
 import 'data/providers/brand_theme_cache.dart';  
 import 'data/providers/territory_cache.dart';
 import 'features/user/home/selected_territory_provider.dart';
 import 'firebase_options.dart';
-
-/// FCM messages while the app is in the background or closed (Android): a
-/// live order push draws or updates the order's card in the notification
-/// bar (`live_order_card.dart`). Runs in its own isolate.
-@pragma('vm:entry-point')
-Future<void> firebaseBackgroundMessageHandler(RemoteMessage message) async {
-  await initLiveOrderCards();
-  await showLiveOrderCardFromPush(message.data);
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,11 +52,9 @@ void main() async {
   // device never receives a push — nothing else in the app depends on it.
   FirebaseMessaging.instance.requestPermission();
   await initLocalNotifications();
-  // After initLocalNotifications: the plugin keeps the last tap callback.
-  await initLiveOrderCards(onTap: (route) => pendingNotificationRoute.value = route);
-  FirebaseMessaging.onBackgroundMessage(firebaseBackgroundMessageHandler);
   registerForegroundNotificationHandler();
-  await captureNotificationLaunch();
+  // Taps on pushes that open the app lead to their page (2026-11-17).
+  if (!usingFirebaseEmulators) await captureNotificationLaunch();
   runApp(
     ProviderScope(
       overrides: [

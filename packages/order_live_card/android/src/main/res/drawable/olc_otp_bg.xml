@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- The delivery-code strip: the brand's promo gradient. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <gradient android:angle="0" android:startColor="#FF4CAF6D" android:endColor="#FF0F5C26" />
-    <corners android:radius="12dp" />
-</shape>

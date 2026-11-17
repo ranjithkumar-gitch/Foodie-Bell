@@ -21,11 +21,30 @@ AppRole? _roleFromPath(String path) {
 /// details, Manager Code entry, documents, application form, ...) live
 /// under their natural role path prefix but run pre-auth, unlike the rest
 /// of `/<role>/*`.
-String? sessionRedirect(String path, SessionState session) {
+/// Customer screens a guest may open without signing in (2026-11-17: browse
+/// first, verify the phone only when it matters). Everything else under
+/// `/user` — orders, checkout, profile, addresses, wallet, notifications —
+/// asks for phone verification first.
+const guestUserPaths = ['/user/home', '/user/cart', '/user/vendor/', '/user/search', '/user/help'];
+
+bool isGuestUserPath(String path) =>
+    guestUserPaths.any((p) => p.endsWith('/') ? path.startsWith(p) && !path.endsWith('/list-order') : path == p);
+
+/// Where login sends a guest who tried to open [location]: phone
+/// verification, then back to [location] (`auth_navigation.dart`).
+String loginFor(String location) => '/auth/login?next=${Uri.encodeComponent(location)}';
+
+String? sessionRedirect(String path, SessionState session, {String? location}) {
   if (publicPathPrefixes.any(path.startsWith)) return null;
 
   final roleForPath = _roleFromPath(path);
   if (roleForPath == null) return null;
+
+  // A guest (nobody signed in) browses the customer app freely; anything
+  // that needs an account asks to verify the phone first.
+  if (roleForPath == AppRole.user && session.stage == AuthStage.unauthenticated && !path.startsWith('/user/register')) {
+    return isGuestUserPath(path) ? null : loginFor(location ?? path);
+  }
 
   if (path.startsWith('/${roleForPath.name}/register')) {
     return session.role == roleForPath ? null : '/auth/login';

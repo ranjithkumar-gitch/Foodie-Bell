@@ -1111,13 +1111,13 @@ class AppLocalizationsTe extends AppLocalizations {
   String get homeTrackDefaultDriver => 'మీ డెలివరీ పార్ట్‌నర్';
 
   @override
-  String trackArrivingIn(int minutes) {
-    return '$minutes నిమిషాల్లో వస్తారు';
+  String trackArrivingIn(Object time) {
+    return '$timeలో వస్తారు';
   }
 
   @override
-  String trackReachingShopIn(int minutes) {
-    return '$minutes నిమిషాల్లో షాప్‌కు చేరుకుంటారు';
+  String trackReachingShopIn(Object time) {
+    return '$timeలో షాప్‌కు చేరుకుంటారు';
   }
 
   @override
@@ -1467,4 +1467,48 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get refundThanks => 'ధన్యవాదాలు — మీ సమాధానం నమోదైంది.';
+
+  @override
+  String durationMinutes(int minutes) {
+    return '$minutes ని.';
+  }
+
+  @override
+  String durationHours(int hours) {
+    return '$hours గం.';
+  }
+
+  @override
+  String durationHoursMinutes(int hours, int minutes) {
+    return '$hours గం. $minutes ని.';
+  }
+
+  @override
+  String storefrontHours(Object times, Object days) {
+    return '$times · $days';
+  }
+
+  @override
+  String get storefrontHoursEveryDay => 'ప్రతి రోజు';
+
+  @override
+  String get storefrontHoursClosedAllWeek => 'వారమంతా మూసి ఉంటుంది';
+
+  @override
+  String productCouponOffer(Object discount, Object code) {
+    return '$code కోడ్‌తో $discount';
+  }
+
+  @override
+  String get vendorOfferSelectedItems => 'ఎంపిక చేసిన వస్తువులపై';
+
+  @override
+  String get pinScreenSearchHint => 'ప్రాంతం, వీధి లేదా ల్యాండ్‌మార్క్ వెతకండి';
+
+  @override
+  String get pinScreenSearchNoResults =>
+      'ఆ ప్రదేశం దొరకలేదు. మరో పేరుతో ప్రయత్నించండి.';
+
+  @override
+  String get pinScreenMyLocation => 'నా ప్రస్తుత స్థానం ఉపయోగించండి';
 }

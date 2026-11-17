@@ -71,7 +71,8 @@ final firestoreCouponsProvider = StreamProvider<List<Coupon>>((ref) {
   Query<Map<String, dynamic>>? query;
   if (scope?.role == AppRole.vendor) {
     query = couponsCollection.where('vendorId', isEqualTo: scope!.accountId);
-  } else if (scope?.role == AppRole.user) {
+  } else if (scope == null || scope.role == AppRole.user) {
+    // Customers, and guests browsing like one (2026-11-17).
     final territoryId = ref.watch(browsingTerritoryIdProvider);
     if (territoryId != null) {
       query = couponsCollection

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The order buzzer is only named at runtime (notification channel sound),
+     so release resource shrinking must not drop it. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/order_buzzer" />

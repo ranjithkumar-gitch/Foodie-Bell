@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/format_duration.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -7,14 +8,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/address.dart';
 import '../../../data/models/order.dart';
-import '../../../data/providers/firestore_drivers_provider.dart';
 import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/order_drop_off.dart';
 import '../../../data/providers/road_route_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/mock_map_view.dart';
 import '../driver_location_tracker.dart';
-import '../driver_session.dart';
 import 'driver_route_map.dart';
 
 /// Active Delivery — Navigate to Customer (spec §6 item 10): a real map of
@@ -24,10 +23,9 @@ import 'driver_route_map.dart';
 /// call (device dialer, `order.userPhone`) and one-to-one chat
 /// (`order_chat_screen.dart`), plus an "Arrived at Customer" action that
 /// routes into Cash Collection (COD orders only) then Delivery
-/// Confirmation. "Arrived" stays locked until the Driver is within
-/// [kDriverArrivalRadiusMeters] of the drop-off, same as pickup
-/// (`driver_navigate_vendor_screen.dart`). Call/chat only show while the
-/// order is still active.
+/// Confirmation. "Arrived" is always enabled (no location check since
+/// 2026-11-17); the customer's delivery code proves the handover.
+/// Call/chat only show while the order is still active.
 class DriverNavigateCustomerScreen extends ConsumerStatefulWidget {
   const DriverNavigateCustomerScreen({super.key, required this.orderId});
 
@@ -94,16 +92,10 @@ class _DriverNavigateCustomerScreenState extends ConsumerState<DriverNavigateCus
     final fullAddress = drop.fullAddress;
     final savedAddress = drop.address;
 
-    // This phone's own GPS first; the Driver's Firestore position only as
-    // a stand-in until the first fix comes through.
+    // This phone's own GPS, shown on this screen only — never sent
+    // anywhere (live tracking is parked, 2026-11-17).
     final devicePosition = ref.watch(driverDevicePositionProvider).valueOrNull;
-    final driverId = ref.watch(currentDriverAccountProvider).id;
-    final reportedLocation = driverId.isEmpty ? null : ref.watch(driverLocationProvider(driverId)).valueOrNull;
-    final driver = devicePosition != null
-        ? LatLng(devicePosition.latitude, devicePosition.longitude)
-        : reportedLocation != null
-        ? LatLng(reportedLocation.latitude, reportedLocation.longitude)
-        : null;
+    final driver = devicePosition == null ? null : LatLng(devicePosition.latitude, devicePosition.longitude);
 
     RoadRoute? route;
     if (dropOff != null && driver != null) {
@@ -117,13 +109,8 @@ class _DriverNavigateCustomerScreenState extends ConsumerState<DriverNavigateCus
         ? TravelEstimate.between(driver, dropOff)
         : null;
 
-    // Locked until within [kDriverArrivalRadiusMeters] of the drop-off. An
-    // order with no pinned drop-off has nothing exact to measure against (a
-    // geocoded address can be a street or more off), so it stays enabled
-    // rather than stranding the Driver.
-    final metersToCustomer = metersBetween(driver, dropOff);
-    final atCustomer =
-        pinnedDropOff == null || (metersToCustomer != null && metersToCustomer <= kDriverArrivalRadiusMeters);
+    // "Arrived at Customer" is always enabled (2026-11-17): no location
+    // check. The delivery itself is proven by the customer's delivery code.
     const mapRadius = BorderRadius.all(Radius.circular(18));
 
     return Scaffold(
@@ -241,7 +228,7 @@ class _DriverNavigateCustomerScreenState extends ConsumerState<DriverNavigateCus
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                estimate == null ? '—' : '${estimate.approximate ? '~' : ''}${estimate.minutes} min',
+                                estimate == null ? '—' : '${estimate.approximate ? '~' : ''}${formatDuration(context, estimate.minutes)}',
                                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: palette.textPrimary),
                               ),
                               Text(
@@ -260,21 +247,11 @@ class _DriverNavigateCustomerScreenState extends ConsumerState<DriverNavigateCus
               ],
             ),
             const SizedBox(height: 14),
-            ArrivalHint(
-              arrived: atCustomer,
-              metersAway: metersToCustomer,
-              hasDriverPosition: driver != null,
-              arrivedText: 'You\'re at the customer\'s location. Mark yourself arrived to hand over this order.',
-              awayText: 'Head to the customer to hand over this order.',
-            ),
-            const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: atCustomer
-                  ? () => context.go(
-                      order.isCod ? '/driver/delivery/${order.id}/cash-collection' : '/driver/delivery/${order.id}/delivery-confirm',
-                    )
-                  : null,
-              icon: Icon(atCustomer ? Icons.check_circle_rounded : Icons.lock_outline_rounded, size: 20),
+              onPressed: () => context.go(
+                order.isCod ? '/driver/delivery/${order.id}/cash-collection' : '/driver/delivery/${order.id}/delivery-confirm',
+              ),
+              icon: const Icon(Icons.check_circle_rounded, size: 20),
               label: const Text('Arrived at Customer'),
             ),
           ],

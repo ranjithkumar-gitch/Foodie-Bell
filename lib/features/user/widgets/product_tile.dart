@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/coupon.dart';
 import '../../../data/models/product.dart';
 import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/widgets/app_network_image.dart';
@@ -24,6 +25,7 @@ class ProductTile extends StatelessWidget {
     required this.onDecrement,
     this.onTap,
     this.vendorClosed = false,
+    this.couponOffer,
   });
 
   final Product product;
@@ -38,6 +40,10 @@ class ProductTile extends StatelessWidget {
   /// since "closed" explains why nothing here is orderable right now,
   /// rather than looking like every single item happens to be out of stock.
   final bool vendorClosed;
+
+  /// A live coupon of the shop that covers only some items, this one among
+  /// them (2026-11-17) — shown as a tag so the User knows which items it's for.
+  final Coupon? couponOffer;
 
   static const _imageSize = 112.0;
 
@@ -100,6 +106,10 @@ class ProductTile extends StatelessWidget {
                       ],
                     ],
                   ),
+                  if (couponOffer != null) ...[
+                    const SizedBox(height: 6),
+                    _CouponTag(coupon: couponOffer!),
+                  ],
                   if (product.description.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     TranslatedText(
@@ -148,6 +158,41 @@ class ProductTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CouponTag extends StatelessWidget {
+  const _CouponTag({required this.coupon});
+
+  final Coupon coupon;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return Container(
+      key: Key('couponTag_${coupon.id}'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: palette.success.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: palette.success.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.local_offer_rounded, size: 13, color: palette.success),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              context.l10n.productCouponOffer(coupon.discountLabel, coupon.code),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: palette.success),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/models/brand_theme.dart';
 import 'app_colors.dart';
+import 'brand_backdrop.dart';
 
 /// App-wide [ThemeData], built per the Quicky design system (spec §1):
 /// Poppins headings / Inter body, 12px card radius, 8px input radius, 24px
@@ -42,7 +43,10 @@ class AppTheme {
         error: palette.error,
         surface: palette.surface,
       ),
-      scaffoldBackgroundColor: palette.background,
+      // Transparent: every page sits on the home page's backdrop
+      // (`brand_backdrop.dart`, painted behind each page).
+      scaffoldBackgroundColor: Colors.transparent,
+      pageTransitionsTheme: brandPageTransitionsTheme(),
       fontFamily: GoogleFonts.inter().fontFamily,
     );
 
@@ -95,7 +99,8 @@ class AppTheme {
       textTheme: textTheme,
       extensions: [palette],
       appBarTheme: AppBarTheme(
-        backgroundColor: palette.background,
+        // Over the page backdrop, like Home's header.
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,

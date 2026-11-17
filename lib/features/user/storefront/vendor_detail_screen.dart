@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show setEquals;
+import '../../../core/notifications/fcm_topics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,8 @@ import '../../../data/providers/settlement_provider.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/coupon.dart';
 import '../../../data/models/product.dart';
+import '../../../data/models/store_hours.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import '../../../data/providers/cart_provider.dart';
 import '../../../data/providers/firestore_categories_provider.dart';
 import '../../../data/providers/firestore_territories_provider.dart';
@@ -289,7 +292,10 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
     final coverUrl = account.coverPhotoUrl;
     final reviewCount = account.ratingCount;
     final averageRating = reviewCount == 0 ? 0.0 : account.ratingAverage ?? 0.0;
-    final distanceKm = vendorDistanceKm(account, ref.watch(deliveryPointProvider));
+    // A guest (not logged in) sees just the delivery fee — no time or
+    // distance until we know where they are ordering to (2026-11-17).
+    final signedIn = ref.watch(currentAccountIdProvider) != null;
+    final distanceKm = signedIn ? vendorDistanceKm(account, ref.watch(deliveryPointProvider)) : null;
     final eta = distanceKm == null ? null : estimatedDeliveryWindow(distanceKm);
     final liveCoupons =
         (ref.watch(firestoreCouponsProvider).valueOrNull ?? const [])
@@ -298,7 +304,6 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
     final visibleProducts = _visibleProducts;
 
     return Scaffold(
-      backgroundColor: palette.background,
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
@@ -392,19 +397,21 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                             (ref.watch(pricingRatesProvider)?.lowestDeliveryFeePaise ?? 2000) / 100,
                           )),
                         ),
-                        _VerticalDivider(),
-                        eta != null
-                            ? _InfoStat(
-                                icon: Icons.schedule_rounded,
-                                label: formatDeliveryWindow(context, eta),
-                                caption: context.l10n.vendorDistanceKm(
-                                  formatDistanceKm(distanceKm!),
+                        if (signedIn) ...[
+                          _VerticalDivider(),
+                          eta != null
+                              ? _InfoStat(
+                                  icon: Icons.schedule_rounded,
+                                  label: formatDeliveryWindow(context, eta),
+                                  caption: context.l10n.vendorDistanceKm(
+                                    formatDistanceKm(distanceKm!),
+                                  ),
+                                )
+                              : _InfoStat(
+                                  icon: Icons.place_outlined,
+                                  label: account.territory ?? '—',
                                 ),
-                              )
-                            : _InfoStat(
-                                icon: Icons.place_outlined,
-                                label: account.territory ?? '—',
-                              ),
+                        ],
                         _VerticalDivider(),
                         _InfoStat(
                           icon: Icons.star_rounded,
@@ -421,6 +428,10 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                       ],
                     ),
                   ),
+                  if (account.storeHours != null) ...[
+                    const SizedBox(height: 10),
+                    _StoreHoursLine(hours: account.storeHours!),
+                  ],
                   if (!canOrder) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -686,6 +697,9 @@ class _VendorDetailBodyState extends ConsumerState<_VendorDetailBody>
                     onDecrement: () =>
                         ref.read(cartProvider.notifier).decrement(product.id),
                     vendorClosed: !canOrder,
+                    couponOffer: liveCoupons
+                        .where((c) => !c.appliesToAllItems && c.productIds.contains(product.id))
+                        .firstOrNull,
                   );
                 },
               ),
@@ -794,6 +808,44 @@ class _InfoStat extends StatelessWidget {
   }
 }
 
+/// The shop's opening hours under the info row: "9:00 AM – 10:00 PM ·
+/// Mon–Sat", day names in the app's language.
+class _StoreHoursLine extends StatelessWidget {
+  const _StoreHoursLine({required this.hours});
+  final StoreHours hours;
+
+  String _days(BuildContext context) {
+    final l10n = context.l10n;
+    if (hours.days.isEmpty) return l10n.storefrontHoursClosedAllWeek;
+    if (hours.days.length == 7) return l10n.storefrontHoursEveryDay;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    // 2024-01-01 was a Monday, so day d is 2024-01-0d.
+    String name(int d) => DateFormat.E(locale).format(DateTime(2024, 1, d));
+    final sorted = hours.days.toList()..sort();
+    if (sorted.length > 2 && sorted.last - sorted.first == sorted.length - 1) {
+      return '${name(sorted.first)}–${name(sorted.last)}';
+    }
+    return sorted.map(name).join(', ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return Row(
+      children: [
+        Icon(Icons.access_time_rounded, size: 16, color: palette.textSecondary),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            context.l10n.storefrontHours(hours.timesLabel(context), _days(context)),
+            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: palette.textSecondary),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// One of the vendor's live coupons in the storefront's "Offers for you"
 /// strip — tap copies the code so it's ready to paste in the cart.
 class _OfferChip extends StatelessWidget {
@@ -847,7 +899,9 @@ class _OfferChip extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  context.l10n.vendorOfferUseCode(coupon.code),
+                  coupon.appliesToAllItems
+                      ? context.l10n.vendorOfferUseCode(coupon.code)
+                      : '${context.l10n.vendorOfferUseCode(coupon.code)} · ${context.l10n.vendorOfferSelectedItems}',
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,

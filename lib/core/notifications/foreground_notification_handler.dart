@@ -1,8 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
-import 'live_order_card.dart';
 import 'local_notifications.dart';
+import 'notification_routes.dart';
 
 /// Attached to `MaterialApp.router` (`app.dart`) — kept as general
 /// infrastructure for any app-wide `SnackBar` (not used by the push
@@ -18,14 +18,18 @@ final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 /// rather than a transient in-app `SnackBar` only visible while the app
 /// happens to be in the foreground at that exact moment.
 void registerForegroundNotificationHandler() {
-  FirebaseMessaging.onMessage.listen((message) async {
-    // A live order push (Android, data-only): the order's card, not a new row.
-    if (await showLiveOrderCardFromPush(message.data)) return;
+  FirebaseMessaging.onMessage.listen((message) {
     final notification = message.notification;
     if (notification == null) return;
     final title = notification.title;
     final body = notification.body;
     if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) return;
-    showLocalNotification(title: title ?? '', body: body ?? '');
+    showLocalNotification(
+      title: title ?? '',
+      body: body ?? '',
+      payload: notificationPayload(message.data),
+      // A new order for a Vendor / a delivery offer for a Driver.
+      buzzer: message.data['buzzer'] == '1',
+    );
   });
 }

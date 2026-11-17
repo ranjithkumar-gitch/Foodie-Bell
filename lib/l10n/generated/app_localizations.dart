@@ -2015,14 +2015,14 @@ abstract class AppLocalizations {
   /// No description provided for @trackArrivingIn.
   ///
   /// In en, this message translates to:
-  /// **'Arriving in {minutes} min'**
-  String trackArrivingIn(int minutes);
+  /// **'Arriving in {time}'**
+  String trackArrivingIn(Object time);
 
   /// No description provided for @trackReachingShopIn.
   ///
   /// In en, this message translates to:
-  /// **'Reaching the shop in {minutes} min'**
-  String trackReachingShopIn(int minutes);
+  /// **'Reaching the shop in {time}'**
+  String trackReachingShopIn(Object time);
 
   /// No description provided for @trackDistanceKm.
   ///
@@ -2609,6 +2609,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Thanks — we\'ve recorded your answer.'**
   String get refundThanks;
+
+  /// No description provided for @durationMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String durationMinutes(int minutes);
+
+  /// No description provided for @durationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr'**
+  String durationHours(int hours);
+
+  /// No description provided for @durationHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr {minutes} min'**
+  String durationHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @storefrontHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{times} · {days}'**
+  String storefrontHours(Object times, Object days);
+
+  /// No description provided for @storefrontHoursEveryDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get storefrontHoursEveryDay;
+
+  /// No description provided for @storefrontHoursClosedAllWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed all week'**
+  String get storefrontHoursClosedAllWeek;
+
+  /// No description provided for @productCouponOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'{discount} with code {code}'**
+  String productCouponOffer(Object discount, Object code);
+
+  /// No description provided for @vendorOfferSelectedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'On selected items'**
+  String get vendorOfferSelectedItems;
+
+  /// No description provided for @pinScreenSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search area, street or landmark'**
+  String get pinScreenSearchHint;
+
+  /// No description provided for @pinScreenSearchNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t find that place. Try another name.'**
+  String get pinScreenSearchNoResults;
+
+  /// No description provided for @pinScreenMyLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use my current location'**
+  String get pinScreenMyLocation;
 }
 
 class _AppLocalizationsDelegate

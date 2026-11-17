@@ -53,8 +53,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// anything stored on the device.
   ///
   /// Anything else still signed in (an anonymous session or a cached phone
-  /// number from builds that used the demo OTP) is cleared and sent to
-  /// login.
+  /// number from builds that used the demo OTP) is cleared and browses
+  /// as a guest.
   ///
   /// Guards on `Firebase.apps.isNotEmpty` first: widget tests pump this
   /// screen without ever calling `main()`, so Firebase is never
@@ -100,7 +100,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       }
     }
     if (!mounted) return;
-    context.go('/auth/login');
+    // Nobody signed in: straight to the customer home as a guest
+    // (2026-11-17) — browsing needs no account; the app asks to verify the
+    // phone only for orders, checkout and the profile.
+    context.go('/user/home');
   }
 
   void _showRestoreError(String message) {

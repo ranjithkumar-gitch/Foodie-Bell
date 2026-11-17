@@ -74,7 +74,6 @@ class VendorDashboardScreen extends ConsumerWidget {
     final isOpen = account?.isOpen ?? true;
 
     return Scaffold(
-      backgroundColor: palette.background,
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [

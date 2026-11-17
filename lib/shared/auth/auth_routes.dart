@@ -4,6 +4,7 @@ import 'auth_blocked_screen.dart';
 import 'auth_login_screen.dart';
 import 'auth_otp_screen.dart';
 import 'auth_phone_screen.dart';
+import 'auth_profile_setup_screen.dart';
 import 'auth_register_screen.dart';
 import 'auth_rejected_screen.dart';
 import 'auth_terms_screen.dart';
@@ -36,7 +37,13 @@ List<RouteBase> get authRoutes => [
   GoRoute(
     path: '/auth/login',
     name: 'authLogin',
-    builder: (context, state) => const AuthLoginScreen(),
+    builder: (context, state) => AuthLoginScreen(next: state.uri.queryParameters['next']),
+  ),
+  // A new number's one-time profile (name) right after the OTP (2026-11-17).
+  GoRoute(
+    path: '/auth/setup-profile',
+    name: 'authSetupProfile',
+    builder: (context, state) => const AuthProfileSetupScreen(),
   ),
   GoRoute(
     path: '/auth/register',

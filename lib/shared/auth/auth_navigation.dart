@@ -35,11 +35,32 @@ void routeByStage(BuildContext context, AppRole role, AuthStage stage) {
 /// screen's session restore: [SessionController.selectRole] first (the role
 /// is only known now), then [SessionController.completeLogin], then routed
 /// by the resulting stage.
+/// Where a guest was going when the app asked them to verify their phone
+/// (`/auth/login?next=…`, set by `session_redirect.dart`). After login a
+/// customer continues there; anyone else goes to their own dashboard.
+final postLoginRouteProvider = StateProvider<String?>((ref) => null);
+
 void completeResolvedLogin(BuildContext context, WidgetRef ref, Account match) {
   ref.read(sessionControllerProvider.notifier).selectRole(match.role);
   ref.read(sessionControllerProvider.notifier).completeLogin(account: match);
   if (!context.mounted) return;
-  routeByStage(context, match.role, ref.read(sessionControllerProvider).stage);
+  final stage = ref.read(sessionControllerProvider).stage;
+  final next = ref.read(postLoginRouteProvider);
+  ref.read(postLoginRouteProvider.notifier).state = null;
+  if (match.role == AppRole.user && stage == AuthStage.active && next != null && next.startsWith('/user/')) {
+    // A bottom-tab screen is opened with go (pushing a tab route from
+    // outside its shell breaks navigation); anything else on top of Home,
+    // so Back from it lands somewhere sensible.
+    const tabs = {'/user/home', '/user/orders', '/user/cart'};
+    if (tabs.contains(Uri.parse(next).path)) {
+      context.go(next);
+    } else {
+      context.go('/user/home');
+      context.push(next);
+    }
+    return;
+  }
+  routeByStage(context, match.role, stage);
 }
 
 enum PhoneSignInOutcome { signedIn, needsRegistration, noAccount }
@@ -69,6 +90,14 @@ Future<PhoneSignInOutcome> completePhoneSignIn(BuildContext context, WidgetRef r
   }
   if (mode == 'register') {
     if (context.mounted) context.go('/auth/terms?mode=register');
+    return PhoneSignInOutcome.needsRegistration;
+  }
+  // A verified number with no account yet: one login for everyone
+  // (2026-11-17) — they just say what we should call them, keeping the
+  // verified sign-in (no second code).
+  if (FirebaseAuth.instance.currentUser?.phoneNumber != null && context.mounted) {
+    ref.read(sessionControllerProvider.notifier).selectRole(AppRole.user);
+    context.go('/auth/setup-profile');
     return PhoneSignInOutcome.needsRegistration;
   }
   await FirebaseAuth.instance.signOut();

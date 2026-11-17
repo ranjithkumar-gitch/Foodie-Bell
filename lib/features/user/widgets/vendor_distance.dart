@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import '../../../shared/format_duration.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -57,13 +58,14 @@ String formatDistanceKm(double km) {
   return km < 10 ? km.toStringAsFixed(1) : km.toStringAsFixed(0);
 }
 
-/// [eta] as the User reads it: "25–30 mins" under an hour, then whole hours
-/// ("2 hr"), then days ("1 day"), and past a week the date it would arrive.
+/// [eta] as the User reads it: "25–30 mins" under an hour, then hours and
+/// minutes ("1 hr 10 min", up to the window's end), then days ("1 day"),
+/// and past a week the date it would arrive.
 String formatDeliveryWindow(BuildContext context, ({int min, int max}) eta) {
   final l10n = context.l10n;
   final max = eta.max;
   if (max < 60) return l10n.vendorEtaRange(eta.min, max);
-  if (max < 24 * 60) return l10n.vendorEtaHours((max / 60).ceil());
+  if (max < 24 * 60) return formatDuration(context, max);
   final days = (max / (24 * 60)).ceil();
   if (days <= 7) return l10n.vendorEtaDays(days);
   return l10n.vendorEtaDate(DateFormat('d MMM yyyy').format(DateTime.now().add(Duration(minutes: max))));
