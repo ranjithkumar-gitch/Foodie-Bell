@@ -292,18 +292,22 @@ String currentSettlementDay({int cutoffMinutes = 22 * 60, DateTime? now}) {
 }
 
 /// The live global pricing (`app_config/pricing`, public read; only the
-/// Super Admin can change it) — null until an admin has saved one. The
-/// server then uses its built-in default, whose 60/40 split is *not* the
-/// approved go-live split (50/50), so the app never quotes a share from it.
+/// Super Admin can change it) — null until an admin has saved one; the
+/// server then uses its built-in default (`functions/lib/money.js`), which
+/// since 2026-11-18 is the approved 50/50 split too.
 final globalPricingProvider = StreamProvider<Map<String, dynamic>?>(
   (ref) => FirebaseFirestore.instance.doc('app_config/pricing').snapshots().map((d) => d.data()),
 );
 
 /// The rates in [globalPricingProvider]'s pricing, for labels only — every
 /// amount is still the server's (each order snapshots its own rates). The
-/// commission and slabs fall back to the server's built-in default; the
-/// Manager share doesn't: without a saved pricing doc it's
-/// [managerSharePercent] null, shown as "not yet set by Quicky".
+/// commission, Manager share (50%) and slabs fall back to the server's
+/// built-in default.
+/// The server's built-in Manager share of the commission when no pricing is
+/// saved (`managerShareBps` in QuickyAdmin `functions/lib/money.js`):
+/// 50/50, the approved split (2026-11-18; it was 60/40).
+const kDefaultManagerShareBps = 5000;
+
 class PricingRates {
   const PricingRates({required this.commissionPercent, required this.managerSharePercent, required this.lowestDeliveryFeePaise});
 
@@ -316,14 +320,14 @@ class PricingRates {
     ];
     return PricingRates(
       commissionPercent: ((data?['commissionBps'] as num?) ?? 1000) / 100,
-      managerSharePercent: data?['managerShareBps'] is num ? (data!['managerShareBps'] as num) / 100 : null,
+      managerSharePercent: ((data?['managerShareBps'] as num?) ?? kDefaultManagerShareBps) / 100,
       lowestDeliveryFeePaise: fees.isEmpty ? 2000 : fees.reduce((a, b) => a < b ? a : b),
     );
   }
 
   final double commissionPercent;
 
-  /// Null while Quicky hasn't saved pricing (see the class comment).
+  /// The Territory Manager's share of the commission, in %.
   final double? managerSharePercent;
 
   /// The first slab's fee — what "delivery from ₹…" quotes.

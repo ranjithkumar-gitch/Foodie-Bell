@@ -35,8 +35,15 @@ void main() async {
   // Debug builds can't pass Play Integrity (not installed from Play, and
   // emulators fail the device check), which Firebase phone auth uses on
   // Android before sending an SMS. Use its reCAPTCHA check there instead —
-  // still a real verification. Release builds keep Play Integrity.
-  if (kDebugMode && defaultTargetPlatform == TargetPlatform.android) {
+  // still a real verification.
+  //
+  // 2026-11-18: release APKs shared directly (not installed from Play)
+  // fail Play Integrity the same way — a real number got "This app can't
+  // verify phone numbers yet" (test numbers skip the check, so it went
+  // unnoticed). They use reCAPTCHA too, until a Play Store build is made
+  // with `--dart-define=PLAY_STORE_BUILD=true`.
+  const playStoreBuild = bool.fromEnvironment('PLAY_STORE_BUILD');
+  if ((kDebugMode || !playStoreBuild) && defaultTargetPlatform == TargetPlatform.android) {
     await FirebaseAuth.instance.setSettings(forceRecaptchaFlow: true);
   }
   // Load the last-known occasion theme before the first frame, so it's

@@ -73,7 +73,9 @@ class _OtpInputFieldState extends State<OtpInputField> {
           // spreads/shrinks the gaps based on however wide the parent
           // happens to be) so the 6 boxes always sit with a consistent,
           // visible gap instead of reading as one solid touching strip.
-          mainAxisAlignment: MainAxisAlignment.start,
+          // Centred in the card (2026-11-18; was `start`, which left the
+          // boxes hugging the left edge).
+          mainAxisAlignment: MainAxisAlignment.center,
           // Explicit, not relying on the package's own (nominally
           // transparent) default — this is the strip behind the boxes:
           // pin_code_fields paints its whole outer row, gaps included, in

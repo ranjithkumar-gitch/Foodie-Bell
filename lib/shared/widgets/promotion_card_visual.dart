@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -52,6 +53,20 @@ class PromotionCardVisual extends StatelessWidget {
   /// their storefront once live.
   final bool showOrderCta;
 
+  Widget _image(BoxFit fit) => imageFile != null
+      ? Image.file(
+          imageFile!,
+          fit: fit,
+          width: double.infinity,
+          height: double.infinity,
+        )
+      : AppNetworkImage(
+          url: imageUrl!,
+          width: double.infinity,
+          height: double.infinity,
+          fit: fit,
+        );
+
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
@@ -72,15 +87,22 @@ class PromotionCardVisual extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (imageFile != null)
-            Image.file(imageFile!, fit: BoxFit.cover)
-          else if (imageUrl != null)
-            AppNetworkImage(
-              url: imageUrl!,
-              width: double.infinity,
-              height: double.infinity,
-            )
-          else
+          // The whole picture, never cropped (2026-11-18): a 3:2 promotion
+          // image fills the 3:2 card exactly; any other shape (a storefront
+          // photo used as the fallback) is shown whole over a blurred copy
+          // of itself rather than having its edges cut off.
+          if (imageFile != null || imageUrl != null) ...[
+            ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: 18,
+                sigmaY: 18,
+                tileMode: TileMode.decal,
+              ),
+              child: _image(BoxFit.cover),
+            ),
+            ColoredBox(color: Colors.black.withValues(alpha: 0.12)),
+            _image(BoxFit.contain),
+          ] else
             Container(
               color: palette.surfaceMuted,
               child: Icon(
@@ -100,26 +122,6 @@ class PromotionCardVisual extends StatelessWidget {
                   Colors.black.withValues(alpha: 0.78),
                 ],
                 stops: const [0.0, 0.55, 1.0],
-              ),
-            ),
-          ),
-          Positioned(
-            top: 14,
-            left: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: palette.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                context.l10n.homePromotedBadge,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.3,
-                ),
               ),
             ),
           ),

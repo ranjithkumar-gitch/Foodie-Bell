@@ -145,10 +145,10 @@ void main() {
   group('live commission and fee labels', () {
     test('rates come from app_config/pricing, with the server defaults when absent', () {
       final defaults = PricingRates.from(null);
-      // Phase I.8: no saved pricing → the share isn't quoted (the server's
-      // 60/40 built-in default is not the approved 50/50 split).
-      expect([defaults.commissionPercent, defaults.managerSharePercent, defaults.quickySharePercent, defaults.lowestDeliveryFeePaise], [10, null, null, 2000]);
-      expect(defaults.managerShareLabel, 'not yet set by Quicky');
+      // No saved pricing → the server's built-in default, the approved
+      // 50/50 split since 2026-11-18 (was 60/40, which wasn't quoted).
+      expect([defaults.commissionPercent, defaults.managerSharePercent, defaults.quickySharePercent, defaults.lowestDeliveryFeePaise], [10, 50, 50, 2000]);
+      expect(defaults.managerShareLabel, '50%');
       final custom = PricingRates.from({
         'commissionBps': 1250,
         'managerShareBps': 5500,

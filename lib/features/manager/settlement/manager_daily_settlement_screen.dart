@@ -149,6 +149,23 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     }
   }
 
+  /// Settles a disputed payment this Manager is part of: remove the dispute
+  /// (recorded by mistake — no balance changes) or, when they received it,
+  /// confirm the money arrived. A reason is required.
+  Future<void> _resolveDispute(Map<String, dynamic> d, String managerKey) async {
+    final decision = await showDialog<(String, String)>(
+      context: context,
+      builder: (_) => _ResolveDisputeDialog(canConfirm: d['to'] == managerKey),
+    );
+    if (decision == null) return;
+    try {
+      await resolveDisputedTransfer(d['transferId'] as String, resolution: decision.$1, reason: decision.$2);
+      if (mounted && _day != null) await _load(_day!);
+    } on OrderActionException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Future<void> _recordPayment(PartyKey party, int balance, String managerKey, {bool cash = false}) async {
     final fromParty = balance > 0 ? party : managerKey;
     final toParty = balance > 0 ? managerKey : party;
@@ -296,7 +313,13 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                           ? 'An adjustment is waiting for the Super Admin.'
                           : 'Once you know what happened, propose an adjustment for the Super Admin to decide.',
                     ),
-                    trailing: adjustmentDraftFor(d, s, managerKey) == null || adjustments.any((a) => a.orderId == d['orderId'] && a.status != 'rejected')
+                    trailing: d['type'] == 'disputedPayment' && d['transferId'] != null && (d['from'] == managerKey || d['to'] == managerKey)
+                        ? TextButton(
+                            key: Key('resolveDispute_${d['transferId']}'),
+                            onPressed: () => _resolveDispute(d, managerKey),
+                            child: const Text('Resolve'),
+                          )
+                        : adjustmentDraftFor(d, s, managerKey) == null || adjustments.any((a) => a.orderId == d['orderId'] && a.status != 'rejected')
                         ? null
                         : TextButton(
                             onPressed: () => _proposeAdjustment(managerKey, draft: adjustmentDraftFor(d, s, managerKey)),
@@ -429,14 +452,13 @@ class _PricingCard extends ConsumerWidget {
           {'upToMeters': 11000, 'feePaise': 6000},
         ];
     final commission = ((data?['commissionBps'] as num?) ?? 1000) / 100;
-    // No saved pricing: the share isn't quoted (the server's built-in 60/40
-    // default is not the approved split).
-    final share = data?['managerShareBps'] is num ? (data!['managerShareBps'] as num) / 100 : null;
+    // No saved pricing: the server's built-in 50/50 split.
+    final share = ((data?['managerShareBps'] as num?) ?? kDefaultManagerShareBps) / 100;
     var from = 0.0;
     return Card(
       child: ExpansionTile(
         title: const Text('Pricing (set by Quicky)'),
-        subtitle: Text('Commission ${formatPercent(commission)}% · your share ${share == null ? 'not yet set by Quicky' : '${formatPercent(share)}%'}'),
+        subtitle: Text('Commission ${formatPercent(commission)}% · your share ${formatPercent(share)}%'),
         children: [
           for (final s in slabs)
             () {
@@ -628,4 +650,74 @@ class _AttentionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Remove a disputed payment's dispute (recorded by mistake) or, for the
+/// Manager who received it, confirm it arrived. Pops `(resolution, reason)`.
+class _ResolveDisputeDialog extends StatefulWidget {
+  const _ResolveDisputeDialog({required this.canConfirm});
+  final bool canConfirm;
+
+  @override
+  State<_ResolveDisputeDialog> createState() => _ResolveDisputeDialogState();
+}
+
+class _ResolveDisputeDialogState extends State<_ResolveDisputeDialog> {
+  final _reason = TextEditingController();
+  String _resolution = 'void';
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Resolve disputed payment'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RadioGroup<String>(
+            groupValue: _resolution,
+            onChanged: (v) => setState(() => _resolution = v ?? _resolution),
+            child: Column(
+              children: [
+                const RadioListTile(
+                  key: Key('disputeVoid'),
+                  value: 'void',
+                  title: Text('Remove the dispute'),
+                  subtitle: Text('It was recorded by mistake (e.g. twice). Nobody\'s balance changes.'),
+                ),
+                if (widget.canConfirm)
+                  const RadioListTile(
+                    key: Key('disputeConfirm'),
+                    value: 'confirm',
+                    title: Text('I received this money'),
+                    subtitle: Text('Counts as paid.'),
+                  ),
+              ],
+            ),
+          ),
+          TextField(
+            key: const Key('disputeReason'),
+            controller: _reason,
+            decoration: const InputDecoration(labelText: 'Reason (required)'),
+            maxLength: 300,
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Back')),
+      TextButton(
+        key: const Key('disputeSubmit'),
+        onPressed: _reason.text.trim().isEmpty ? null : () => Navigator.of(context).pop((_resolution, _reason.text.trim())),
+        child: const Text('Resolve'),
+      ),
+    ],
+  );
 }

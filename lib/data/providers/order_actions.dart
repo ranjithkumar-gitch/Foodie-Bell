@@ -296,6 +296,12 @@ Future<({bool online, int chargedPaise, bool needsConfirmation, int dayFeePaise}
 Future<void> acknowledgeSettlementTransfer(String transferId, {required bool confirm, String? note}) =>
     _call('acknowledgeSettlementTransfer', {'transferId': transferId, 'confirm': confirm, 'note': ?note});
 
+/// Settles a disputed payment the Manager is part of (`resolveDisputedTransfer`):
+/// `void` — it was recorded by mistake and stays out of every balance;
+/// `confirm` — the money did arrive (only the receiver). Audited.
+Future<void> resolveDisputedTransfer(String transferId, {required String resolution, required String reason}) =>
+    _call('resolveDisputedTransfer', {'transferId': transferId, 'resolution': resolution, 'reason': reason});
+
 /// Files a pending adjustment for the Super Admin to decide; nothing moves
 /// in the ledger until it's approved (`decideSettlementAdjustment`). Keep
 /// [idempotencyKey] the same for retries of one proposal: the server then

@@ -23,6 +23,7 @@ import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/firestore_products_provider.dart';
 import '../../../data/providers/trending_provider.dart';
 import '../../../data/providers/firestore_promotions_provider.dart';
+import 'promo_carousel.dart';
 import '../../../data/providers/firestore_territories_provider.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../data/providers/order_codes_provider.dart';
@@ -85,33 +86,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _sortNearest = false;
   });
 
-  // viewportFraction < 1 is what gives the peeking-neighbor-card look
-  // (Swiggy/Zomato's promo carousel) instead of one full-width card per
-  // page with dead space on either side.
-  final _promoPageController = PageController(viewportFraction: 0.86);
-  int _promoPageIndex = 0;
-  int _promoCount = 0;
-  Timer? _promoAutoScrollTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _promoAutoScrollTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _advancePromoPage(),
-    );
-  }
-
-  void _advancePromoPage() {
-    if (!_promoPageController.hasClients || _promoCount <= 1) return;
-    final next = (_promoPageIndex + 1) % _promoCount;
-    _promoPageController.animateToPage(
-      next,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-  }
-
   void _openVendor(Account account) =>
       context.push('/user/vendor/${account.id}');
 
@@ -141,8 +115,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
-    _promoAutoScrollTimer?.cancel();
-    _promoPageController.dispose();
     super.dispose();
   }
 
@@ -572,109 +544,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Builder(
-                            builder: (context) {
-                              // True 3:2 frame sized off the card's actual
-                              // on-screen width, not a guessed fixed pixel
-                              // height — otherwise AppNetworkImage's
-                              // BoxFit.cover would crop the image to
-                              // whatever mismatched ratio the SizedBox
-                              // happened to force. Width is the *page's*
-                              // width (viewportFraction of the full
-                              // screen), not the screen width itself, since
-                              // each page no longer spans edge to edge.
-                              final pageWidth =
-                                  MediaQuery.sizeOf(context).width * 0.86;
-                              final cardWidth = pageWidth - 16;
-                              final imageHeight = cardWidth * 2 / 3;
-                              _promoCount = promotedVendors.length;
-                              return SizedBox(
-                                height: imageHeight,
-                                child: PageView.builder(
-                                  controller: _promoPageController,
-                                  // Without this, the default PageView
-                                  // centers page 0 by leaving empty leading
-                                  // space equal to the viewport's own
-                                  // margin — that reads as a layout bug
-                                  // (a blank gap before the first card)
-                                  // rather than the peeking-neighbor effect
-                                  // this is going for. false + the item's
-                                  // own edge padding below is what actually
-                                  // lines the first/last card up with the
-                                  // rest of the page's 20px margin while
-                                  // letting the ones in between peek.
-                                  padEnds: false,
-                                  itemCount: promotedVendors.length,
-                                  onPageChanged: (i) =>
-                                      setState(() => _promoPageIndex = i),
-                                  itemBuilder: (context, i) => AnimatedBuilder(
-                                    animation: _promoPageController,
-                                    builder: (context, child) {
-                                      var scale = 1.0;
-                                      var opacity = 1.0;
-                                      if (_promoPageController
-                                          .position
-                                          .haveDimensions) {
-                                        final distance =
-                                            (_promoPageController.page! - i)
-                                                .abs()
-                                                .clamp(0.0, 1.0);
-                                        scale = 1 - (distance * 0.08);
-                                        opacity = 1 - (distance * 0.4);
-                                      }
-                                      return Opacity(
-                                        opacity: opacity,
-                                        child: Transform.scale(
-                                          scale: scale,
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    child: Padding(
-                                      padding: EdgeInsets.only(
-                                        left: i == 0 ? 20 : 8,
-                                        right: i == promotedVendors.length - 1
-                                            ? 20
-                                            : 8,
-                                      ),
-                                      child: _PromotedVendorCard(
-                                        promotion: promotedVendors[i],
-                                        imageHeight: imageHeight,
-                                        onTap: promotedVendors[i].isAppPromotion
-                                            ? null
-                                            : () => context.push(
-                                                '/user/vendor/${promotedVendors[i].vendorId}',
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          if (promotedVendors.length > 1) ...[
-                            const SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                for (var i = 0; i < promotedVendors.length; i++)
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 3,
-                                    ),
-                                    width: _promoPageIndex == i ? 18 : 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: _promoPageIndex == i
-                                          ? palette.primary
-                                          : palette.border,
-                                      borderRadius: BorderRadius.circular(3),
-                                    ),
-                                  ),
-                              ],
+                          // The carousel's motion lives in promo_carousel.dart (2026-11-18).
+                          PromoCarousel(
+                            count: promotedVendors.length,
+                            itemBuilder: (context, i, height) => _PromotedVendorCard(
+                              promotion: promotedVendors[i],
+                              imageHeight: height,
+                              onTap: promotedVendors[i].isAppPromotion
+                                  ? null
+                                  : () => context.push('/user/vendor/${promotedVendors[i].vendorId}'),
                             ),
-                          ],
+                          ),
                           const SizedBox(height: 20),
                         ],
                       ),

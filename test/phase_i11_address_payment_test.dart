@@ -128,10 +128,10 @@ void main() {
       int bps(String key) => int.parse(RegExp('$key:\\s*(\\d+)').firstMatch(source)!.group(1)!);
       final rates = PricingRates.from(null);
       expect(rates.commissionPercent, bps('commissionBps') / 100);
-      // Phase I.8: the server's built-in split stays 6000 (not silently
-      // changed), but it isn't the approved 50/50 — the app doesn't quote it.
-      expect(bps('managerShareBps'), 6000);
-      expect(rates.managerSharePercent, isNull);
+      // 2026-11-18: the built-in split is the approved 50/50 (was 60/40),
+      // and the app quotes the same default.
+      expect(bps('managerShareBps'), 5000);
+      expect(rates.managerSharePercent, bps('managerShareBps') / 100);
     }, skip: money.existsSync() ? false : 'QuickyAdmin checkout not found next to this repo');
   });
 
