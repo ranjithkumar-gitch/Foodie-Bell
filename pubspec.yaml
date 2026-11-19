@@ -87,14 +87,14 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/app_logo.webp
+    - assets/images/quickmandi_logo.webp
     - assets/images/food_logo.webp
     - assets/images/pharmacy_logo.webp
     - assets/images/kirana_logo.webp
     - assets/images/vegitables_logo.webp
     - assets/images/login_bg1.webp
     - assets/images/login_bg2.webp
-    - assets/images/quicky_text.webp
+    - assets/images/quickmandi_text.webp
     - assets/sounds/order_buzzer.wav
 
   # To add assets to your application, add an assets section, like this:

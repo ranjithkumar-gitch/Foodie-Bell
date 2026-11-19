@@ -49,7 +49,7 @@ class OtpScreenArgs {
 /// Bespoke layout, not [AuthHeroScaffold] — mirrors `auth_login_screen.dart`/
 /// `auth_register_screen.dart`'s visual language exactly: `login_bg1.webp` +
 /// `login_bg2.webp` hero background, a back arrow beside the "Quicky"
-/// wordmark (`quicky_text.webp`) up top — no "Verify OTP" text out there
+/// wordmark (`quickmandi_text.webp`) up top — no "Verify OTP" text out there
 /// anymore; that heading now lives inside the card as "Enter verification
 /// code" (already the card's own heading, just restyled white with a soft
 /// drop shadow, same as login/register's in-card titles). The pin entry
@@ -314,8 +314,8 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                     ),
                                     const SizedBox(width: 6),
                                     Image.asset(
-                                      'assets/images/quicky_text.webp',
-                                      height: 44,
+                                      'assets/images/quickmandi_text.webp',
+                                      height: 56,
                                       fit: BoxFit.contain,
                                     ),
                                   ],

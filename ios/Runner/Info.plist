@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Quicky</string>
+	<string>QuickMandi</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIcons</key>
@@ -20,7 +20,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Quicky</string>
+	<string>QuickMandi</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -49,18 +49,18 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Quicky needs camera access so Vendors and Drivers can photograph documents to submit for review.</string>
+	<string>QuickMandi needs camera access so Vendors and Drivers can photograph documents to submit for review.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Drivers only: while you're on a delivery, Quicky keeps sharing your location if you switch to another app (for example Google Maps), so the customer can follow their order. Sharing stops when the delivery ends.</string>
+	<string>Drivers only: while you're on a delivery, QuickMandi keeps sharing your location if you switch to another app (for example Google Maps), so the customer can follow their order. Sharing stops when the delivery ends.</string>
 	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
 	<dict>
 		<key>DeliveryTracking</key>
 		<string>Precise location lets the customer follow your delivery accurately.</string>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Quicky uses your location to pin your delivery address and, for drivers, to show your position on the delivery map.</string>
+	<string>QuickMandi uses your location to pin your delivery address and, for drivers, to show your position on the delivery map.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Quicky needs photo library access so Vendors and Drivers can choose document images to submit for review.</string>
+	<string>QuickMandi needs photo library access so Vendors and Drivers can choose document images to submit for review.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

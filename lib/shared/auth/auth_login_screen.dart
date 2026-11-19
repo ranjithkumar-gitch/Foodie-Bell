@@ -39,7 +39,7 @@ import 'phone_auth.dart';
 /// plain green gradient (`palette.promoGradient` — the same green both
 /// images are drawn in) fills whatever gap is left between them, so the
 /// seam reads as one continuous background rather than a visible edge.
-/// The "Quicky" wordmark (`quicky_text.webp`, the brand's own stylized
+/// The "QuickMandi" wordmark (`quickmandi_text.webp`, the brand's own stylized
 /// logotype) + "Get Orders to your Doorstep" subtext sit directly on that
 /// background (no card behind them), and the sign-in form below sits on a
 /// glossy frosted-glass card — `BackdropFilter`, transparent enough to
@@ -255,16 +255,16 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // The "Quicky" wordmark itself, not styled Text —
-                                // quicky_text.webp is the brand's own stylized
+                                // The "QuickMandi" wordmark itself, not styled Text —
+                                // quickmandi_text.webp is the brand's own stylized
                                 // logotype (dimensional white-on-green lettering,
                                 // leaf accent on the "y"), not something a plain
                                 // TextStyle can reproduce.
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Image.asset(
-                                    'assets/images/quicky_text.webp',
-                                    height: 44,
+                                    'assets/images/quickmandi_text.webp',
+                                    height: 56,
                                     fit: BoxFit.contain,
                                   ),
                                 ),
