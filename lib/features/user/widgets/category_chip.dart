@@ -3,112 +3,105 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../translation/translated_text.dart';
 
-/// The 4 categories Quicky launches with ([VendorCategory]/seed data in
-/// `mock_categories.dart`) each have a bundled illustrated badge — a real,
-/// designed asset with its own caption baked in, not a generic glyph — so
-/// Home's category rail can use those instead of a Material icon. Keyed by
-/// [Category.id], which is `VendorCategory.name` for every seeded category.
-/// Any category Admin adds beyond these 4 has no matching asset and falls
-/// back to its plain icon ([CategoryChip.icon]) instead.
-const _categoryImageAssets = <String, String>{
-  'food': 'assets/images/food_logo.webp',
-  'pharmacy': 'assets/images/pharmacy_logo.webp',
-  'kirana': 'assets/images/kirana_logo.webp',
-  'vegetables': 'assets/images/vegitables_logo.webp',
+/// A signature accent per launch category (2026-11-20, replacing the
+/// illustrated badge images), keyed by [Category.id]. Any category Admin
+/// adds later uses the brand primary.
+const _categoryAccents = <String, Color>{
+  'food': Color(0xFFE8590C), // warm orange
+  'pharmacy': Color(0xFF1971C2), // clinical blue
+  'kirana': Color(0xFFB7791F), // grocery amber
+  'vegetables': Color(0xFF2F9E44), // fresh green
 };
 
-String? categoryImageAsset(String categoryId) =>
-    _categoryImageAssets[categoryId];
+Color categoryAccent(String? categoryId, Color fallback) => _categoryAccents[categoryId] ?? fallback;
 
-/// A single category filter on Home. Renders the category's real badge
-/// image full-width-aligned (equal `Expanded` share of the row, see
-/// `home_screen.dart`) when one exists — the badge already has its label
-/// baked into the artwork, so no separate [label] is drawn alongside it.
-/// Falls back to an icon + [label] for a category with no bundled asset.
+/// One category filter pill on Home: a tinted icon disc plus the name.
+/// Unselected it's a quiet outlined pill; selected it fills with the
+/// category's accent (gradient, soft glow) and the icon disc turns white —
+/// so the active filter reads at a glance while scrolling.
 class CategoryChip extends StatelessWidget {
   const CategoryChip({
     super.key,
     required this.label,
     required this.icon,
-    this.imageAsset,
     required this.selected,
     required this.onTap,
+    this.categoryId,
     this.translate = false,
   });
 
   final String label;
   final IconData icon;
-  final String? imageAsset;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Picks the accent colour; null (the "All" chip) uses the brand primary.
+  final String? categoryId;
 
   /// True for a real Admin-authored category name (catalogue content,
   /// machine-translated via `TranslatedText`) — false for a caller passing
   /// an already-localized app string, which must never be run back through
-  /// the English→Telugu translator a second time. Only relevant when
-  /// [imageAsset] is null and [label] actually renders.
+  /// the English→Telugu translator a second time.
   final bool translate;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    final badge = AspectRatio(
-      aspectRatio: 470 / 535,
-      child: imageAsset != null
-          ? Image.asset(imageAsset!, fit: BoxFit.contain)
-          : Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: palette.surfaceMuted,
-                border: Border.all(color: palette.border),
-              ),
-              child: Icon(icon, size: 22, color: palette.primary),
-            ),
-    );
+    final accent = categoryAccent(categoryId, palette.primary);
+    final darker = Color.lerp(accent, Colors.black, 0.22)!;
     final labelStyle = TextStyle(
-      fontSize: 12,
+      fontSize: 13.5,
       fontWeight: FontWeight.w700,
-      color: palette.textSecondary,
+      letterSpacing: 0.1,
+      color: selected ? Colors.white : palette.textPrimary,
     );
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: selected ? palette.primary : Colors.transparent,
-                  width: 2.4,
-                ),
-              ),
-              child: badge,
-            ),
-            if (imageAsset == null) ...[
-              const SizedBox(height: 6),
-              translate
-                  ? TranslatedText(
-                      label,
-                      style: labelStyle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    )
-                  : Text(
-                      label,
-                      style: labelStyle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
+    final text = translate
+        ? TranslatedText(label, style: labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis)
+        : Text(label, style: labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: selected ? LinearGradient(colors: [accent, darker], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
+          color: selected ? null : palette.surface,
+          border: Border.all(color: selected ? Colors.transparent : palette.border, width: 1.2),
+          boxShadow: selected
+              ? [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 14, offset: const Offset(0, 5))]
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 6, 16, 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: selected ? Colors.white : accent.withValues(alpha: 0.12),
                     ),
-            ],
-          ],
+                    child: Icon(icon, size: 17, color: accent),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(child: text),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -47,8 +47,8 @@ void main() {
       expect(start % 3, 0, reason: 'starts on the first card');
       expect(
         start,
-        greaterThan(1000),
-        reason: 'room to scroll back past the first card',
+        greaterThan(50),
+        reason: 'starts mid-list: room to scroll back past the first card (and it recentres near the ends)',
       );
       // Hero centred, both neighbours peeking in (cut at the edges).
       expect(find.text('card 0'), findsOneWidget);

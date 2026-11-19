@@ -58,9 +58,13 @@ class _PromoCarouselState extends State<PromoCarousel>
   static const _advanceEvery = Duration(seconds: 5);
 
   /// Continuous loop (2026-11-18): the list is [_loopPages] long and starts
-  /// in its middle, so it can be swiped (or auto-advance) either way for
-  /// as long as anyone will scroll; page `p` shows card `p % count`.
-  static const _loopPages = 100000;
+  /// in its middle, so it can be swiped (or auto-advance) either way;
+  /// page `p` shows card `p % count`. Kept short (2026-11-20): at 100000
+  /// pages the list's length lost floating-point precision and tripped
+  /// Flutter's fixed-extent layout check. Instead, once a scroll settles in
+  /// the outer quarters, it jumps back to the same card in the middle
+  /// ([_recenter]) — invisible, so the loop still never ends.
+  static const _loopPages = 240;
   // Made for the carousel's width on first layout ([_controllerFor]).
   late PageController _controller = PageController(
     viewportFraction: _baseViewport,
@@ -181,11 +185,25 @@ class _PromoCarouselState extends State<PromoCarousel>
     );
   }
 
+  bool _recentering = false;
+
+  /// Back to the same card near the middle of the list (see [_loopPages]).
+  void _recenter() {
+    if (!_loops || !_controller.hasClients || _dragging) return;
+    if (_page >= _loopPages ~/ 4 && _page <= _loopPages * 3 ~/ 4) return;
+    _recentering = true;
+    _controller.jumpToPage(_startPage + _index);
+    _recentering = false;
+  }
+
   void _onPageChanged(int page) {
+    final wasRecentering = _recentering;
     setState(() {
       _page = page;
       _index = page % widget.count;
     });
+    // Same card, new position: no haptic, shine or progress restart.
+    if (wasRecentering) return;
     if (_dragging) HapticFeedback.selectionClick();
     if (!_calm) _shine.forward(from: 0);
     _restartProgress();
@@ -199,6 +217,7 @@ class _PromoCarouselState extends State<PromoCarousel>
       _dragging = false;
       _restartProgress();
     }
+    if (n is ScrollEndNotification) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _recenter() : null);
     return false;
   }
 

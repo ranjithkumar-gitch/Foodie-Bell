@@ -88,10 +88,6 @@ flutter:
 
   assets:
     - assets/images/quickmandi_logo.webp
-    - assets/images/food_logo.webp
-    - assets/images/pharmacy_logo.webp
-    - assets/images/kirana_logo.webp
-    - assets/images/vegitables_logo.webp
     - assets/images/login_bg1.webp
     - assets/images/login_bg2.webp
     - assets/images/quickmandi_text.webp

@@ -653,36 +653,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   if (categories.isNotEmpty)
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          children: [
-                            for (final category in categories)
-                              Expanded(
-                                child: CategoryChip(
-                                  label: category.name,
-                                  icon: category.icon,
-                                  imageAsset: categoryImageAsset(category.id),
-                                  selected:
-                                      _selectedCategory?.id == category.id,
-                                  // Tapping the already-selected category clears
-                                  // the filter back to "all" — the only way to
-                                  // get back there now that there's no separate
-                                  // "All" chip.
-                                  onTap: () => setState(() {
-                                    _selectedCategory =
-                                        _selectedCategory?.id == category.id
-                                        ? null
-                                        : category;
-                                    // Switching category (or clearing it)
-                                    // drops the picked item — the hot
-                                    // selling list is per category.
-                                    _selectedTrendingItem = null;
-                                  }),
-                                  translate: true,
-                                ),
-                              ),
-                          ],
+                      // Text category pills (2026-11-20, replacing the image
+                      // badges): "All" first, then Admin's categories in
+                      // order; scrolls sideways when names run long (Telugu).
+                      child: SizedBox(
+                        height: 58,
+                        child: ListView.separated(
+                          key: const Key('homeCategoryRail'),
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                          clipBehavior: Clip.none,
+                          itemCount: categories.length + 1,
+                          separatorBuilder: (_, _) => const SizedBox(width: 10),
+                          itemBuilder: (context, i) {
+                            if (i == 0) {
+                              return CategoryChip(
+                                label: context.l10n.homeAllChipLabel,
+                                icon: Icons.apps_rounded,
+                                selected: _selectedCategory == null,
+                                onTap: () => setState(() {
+                                  _selectedCategory = null;
+                                  _selectedTrendingItem = null;
+                                }),
+                              );
+                            }
+                            final category = categories[i - 1];
+                            return CategoryChip(
+                              label: category.name,
+                              icon: category.icon,
+                              categoryId: category.id,
+                              selected: _selectedCategory?.id == category.id,
+                              // Tapping the selected category again clears
+                              // the filter back to "All".
+                              onTap: () => setState(() {
+                                _selectedCategory = _selectedCategory?.id == category.id ? null : category;
+                                // Switching category (or clearing it) drops
+                                // the picked item — the hot selling list is
+                                // per category.
+                                _selectedTrendingItem = null;
+                              }),
+                              translate: true,
+                            );
+                          },
                         ),
                       ),
                     ),
