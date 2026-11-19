@@ -9,6 +9,7 @@ import '../../../data/providers/firestore_orders_provider.dart';
 import '../../../data/providers/order_codes_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Active Delivery — Pickup Confirmation (spec §6 item 9): the vendor reads
 /// the driver this order's handover code at pickup. The code is checked by
@@ -41,7 +42,7 @@ class _DriverPickupConfirmScreenState extends ConsumerState<DriverPickupConfirmS
       _confirming = true;
     });
     try {
-      final check = await confirmPickupCode(order.id, _codeController.text.trim());
+      final check = await runBusy(() => confirmPickupCode(order.id, _codeController.text.trim()));
       if (!mounted) return;
       if (!check.ok) {
         setState(() => _error = 'Incorrect code. Ask the vendor for the handover code shown on their order screen.'

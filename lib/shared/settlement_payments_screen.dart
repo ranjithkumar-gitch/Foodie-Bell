@@ -7,6 +7,7 @@ import '../data/providers/order_actions.dart';
 import '../data/providers/settlement_provider.dart';
 import 'widgets/currency_text.dart';
 import 'widgets/empty_state.dart';
+import 'widgets/busy_overlay.dart';
 
 /// Settlement payments a Vendor or Driver is part of. When the Manager
 /// records paying them (or receiving from them), it counts only once they
@@ -33,7 +34,7 @@ class SettlementPaymentsScreen extends ConsumerWidget {
       if (note == null) return;
     }
     try {
-      await acknowledgeSettlementTransfer(t.id, confirm: confirm, note: note);
+      await runBusy(() => acknowledgeSettlementTransfer(t.id, confirm: confirm, note: note));
     } on OrderActionException catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }

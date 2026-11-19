@@ -10,6 +10,7 @@ import '../../../data/providers/firestore_products_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../vendor_session.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Catalogue Management (spec §5.11): product list grouped by sub-category,
 /// with a stock toggle, edit/delete, and entry points to Bulk Upload
@@ -321,7 +322,7 @@ class _ProductRow extends ConsumerWidget {
             ),
             Switch(
               value: inStock,
-              onChanged: (v) => setProductStock(product.id, v),
+              onChanged: (v) => runBusy(() => setProductStock(product.id, v)),
             ),
             PopupMenuButton<_ProductAction>(
               tooltip: 'Edit or delete',
@@ -381,7 +382,7 @@ class _ProductRow extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
-      await removeProduct(vendorId, product.id);
+      await runBusy(() => removeProduct(vendorId, product.id));
     }
   }
 }

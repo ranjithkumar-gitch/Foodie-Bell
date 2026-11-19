@@ -7,6 +7,7 @@ import '../../data/models/chat_message.dart';
 import '../../data/providers/firestore_personal_notifications_provider.dart';
 import '../../data/providers/notification_seen_cache.dart';
 import '../time_ago.dart';
+import 'busy_overlay.dart';
 
 /// When this account last tapped "Delete all" (persisted per account), or
 /// null. Items the wall can't delete (Admin broadcasts, chat messages)
@@ -120,7 +121,7 @@ class NotificationWall extends ConsumerWidget {
     if (ok != true) return;
     final at = DateTime.now();
     try {
-      await deleteAllPersonalNotifications(accountId);
+      await runBusy(() => deleteAllPersonalNotifications(accountId));
       ref.read(notificationsClearedAtProvider(accountId).notifier).clear(at);
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All notifications deleted.')));
     } catch (_) {

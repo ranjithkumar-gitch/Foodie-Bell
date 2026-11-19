@@ -12,6 +12,7 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../manager_session.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 final _dateFormat = DateFormat('d MMM yyyy');
 
@@ -32,7 +33,7 @@ class ManagerPromotionApprovalsScreen extends ConsumerWidget {
 
   Future<void> _markPaymentReceived(BuildContext context, String promotionId) async {
     try {
-      await markPromotionPaymentReceived(promotionId);
+      await runBusy(() => markPromotionPaymentReceived(promotionId));
     } catch (e, st) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e, action: 'Confirming payment', stackTrace: st))));
@@ -41,7 +42,7 @@ class ManagerPromotionApprovalsScreen extends ConsumerWidget {
 
   Future<void> _approve(BuildContext context, String promotionId) async {
     try {
-      await approvePromotion(promotionId);
+      await runBusy(() => approvePromotion(promotionId));
     } catch (e, st) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e, action: 'Approving promotion', stackTrace: st))));
@@ -50,7 +51,7 @@ class ManagerPromotionApprovalsScreen extends ConsumerWidget {
 
   Future<void> _reject(BuildContext context, String promotionId) async {
     try {
-      await rejectPromotion(promotionId, 'Declined by Territory Manager');
+      await runBusy(() => rejectPromotion(promotionId, 'Declined by Territory Manager'));
     } catch (e, st) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e, action: 'Rejecting promotion', stackTrace: st))));

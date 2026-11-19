@@ -14,6 +14,7 @@ import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/order_codes_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Delivery Confirmation (spec §6 item 11): the customer reads the driver
 /// the delivery code shown on their own tracking screen. The server checks
@@ -47,7 +48,7 @@ class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConf
       _confirming = true;
     });
     try {
-      final check = await confirmDeliveryCode(order.id, _otpController.text.trim());
+      final check = await runBusy(() => confirmDeliveryCode(order.id, _otpController.text.trim()));
       if (!mounted) return;
       if (!check.ok) {
         setState(() => _error = 'Incorrect code. Ask the customer for the delivery code on their tracking screen.'
@@ -93,12 +94,12 @@ class _DriverDeliveryConfirmScreenState extends ConsumerState<DriverDeliveryConf
       if (withPhoto) {
         final picked = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
         if (picked != null) {
-          await FirebaseStorage.instance
+          await runBusy(() => FirebaseStorage.instance
               .ref('delivery_proofs/${order.id}/${DateTime.now().millisecondsSinceEpoch}.jpg')
-              .putFile(File(picked.path), SettableMetadata(contentType: 'image/jpeg'));
+              .putFile(File(picked.path), SettableMetadata(contentType: 'image/jpeg')), maxWait: const Duration(seconds: 60));
         }
       }
-      await reportDeliveryFailure(order.id, reason.text.trim());
+      await runBusy(() => reportDeliveryFailure(order.id, reason.text.trim()));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reported. Your Manager will tell you what to do.')));
     } catch (e, st) {

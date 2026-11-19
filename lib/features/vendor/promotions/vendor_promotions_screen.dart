@@ -27,6 +27,7 @@ import '../../../shared/widgets/document_source_sheet.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/promotion_card_visual.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 typedef _CouponRequestResult = ({
   CouponDiscountType discountType,
@@ -140,7 +141,7 @@ class _PromotionsTab extends ConsumerWidget {
     );
     if (result == null || !context.mounted) return;
     try {
-      await requestPromotion(
+      await runBusy(() => requestPromotion(
         vendorId: vendorId,
         vendorName: vendorName,
         territory: territory,
@@ -155,7 +156,7 @@ class _PromotionsTab extends ConsumerWidget {
         discountLabel: result.discountLabel.isEmpty
             ? null
             : result.discountLabel,
-      );
+      ));
     } catch (e, st) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -461,7 +462,7 @@ class _CouponsTab extends ConsumerWidget {
     );
     if (result == null || !context.mounted) return;
     try {
-      final coupon = await createCoupon(
+      final coupon = await runBusy(() => createCoupon(
         vendorId: vendorId,
         vendorName: vendorName,
         territoryId: ref.read(accessScopeProvider)?.territoryId,
@@ -471,7 +472,7 @@ class _CouponsTab extends ConsumerWidget {
         productIds: result.productIds,
         startAt: result.startAt,
         endAt: result.endAt,
-      );
+      ));
       if (!context.mounted) return;
       await showDialog<void>(
         context: context,

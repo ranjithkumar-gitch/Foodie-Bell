@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/vendor.dart';
 import '../../data/providers/firestore_vendors_provider.dart';
 import '../../data/providers/mock_accounts_provider.dart';
+import '../../shared/widgets/busy_overlay.dart';
 
 /// Fallback id used only when a Vendor-role screen builds outside a real
 /// session (there shouldn't be one in practice — the router guards every
@@ -209,5 +210,5 @@ Future<void> confirmAndSetVendorOpen(BuildContext context, WidgetRef ref, String
       ],
     ),
   );
-  if (confirmed == true) await setCurrentVendorOpen(ref, vendorId, goingOpen);
+  if (confirmed == true) await runBusy(() => setCurrentVendorOpen(ref, vendorId, goingOpen));
 }

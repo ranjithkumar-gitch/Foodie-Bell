@@ -24,6 +24,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../vendor_session.dart';
 import 'vendor_cancellation_sheets.dart';
 import 'vendor_order_actions.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Orders (spec §5.8 + §5.14, combined): Live Order Queue and Order
 /// History as two tabs of the same page, rather than a separate screen you
@@ -400,7 +401,7 @@ class _QueueOrderCardState extends ConsumerState<_QueueOrderCard> {
 
   Future<void> _run(Future<void> Function() action) async {
     setState(() => _updating = true);
-    await runVendorAction(context, action);
+    await runVendorAction(context, action, showProgress: false);
     if (mounted) setState(() => _updating = false);
   }
 
@@ -581,7 +582,7 @@ class _ListRequestCardState extends ConsumerState<_ListRequestCard> {
   Future<void> _run(Future<void> Function() action, {required String failedAction}) async {
     setState(() => _updating = true);
     try {
-      await action();
+      await runBusy(action, maxWait: const Duration(seconds: 60));
     } catch (e, st) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

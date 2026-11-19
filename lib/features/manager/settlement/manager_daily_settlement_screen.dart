@@ -20,6 +20,7 @@ import 'manager_today_money_card.dart';
 import 'propose_adjustment_sheet.dart';
 import 'settlement_payment_sheet.dart';
 import '../../../shared/widgets/currency_text.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 String _rupees(int paise) => AppFormat.currency(paise / 100);
 
@@ -142,7 +143,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
       if (note == null) return;
     }
     try {
-      await acknowledgeSettlementTransfer(t.id, confirm: confirm, note: note);
+      await runBusy(() => acknowledgeSettlementTransfer(t.id, confirm: confirm, note: note));
       if (mounted && _day != null) await _load(_day!);
     } on OrderActionException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -159,7 +160,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     );
     if (decision == null) return;
     try {
-      await resolveDisputedTransfer(d['transferId'] as String, resolution: decision.$1, reason: decision.$2);
+      await runBusy(() => resolveDisputedTransfer(d['transferId'] as String, resolution: decision.$1, reason: decision.$2));
       if (mounted && _day != null) await _load(_day!);
     } on OrderActionException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -180,7 +181,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     );
     if (result == null || _day == null) return;
     try {
-      await recordSettlementTransfer(
+      await runBusy(() => recordSettlementTransfer(
         idempotencyKey: List.generate(20, (_) => Random.secure().nextInt(36).toRadixString(36)).join(),
         territoryId: _territoryId,
         day: _day!,
@@ -192,7 +193,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
         // Order money only — cancellation charges are settled in their own
         // section with their own purpose.
         purpose: 'general',
-      );
+      ));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recorded. It counts once the other side confirms it.')));
       await _load(_day!);
@@ -565,7 +566,7 @@ class _AttentionCard extends StatelessWidget {
 
   Future<void> _run(BuildContext context, Future<void> Function() action) async {
     try {
-      await action();
+      await runBusy(action);
     } on OrderActionException catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }

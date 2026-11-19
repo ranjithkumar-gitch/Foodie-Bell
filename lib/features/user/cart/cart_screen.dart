@@ -14,6 +14,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../translation/translated_text.dart';
 import '../widgets/product_tile.dart' show VegMark;
+import '../../../shared/widgets/busy_overlay.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -60,7 +61,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final userId = ref.read(sessionControllerProvider).account?.id;
     final alreadyRedeemed = userId == null
         ? false
-        : await hasUserRedeemedCoupon(coupon.id, userId);
+        : await runBusy(() => hasUserRedeemedCoupon(coupon.id, userId));
     if (!mounted) return;
     if (alreadyRedeemed) {
       setState(() {

@@ -9,6 +9,7 @@ import '../../../data/providers/device_position_provider.dart';
 import '../../../data/providers/firestore_addresses_provider.dart';
 import '../../../l10n/app_localizations_context.dart';
 import 'pin_location_screen.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Where a typed address is on the map (the device geocoder); null if it
 /// can't be found.
@@ -74,7 +75,7 @@ Future<Address?> pinSavedAddressFlow(
   }
   final pin = await confirmOnMap(context, start);
   if (pin == null || !isValidDeliveryPin(pin.latitude, pin.longitude)) return null;
-  await save(address.id, pin);
+  await runBusy(() => save(address.id, pin));
   messenger?.showSnackBar(SnackBar(content: Text(l10n.addressPinSaved)));
   return address.withPin(pin.latitude, pin.longitude);
 }

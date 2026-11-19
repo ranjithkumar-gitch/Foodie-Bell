@@ -6,6 +6,7 @@ import '../../data/providers/order_actions.dart';
 import '../../data/providers/settlement_provider.dart';
 import '../widgets/currency_text.dart';
 import 'daily_money.dart';
+import '../widgets/busy_overlay.dart';
 
 String _rupees(int paise) => AppFormat.currency(paise / 100);
 
@@ -59,7 +60,7 @@ class PartyTodayMoneyCard extends ConsumerWidget {
       if (note == null) return;
     }
     try {
-      await acknowledgeSettlementTransfer(t.id, confirm: confirm, note: note);
+      await runBusy(() => acknowledgeSettlementTransfer(t.id, confirm: confirm, note: note));
     } on OrderActionException catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }

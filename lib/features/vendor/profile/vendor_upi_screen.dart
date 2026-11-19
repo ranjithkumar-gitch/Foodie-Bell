@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/firestore_vendors_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../vendor_session.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// "UPI for payments": the UPI IDs customers pay this shop on when they
 /// choose UPI at checkout. Any UPI app's ID works (PhonePe, Google Pay,
@@ -26,7 +27,7 @@ class _VendorUpiScreenState extends ConsumerState<VendorUpiScreen> {
   Future<void> _save(List<String> upiIds, {required String successMessage}) async {
     setState(() => _saving = true);
     try {
-      await setCurrentVendorUpiIds(ref, ref.read(currentVendorIdProvider), upiIds);
+      await runBusy(() => setCurrentVendorUpiIds(ref, ref.read(currentVendorIdProvider), upiIds));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (e, st) {

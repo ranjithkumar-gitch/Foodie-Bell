@@ -10,6 +10,7 @@ import '../../data/models/account.dart';
 import '../error_reporting.dart';
 import '../widgets/app_text_field.dart';
 import 'auth_navigation.dart';
+import '../widgets/busy_overlay.dart';
 
 /// One login for everyone (2026-11-17): mobile number → OTP. A number with
 /// no account yet lands here once, to say what we should call them; saving
@@ -75,7 +76,7 @@ class _AuthProfileSetupScreenState extends ConsumerState<AuthProfileSetupScreen>
 
   /// Not now: sign the verified number out again and keep browsing.
   Future<void> _cancel() async {
-    await FirebaseAuth.instance.signOut();
+    await runBusy(() => FirebaseAuth.instance.signOut());
     ref.read(sessionControllerProvider.notifier).logout();
     if (mounted) context.go('/user/home');
   }

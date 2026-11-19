@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/refund_case.dart';
 import '../../data/providers/refunds_provider.dart';
 import '../../l10n/app_localizations_context.dart';
+import 'busy_overlay.dart';
 
 /// Customer UPI refunds (Phase I.7): the cards on the customer's and the
 /// shop's order screens. Every action goes through the server
@@ -100,7 +101,7 @@ class _CustomerRefundCardState extends ConsumerState<CustomerRefundCard> {
   Future<void> _run(Future<void> Function() action) async {
     setState(() => _busy = true);
     try {
-      await action();
+      await runBusy(action);
       if (mounted) _toast(context, context.l10n.refundThanks);
     } catch (e) {
       if (mounted) _toast(context, '$e');

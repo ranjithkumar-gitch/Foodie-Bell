@@ -14,6 +14,7 @@ import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/status_chip.dart';
 import 'vendor_reliability_card.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Vendor Approval Detail (spec §7.7). Looks the vendor up across both
 /// stores — Firestore's `vendors` collection and the in-memory
@@ -47,7 +48,7 @@ class ManagerVendorDetailScreen extends ConsumerStatefulWidget {
 class _ManagerVendorDetailScreenState extends ConsumerState<ManagerVendorDetailScreen> {
   Future<void> _setStatus(Account account, bool isFirestoreBacked, AccountStatus status, {String? rejectionReason}) {
     if (isFirestoreBacked) {
-      return updateVendorStatus(account.id, status, rejectionReason: rejectionReason);
+      return runBusy(() => updateVendorStatus(account.id, status, rejectionReason: rejectionReason));
     }
     ref.read(mockAccountsProvider.notifier).setStatus(account.id, status, rejectionReason: rejectionReason);
     return Future.value();
@@ -55,7 +56,7 @@ class _ManagerVendorDetailScreenState extends ConsumerState<ManagerVendorDetailS
 
   Future<void> _setDocumentStatus(Account account, bool isFirestoreBacked, VendorDocumentType type, VendorDocumentStatus status) {
     if (isFirestoreBacked) {
-      return updateVendorDocumentStatus(account.id, type, status);
+      return runBusy(() => updateVendorDocumentStatus(account.id, type, status));
     }
     ref.read(mockAccountsProvider.notifier).updateDocumentStatus(account.id, type, status);
     return Future.value();

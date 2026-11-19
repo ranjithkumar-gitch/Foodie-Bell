@@ -7,6 +7,7 @@ import '../../../data/providers/refunds_provider.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../vendor/refunds/vendor_refunds_screen.dart' show RefundListTile;
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Customer refunds on this Manager's own orders (Phase I.7; Phase I.5
 /// attribution: the order's Manager, even after the shop moves to another
@@ -92,7 +93,7 @@ class ManagerRefundsScreen extends ConsumerWidget {
     final remark = await showDialog<String>(context: context, builder: (_) => const _EscalateDialog(followUp: true));
     if (remark == null) return;
     try {
-      await ref.read(refundActionsProvider).recordFollowUp(orderId: r.orderId, requestId: requestId, remark: remark);
+      await runBusy(() => ref.read(refundActionsProvider).recordFollowUp(orderId: r.orderId, requestId: requestId, remark: remark));
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Follow-up recorded.')));
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
@@ -103,7 +104,7 @@ class ManagerRefundsScreen extends ConsumerWidget {
     final reason = await showDialog<String>(context: context, builder: (_) => const _EscalateDialog());
     if (reason == null) return;
     try {
-      await ref.read(refundActionsProvider).escalate(orderId: r.orderId, reason: reason);
+      await runBusy(() => ref.read(refundActionsProvider).escalate(orderId: r.orderId, reason: reason));
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent to Quicky for review.')));
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));

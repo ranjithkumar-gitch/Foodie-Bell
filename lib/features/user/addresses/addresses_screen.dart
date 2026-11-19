@@ -10,6 +10,7 @@ import '../../../shared/error_reporting.dart';
 import '../address_label_text.dart';
 import 'add_address_sheet.dart';
 import 'pin_saved_address.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Saved Addresses (spec §4.18, and doubling as the registration-flow's
 /// "Delivery Address Setup" step — reachable from Profile at any time).
@@ -74,7 +75,7 @@ class AddressesScreen extends ConsumerWidget {
                 },
                 onDelete: () async {
                   try {
-                    await removeAddress(address.id);
+                    await runBusy(() => removeAddress(address.id));
                   } catch (e, st) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(

@@ -11,6 +11,7 @@ import '../../../shared/widgets/storage_image.dart';
 import '../../../data/providers/mock_accounts_provider.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 /// Driver Approval Detail (spec §7.8) — mirrors
 /// `manager_vendor_detail_screen.dart`'s real Firestore/mock-backed pattern:
@@ -32,7 +33,7 @@ class ManagerDriverDetailScreen extends ConsumerStatefulWidget {
 class _ManagerDriverDetailScreenState extends ConsumerState<ManagerDriverDetailScreen> {
   Future<void> _setStatus(Account account, bool isFirestoreBacked, AccountStatus status, {String? rejectionReason}) {
     if (isFirestoreBacked) {
-      return updateDriverStatus(account.id, status, rejectionReason: rejectionReason);
+      return runBusy(() => updateDriverStatus(account.id, status, rejectionReason: rejectionReason));
     }
     ref.read(mockAccountsProvider.notifier).setStatus(account.id, status, rejectionReason: rejectionReason);
     return Future.value();
@@ -40,7 +41,7 @@ class _ManagerDriverDetailScreenState extends ConsumerState<ManagerDriverDetailS
 
   Future<void> _setDocumentStatus(Account account, bool isFirestoreBacked, DriverDocumentType type, VendorDocumentStatus status) {
     if (isFirestoreBacked) {
-      return updateDriverDocumentStatus(account.id, type, status);
+      return runBusy(() => updateDriverDocumentStatus(account.id, type, status));
     }
     ref.read(mockAccountsProvider.notifier).updateDriverDocumentStatus(account.id, type, status);
     return Future.value();

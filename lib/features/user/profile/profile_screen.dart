@@ -8,6 +8,7 @@ import '../../../l10n/app_localizations_context.dart';
 import '../../../shared/auth/logout_confirmation_sheet.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../user_locale.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -43,7 +44,7 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
     if (chosen != null && chosen != currentCode)
-      await setUserAppLanguage(ref, chosen);
+      await runBusy(() => setUserAppLanguage(ref, chosen));
   }
 
   @override

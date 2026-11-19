@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
+import '../widgets/busy_overlay.dart';
 
 /// Reusable logout confirmation bottom sheet, meant to be wired into each
 /// role's Profile screen. Call [LogoutConfirmationSheet.show] rather than
@@ -25,7 +26,7 @@ class LogoutConfirmationSheet extends StatelessWidget {
     );
     if (confirmed != true || !context.mounted) return;
     final wasCustomer = ref.read(sessionControllerProvider).role == AppRole.user;
-    await FirebaseAuth.instance.signOut();
+    await runBusy(() => FirebaseAuth.instance.signOut());
     ref.read(sessionControllerProvider.notifier).logout();
     if (!context.mounted) return;
     // A customer keeps browsing as a guest (2026-11-17); staff go to login.

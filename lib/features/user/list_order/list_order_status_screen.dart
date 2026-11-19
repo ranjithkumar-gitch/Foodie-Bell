@@ -14,6 +14,7 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/document_viewer_screen.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../../shared/widgets/upi_payment_card.dart' show UpiAppSheet;
+import '../../../shared/widgets/busy_overlay.dart';
 
 StatusTone _tone(ListOrderStatus status) => switch (status) {
   ListOrderStatus.pending => StatusTone.warning,
@@ -43,7 +44,7 @@ class _ListOrderStatusScreenState extends ConsumerState<ListOrderStatusScreen> {
   Future<void> _run(Future<void> Function() action, {required String failedAction}) async {
     setState(() => _busy = true);
     try {
-      await action();
+      await runBusy(action);
     } catch (e, st) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

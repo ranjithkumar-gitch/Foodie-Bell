@@ -8,6 +8,7 @@ import '../../data/models/order.dart';
 import '../../data/providers/order_actions.dart';
 import '../error_reporting.dart';
 import 'currency_text.dart';
+import 'busy_overlay.dart';
 
 /// The Customer's side of a UPI order: pay the shop directly, then wait for
 /// the shop to confirm the money arrived. Shown on the order success and
@@ -43,7 +44,7 @@ class _UpiPaymentCardState extends State<UpiPaymentCard> {
       _message = null;
     });
     try {
-      await action();
+      await runBusy(action);
       if (mounted) setState(() => _message = done);
     } catch (e, st) {
       if (mounted) setState(() => _message = e is OrderActionException ? e.message : friendlyError(e, action: 'UPI payment', stackTrace: st));

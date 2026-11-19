@@ -19,6 +19,7 @@ import 'features/vendor/new_order_alert.dart';
 import 'features/user/home/selected_territory_provider.dart';
 import 'features/user/user_locale.dart';
 import 'l10n/generated/app_localizations.dart';
+import 'shared/widgets/busy_overlay.dart';
 
 class QuickyApp extends ConsumerWidget {
   const QuickyApp({super.key});
@@ -75,7 +76,7 @@ class QuickyApp extends ConsumerWidget {
             top: false,
             left: false,
             right: false,
-            child: AppVersionGate(child: child ?? const SizedBox.shrink()),
+            child: BusyOverlayHost(child: AppVersionGate(child: child ?? const SizedBox.shrink())),
           ),
         );
         return usingFirebaseEmulators

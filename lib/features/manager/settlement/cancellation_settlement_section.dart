@@ -7,6 +7,7 @@ import '../../../data/providers/order_actions.dart';
 import '../../../data/providers/settlement_provider.dart';
 import '../../../shared/widgets/currency_text.dart';
 import 'settlement_payment_sheet.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
 String _rupees(int paise) => AppFormat.currency(paise / 100);
 
@@ -95,7 +96,7 @@ class _CancellationSettlementSectionState extends State<CancellationSettlementSe
     final key = _keys.putIfAbsent(o.id, _newKey);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await widget.record(
+      await runBusy(() => widget.record(
         idempotencyKey: key,
         territoryId: widget.territoryId,
         day: widget.statement.day,
@@ -105,7 +106,7 @@ class _CancellationSettlementSectionState extends State<CancellationSettlementSe
         upi: input.upi,
         reference: input.reference,
         purpose: o.purpose,
-      );
+      ));
       _keys.remove(o.id);
       messenger.showSnackBar(const SnackBar(content: Text('Recorded. It counts once the other side confirms it.')));
       await widget.onRecorded();

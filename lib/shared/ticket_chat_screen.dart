@@ -7,6 +7,7 @@ import '../data/providers/firestore_ticket_chat_provider.dart';
 import '../data/providers/firestore_tickets_provider.dart';
 import 'error_reporting.dart';
 import 'widgets/status_chip.dart';
+import 'widgets/busy_overlay.dart';
 
 /// One-to-one chat on a support ticket, shared by every role's ticket-chat
 /// wrapper screen — same shape/UI as `order_chat_screen.dart`'s
@@ -88,7 +89,7 @@ class _TicketChatScreenState extends ConsumerState<TicketChatScreen> {
 
   Future<void> _closeTicket() async {
     try {
-      await updateTicketStatus(widget.ticketId, TicketStatus.closed);
+      await runBusy(() => updateTicketStatus(widget.ticketId, TicketStatus.closed));
     } catch (e, st) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

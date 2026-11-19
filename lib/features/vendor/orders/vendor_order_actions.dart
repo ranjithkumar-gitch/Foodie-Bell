@@ -5,11 +5,14 @@ import '../../../data/models/order.dart';
 import '../../../data/providers/order_actions.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/currency_text.dart';
+import '../../../shared/widgets/busy_overlay.dart';
 
-/// Runs a Vendor order action, showing the server's reason if it refuses.
-Future<bool> runVendorAction(BuildContext context, Future<void> Function() action) async {
+/// Runs a Vendor order action behind the progress overlay, showing the
+/// server's reason if it refuses. [showProgress] false is for a caller that
+/// passes a whole flow (sheets included) and shows its own busy state.
+Future<bool> runVendorAction(BuildContext context, Future<void> Function() action, {bool showProgress = true}) async {
   try {
-    await action();
+    await (showProgress ? runBusy(action) : action());
     return true;
   } catch (e, st) {
     if (!context.mounted) return false;
