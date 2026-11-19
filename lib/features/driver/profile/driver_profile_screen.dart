@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/account_deletion/account_deletion.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
@@ -26,6 +27,7 @@ class DriverProfileScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
+          const AccountDeletionBanner(),
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(gradient: LinearGradient(colors: palette.promoGradient), borderRadius: BorderRadius.circular(20)),
@@ -63,6 +65,7 @@ class DriverProfileScreen extends ConsumerWidget {
           _MenuTile(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: () => context.push('/driver/notifications')),
           _MenuTile(icon: Icons.receipt_long_rounded, label: 'Order History', onTap: () => context.go('/driver/history')),
           _MenuTile(icon: Icons.help_outline_rounded, label: 'Help & Support', onTap: () => context.push('/driver/help')),
+          const AccountDeletionTile(),
           _MenuTile(icon: Icons.logout_rounded, label: 'Log Out', color: palette.error, onTap: () => LogoutConfirmationSheet.show(context, ref)),
         ],
       ),

@@ -51,6 +51,7 @@ List<RouteBase> get managerRoutes => [
 
   StatefulShellRoute.indexedStack(
     builder: (context, state, navigationShell) => RailDrawerShell(
+      showAccountDeletion: true,
       navigationShell: navigationShell,
       title: 'Quicky Manager',
       items: const [
@@ -74,11 +75,21 @@ List<RouteBase> get managerRoutes => [
       ],
     ),
     branches: [
-      StatefulShellBranch(routes: [GoRoute(path: '/manager/dashboard', name: 'managerDashboard', builder: (context, state) => const ManagerDashboardScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/manager/vendors', name: 'managerVendors', builder: (context, state) => const ManagerVendorListScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/manager/drivers', name: 'managerDrivers', builder: (context, state) => const ManagerDriverListScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/manager/settlement', name: 'managerSettlement', builder: (context, state) => const ManagerDailySettlementScreen())]),
-      StatefulShellBranch(routes: [GoRoute(path: '/manager/profile', name: 'managerProfile', builder: (context, state) => const ManagerProfileScreen())]),
+      StatefulShellBranch(
+        routes: [GoRoute(path: '/manager/dashboard', name: 'managerDashboard', builder: (context, state) => const ManagerDashboardScreen())],
+      ),
+      StatefulShellBranch(
+        routes: [GoRoute(path: '/manager/vendors', name: 'managerVendors', builder: (context, state) => const ManagerVendorListScreen())],
+      ),
+      StatefulShellBranch(
+        routes: [GoRoute(path: '/manager/drivers', name: 'managerDrivers', builder: (context, state) => const ManagerDriverListScreen())],
+      ),
+      StatefulShellBranch(
+        routes: [GoRoute(path: '/manager/settlement', name: 'managerSettlement', builder: (context, state) => const ManagerDailySettlementScreen())],
+      ),
+      StatefulShellBranch(
+        routes: [GoRoute(path: '/manager/profile', name: 'managerProfile', builder: (context, state) => const ManagerProfileScreen())],
+      ),
     ],
   ),
 
@@ -113,7 +124,6 @@ List<RouteBase> get managerRoutes => [
   GoRoute(
     path: '/manager/ticket/:id/chat',
     name: 'managerTicketChat',
-    builder: (context, state) =>
-        ManagerTicketChatScreen(ticketId: state.pathParameters['id']!),
+    builder: (context, state) => ManagerTicketChatScreen(ticketId: state.pathParameters['id']!),
   ),
 ];

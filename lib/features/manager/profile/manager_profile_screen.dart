@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../shared/account_deletion/account_deletion.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/account.dart';
@@ -172,6 +173,7 @@ class _ManagerProfileScreenState extends ConsumerState<ManagerProfileScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           const SizedBox(height: 12),
+          const AccountDeletionBanner(),
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -325,6 +327,7 @@ class _ManagerProfileScreenState extends ConsumerState<ManagerProfileScreen> {
             label: 'Help & Support',
             onTap: () => context.push('/manager/support'),
           ),
+          const AccountDeletionTile(),
           MenuTile(
             icon: Icons.logout_rounded,
             label: 'Log Out',

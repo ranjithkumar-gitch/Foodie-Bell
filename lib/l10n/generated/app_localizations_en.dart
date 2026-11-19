@@ -1507,4 +1507,62 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pinScreenMyLocation => 'Use my current location';
+
+  @override
+  String get accountDeleteTile => 'Delete account';
+
+  @override
+  String get accountDeleteConfirmTitle => 'Delete your account?';
+
+  @override
+  String get accountDeleteConfirmBody =>
+      'Your profile and personal data will be permanently deleted once our team reviews your request. Records of past orders and payments are kept. This can\'t be undone.';
+
+  @override
+  String get accountDeleteReasonLabel => 'Reason (optional)';
+
+  @override
+  String get accountDeleteConfirmAction => 'Delete';
+
+  @override
+  String get accountDeleteCancel => 'Cancel';
+
+  @override
+  String get accountDeleteSubmittedTitle => 'Request submitted';
+
+  @override
+  String get accountDeleteSubmittedBody =>
+      'Your account deletion request is under review by our admin team. It will be processed within 2–3 working days.';
+
+  @override
+  String get accountDeleteOk => 'OK';
+
+  @override
+  String get accountDeletePendingTitle => 'Account under review for deletion';
+
+  @override
+  String accountDeletePendingBody(Object date) {
+    return 'Requested on $date. Your account will be deleted within 2–3 working days.';
+  }
+
+  @override
+  String get accountDeletePendingBodyNoDate =>
+      'Your account will be deleted within 2–3 working days.';
+
+  @override
+  String get accountDeleteCancelRequest => 'Cancel request';
+
+  @override
+  String get accountDeleteCancelling => 'Cancelling…';
+
+  @override
+  String get accountDeleteCancelledToast => 'Deletion request cancelled.';
+
+  @override
+  String get accountDeleteRejectedTitle => 'Your deletion request was declined';
+
+  @override
+  String accountDeleteRejectedBody(Object reason) {
+    return '$reason You can contact Help & Support, or request again later.';
+  }
 }

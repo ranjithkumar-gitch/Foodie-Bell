@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../account_deletion/account_deletion.dart';
 import '../auth/logout_confirmation_sheet.dart';
 import 'menu_tile.dart';
 
@@ -43,6 +44,7 @@ class RailDrawerShell extends ConsumerWidget {
     required this.title,
     this.extraItems = const [],
     this.extraItemsLabel = 'More',
+    this.showAccountDeletion = false,
   });
 
   final StatefulNavigationShell navigationShell;
@@ -55,10 +57,22 @@ class RailDrawerShell extends ConsumerWidget {
   final List<DrawerLinkData> extraItems;
   final String extraItemsLabel;
 
+  /// Adds "Delete account" at the end of the side menu (2026-11-19) —
+  /// Manager's; also on its Profile page.
+  final bool showAccountDeletion;
+
+  /// The drawer closes first; the confirmation then opens on [pageContext],
+  /// which stays mounted (the drawer's own context doesn't).
+  Widget _deletionTile(BuildContext drawerContext, BuildContext pageContext) => AccountDeletionTile(
+    onTap: () {
+      Navigator.of(drawerContext).pop();
+      startAccountDeletion(pageContext);
+    },
+  );
+
   static const _wideBreakpoint = 900.0;
 
-  void _onDestinationSelected(int index) =>
-      navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
+  void _onDestinationSelected(int index) => navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
 
   /// The [extraItems] section alone, as its own [Drawer] — used on wide
   /// layouts where [NavigationRail] (not a drawer) is already the primary
@@ -69,26 +83,29 @@ class RailDrawerShell extends ConsumerWidget {
     final palette = context.colors;
     return Drawer(
       child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
-              child: Text(
-                extraItemsLabel,
-                style: TextStyle(fontWeight: FontWeight.w800, color: palette.textSecondary, fontSize: 12.5, letterSpacing: 0.5),
+        child: Builder(
+          builder: (drawerContext) => ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+                child: Text(
+                  extraItemsLabel,
+                  style: TextStyle(fontWeight: FontWeight.w800, color: palette.textSecondary, fontSize: 12.5, letterSpacing: 0.5),
+                ),
               ),
-            ),
-            for (final item in extraItems)
-              MenuTile(
-                icon: item.icon,
-                label: item.label,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  context.push(item.path);
-                },
-              ),
-          ],
+              for (final item in extraItems)
+                MenuTile(
+                  icon: item.icon,
+                  label: item.label,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    context.push(item.path);
+                  },
+                ),
+              if (showAccountDeletion) ...[const SizedBox(height: 12), _deletionTile(drawerContext, context)],
+            ],
+          ),
         ),
       ),
     );
@@ -111,7 +128,7 @@ class RailDrawerShell extends ConsumerWidget {
         if (isWide) {
           return Scaffold(
             appBar: AppBar(title: Text(currentLabel), actions: [logoutAction]),
-            drawer: extraItems.isEmpty ? null : _extraLinksDrawer(context),
+            drawer: extraItems.isEmpty && !showAccountDeletion ? null : _extraLinksDrawer(context),
             body: Row(
               children: [
                 NavigationRail(
@@ -121,11 +138,13 @@ class RailDrawerShell extends ConsumerWidget {
                   onDestinationSelected: _onDestinationSelected,
                   leading: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text(title, style: TextStyle(fontWeight: FontWeight.w800, color: palette.primary)),
+                    child: Text(
+                      title,
+                      style: TextStyle(fontWeight: FontWeight.w800, color: palette.primary),
+                    ),
                   ),
                   destinations: [
-                    for (final item in items)
-                      NavigationRailDestination(icon: Icon(item.icon), selectedIcon: Icon(item.selectedIcon), label: Text(item.label)),
+                    for (final item in items) NavigationRailDestination(icon: Icon(item.icon), selectedIcon: Icon(item.selectedIcon), label: Text(item.label)),
                   ],
                 ),
                 const VerticalDivider(width: 1),
@@ -139,45 +158,48 @@ class RailDrawerShell extends ConsumerWidget {
           appBar: AppBar(title: Text(title), actions: [logoutAction]),
           drawer: Drawer(
             child: SafeArea(
-              child: ListView(
-                children: [
-                  for (var i = 0; i < items.length; i++)
-                    ListTile(
-                      leading: Icon(items[i].icon, color: navigationShell.currentIndex == i ? palette.primary : palette.textSecondary),
-                      title: Text(items[i].label),
-                      selected: navigationShell.currentIndex == i,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        _onDestinationSelected(i);
-                      },
-                    ),
-                  if (extraItems.isNotEmpty) ...[
-                    const Divider(height: 24),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                      child: Text(
-                        extraItemsLabel,
-                        style: TextStyle(fontWeight: FontWeight.w800, color: palette.textSecondary, fontSize: 12.5, letterSpacing: 0.5),
+              child: Builder(
+                builder: (drawerContext) => ListView(
+                  children: [
+                    for (var i = 0; i < items.length; i++)
+                      ListTile(
+                        leading: Icon(items[i].icon, color: navigationShell.currentIndex == i ? palette.primary : palette.textSecondary),
+                        title: Text(items[i].label),
+                        selected: navigationShell.currentIndex == i,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _onDestinationSelected(i);
+                        },
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          for (final item in extraItems)
-                            MenuTile(
-                              icon: item.icon,
-                              label: item.label,
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                context.push(item.path);
-                              },
-                            ),
-                        ],
+                    if (extraItems.isNotEmpty) ...[
+                      const Divider(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                        child: Text(
+                          extraItemsLabel,
+                          style: TextStyle(fontWeight: FontWeight.w800, color: palette.textSecondary, fontSize: 12.5, letterSpacing: 0.5),
+                        ),
                       ),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            for (final item in extraItems)
+                              MenuTile(
+                                icon: item.icon,
+                                label: item.label,
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  context.push(item.path);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (showAccountDeletion) Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 16), child: _deletionTile(drawerContext, context)),
                   ],
-                ],
+                ),
               ),
             ),
           ),

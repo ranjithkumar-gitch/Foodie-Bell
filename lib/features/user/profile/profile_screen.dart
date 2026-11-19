@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/account_deletion/account_deletion.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/app_localizations_context.dart';
@@ -65,6 +66,7 @@ class ProfileScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           children: [
             const SizedBox(height: 12),
+            const AccountDeletionBanner(),
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -206,6 +208,7 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
+            const AccountDeletionTile(),
             _MenuTile(
               icon: Icons.logout_rounded,
               label: context.l10n.profileLogOut,

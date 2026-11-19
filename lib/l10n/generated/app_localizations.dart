@@ -2675,6 +2675,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use my current location'**
   String get pinScreenMyLocation;
+
+  /// No description provided for @accountDeleteTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get accountDeleteTile;
+
+  /// No description provided for @accountDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your account?'**
+  String get accountDeleteConfirmTitle;
+
+  /// No description provided for @accountDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile and personal data will be permanently deleted once our team reviews your request. Records of past orders and payments are kept. This can\'t be undone.'**
+  String get accountDeleteConfirmBody;
+
+  /// No description provided for @accountDeleteReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (optional)'**
+  String get accountDeleteReasonLabel;
+
+  /// No description provided for @accountDeleteConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get accountDeleteConfirmAction;
+
+  /// No description provided for @accountDeleteCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get accountDeleteCancel;
+
+  /// No description provided for @accountDeleteSubmittedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request submitted'**
+  String get accountDeleteSubmittedTitle;
+
+  /// No description provided for @accountDeleteSubmittedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account deletion request is under review by our admin team. It will be processed within 2–3 working days.'**
+  String get accountDeleteSubmittedBody;
+
+  /// No description provided for @accountDeleteOk.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get accountDeleteOk;
+
+  /// No description provided for @accountDeletePendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account under review for deletion'**
+  String get accountDeletePendingTitle;
+
+  /// No description provided for @accountDeletePendingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested on {date}. Your account will be deleted within 2–3 working days.'**
+  String accountDeletePendingBody(Object date);
+
+  /// No description provided for @accountDeletePendingBodyNoDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account will be deleted within 2–3 working days.'**
+  String get accountDeletePendingBodyNoDate;
+
+  /// No description provided for @accountDeleteCancelRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel request'**
+  String get accountDeleteCancelRequest;
+
+  /// No description provided for @accountDeleteCancelling.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelling…'**
+  String get accountDeleteCancelling;
+
+  /// No description provided for @accountDeleteCancelledToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletion request cancelled.'**
+  String get accountDeleteCancelledToast;
+
+  /// No description provided for @accountDeleteRejectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your deletion request was declined'**
+  String get accountDeleteRejectedTitle;
+
+  /// No description provided for @accountDeleteRejectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{reason} You can contact Help & Support, or request again later.'**
+  String accountDeleteRejectedBody(Object reason);
 }
 
 class _AppLocalizationsDelegate

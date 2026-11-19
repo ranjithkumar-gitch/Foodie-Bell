@@ -451,5 +451,22 @@
   "vendorOfferSelectedItems": "ఎంపిక చేసిన వస్తువులపై",
   "pinScreenSearchHint": "ప్రాంతం, వీధి లేదా ల్యాండ్‌మార్క్ వెతకండి",
   "pinScreenSearchNoResults": "ఆ ప్రదేశం దొరకలేదు. మరో పేరుతో ప్రయత్నించండి.",
-  "pinScreenMyLocation": "నా ప్రస్తుత స్థానం ఉపయోగించండి"
+  "pinScreenMyLocation": "నా ప్రస్తుత స్థానం ఉపయోగించండి",
+  "accountDeleteTile": "ఖాతాను తొలగించండి",
+  "accountDeleteConfirmTitle": "మీ ఖాతాను తొలగించాలా?",
+  "accountDeleteConfirmBody": "మా బృందం మీ అభ్యర్థనను సమీక్షించిన తర్వాత మీ ప్రొఫైల్ మరియు వ్యక్తిగత సమాచారం శాశ్వతంగా తొలగించబడుతుంది. గత ఆర్డర్లు మరియు చెల్లింపుల రికార్డులు అలాగే ఉంటాయి. దీన్ని రద్దు చేయలేరు.",
+  "accountDeleteReasonLabel": "కారణం (ఐచ్ఛికం)",
+  "accountDeleteConfirmAction": "తొలగించండి",
+  "accountDeleteCancel": "రద్దు చేయండి",
+  "accountDeleteSubmittedTitle": "అభ్యర్థన సమర్పించబడింది",
+  "accountDeleteSubmittedBody": "మీ ఖాతా తొలగింపు అభ్యర్థనను మా అడ్మిన్ బృందం సమీక్షిస్తోంది. ఇది 2–3 పని దినాల్లో పూర్తవుతుంది.",
+  "accountDeleteOk": "సరే",
+  "accountDeletePendingTitle": "ఖాతా తొలగింపు సమీక్షలో ఉంది",
+  "accountDeletePendingBody": "{date}న అభ్యర్థించారు. మీ ఖాతా 2–3 పని దినాల్లో తొలగించబడుతుంది.",
+  "accountDeletePendingBodyNoDate": "మీ ఖాతా 2–3 పని దినాల్లో తొలగించబడుతుంది.",
+  "accountDeleteCancelRequest": "అభ్యర్థనను రద్దు చేయండి",
+  "accountDeleteCancelling": "రద్దు చేస్తోంది…",
+  "accountDeleteCancelledToast": "తొలగింపు అభ్యర్థన రద్దు చేయబడింది.",
+  "accountDeleteRejectedTitle": "మీ తొలగింపు అభ్యర్థన తిరస్కరించబడింది",
+  "accountDeleteRejectedBody": "{reason} మీరు సహాయం & మద్దతును సంప్రదించవచ్చు, లేదా తర్వాత మళ్లీ అభ్యర్థించవచ్చు."
 }

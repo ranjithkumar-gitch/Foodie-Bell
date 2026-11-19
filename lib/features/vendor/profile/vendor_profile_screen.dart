@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/account_deletion/account_deletion.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/vendor.dart';
@@ -48,6 +49,7 @@ class VendorProfileScreen extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           const SizedBox(height: 12),
+          const AccountDeletionBanner(),
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -163,6 +165,7 @@ class VendorProfileScreen extends ConsumerWidget {
             label: 'Help & Support',
             onTap: () => context.push('/vendor/help'),
           ),
+          const AccountDeletionTile(),
           _MenuTile(
             icon: Icons.logout_rounded,
             label: 'Log Out',

@@ -1511,4 +1511,64 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get pinScreenMyLocation => 'నా ప్రస్తుత స్థానం ఉపయోగించండి';
+
+  @override
+  String get accountDeleteTile => 'ఖాతాను తొలగించండి';
+
+  @override
+  String get accountDeleteConfirmTitle => 'మీ ఖాతాను తొలగించాలా?';
+
+  @override
+  String get accountDeleteConfirmBody =>
+      'మా బృందం మీ అభ్యర్థనను సమీక్షించిన తర్వాత మీ ప్రొఫైల్ మరియు వ్యక్తిగత సమాచారం శాశ్వతంగా తొలగించబడుతుంది. గత ఆర్డర్లు మరియు చెల్లింపుల రికార్డులు అలాగే ఉంటాయి. దీన్ని రద్దు చేయలేరు.';
+
+  @override
+  String get accountDeleteReasonLabel => 'కారణం (ఐచ్ఛికం)';
+
+  @override
+  String get accountDeleteConfirmAction => 'తొలగించండి';
+
+  @override
+  String get accountDeleteCancel => 'రద్దు చేయండి';
+
+  @override
+  String get accountDeleteSubmittedTitle => 'అభ్యర్థన సమర్పించబడింది';
+
+  @override
+  String get accountDeleteSubmittedBody =>
+      'మీ ఖాతా తొలగింపు అభ్యర్థనను మా అడ్మిన్ బృందం సమీక్షిస్తోంది. ఇది 2–3 పని దినాల్లో పూర్తవుతుంది.';
+
+  @override
+  String get accountDeleteOk => 'సరే';
+
+  @override
+  String get accountDeletePendingTitle => 'ఖాతా తొలగింపు సమీక్షలో ఉంది';
+
+  @override
+  String accountDeletePendingBody(Object date) {
+    return '$dateన అభ్యర్థించారు. మీ ఖాతా 2–3 పని దినాల్లో తొలగించబడుతుంది.';
+  }
+
+  @override
+  String get accountDeletePendingBodyNoDate =>
+      'మీ ఖాతా 2–3 పని దినాల్లో తొలగించబడుతుంది.';
+
+  @override
+  String get accountDeleteCancelRequest => 'అభ్యర్థనను రద్దు చేయండి';
+
+  @override
+  String get accountDeleteCancelling => 'రద్దు చేస్తోంది…';
+
+  @override
+  String get accountDeleteCancelledToast =>
+      'తొలగింపు అభ్యర్థన రద్దు చేయబడింది.';
+
+  @override
+  String get accountDeleteRejectedTitle =>
+      'మీ తొలగింపు అభ్యర్థన తిరస్కరించబడింది';
+
+  @override
+  String accountDeleteRejectedBody(Object reason) {
+    return '$reason మీరు సహాయం & మద్దతును సంప్రదించవచ్చు, లేదా తర్వాత మళ్లీ అభ్యర్థించవచ్చు.';
+  }
 }
