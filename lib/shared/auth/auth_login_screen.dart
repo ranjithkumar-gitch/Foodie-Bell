@@ -32,27 +32,27 @@ import 'phone_auth.dart';
 /// entirely), so every path back to it is gone with it.
 ///
 /// Bespoke layout, not [AuthHeroScaffold] (still shared by OTP/Register) —
-/// two illustrations, not one full-bleed image: `login_bg1.png` (icon row
-/// + delivery rider) anchored to the top, `login_bg2.png` (the
+/// two illustrations, not one full-bleed image: `login_bg1.webp` (icon row
+/// + delivery rider) anchored to the top, `login_bg2.webp` (the
 /// stores/delivery/community footer) anchored to the bottom, each at its
 /// own natural aspect ratio rather than stretched to cover the screen. A
 /// plain green gradient (`palette.promoGradient` — the same green both
 /// images are drawn in) fills whatever gap is left between them, so the
 /// seam reads as one continuous background rather than a visible edge.
-/// The "Quicky" wordmark (`quicky_text.png`, the brand's own stylized
+/// The "Quicky" wordmark (`quicky_text.webp`, the brand's own stylized
 /// logotype) + "Get Orders to your Doorstep" subtext sit directly on that
 /// background (no card behind them), and the sign-in form below sits on a
 /// glossy frosted-glass card — `BackdropFilter`, transparent enough to
 /// still show the blurred image behind it, with a `Border.all` glass edge
 /// — sized to its own content, kept deliberately short (no logo straddling
-/// its top border anymore) so both `login_bg1.png` above and
-/// `login_bg2.png` below stay visible around it rather than the card
+/// its top border anymore) so both `login_bg1.webp` above and
+/// `login_bg2.webp` below stay visible around it rather than the card
 /// eating most of the screen.
 ///
 /// The whole page is laid out to fit one screen without scrolling — the
 /// old `SingleChildScrollView` is gone, replaced by an `Expanded` spacer
 /// between the wordmark block and the card that eats whatever vertical
-/// space is left, so `login_bg1.png` up top and `login_bg2.png` at the
+/// space is left, so `login_bg1.webp` up top and `login_bg2.webp` at the
 /// bottom both stay fully visible at once instead of requiring a scroll
 /// to reach.
 ///
@@ -196,7 +196,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               left: 0,
               right: 0,
               child: Image(
-                image: AssetImage('assets/images/login_bg1.png'),
+                image: AssetImage('assets/images/login_bg1.webp'),
                 fit: BoxFit.fitWidth,
                 alignment: Alignment.topCenter,
               ),
@@ -206,7 +206,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
               left: 0,
               right: 0,
               child: Image(
-                image: AssetImage('assets/images/login_bg2.png'),
+                image: AssetImage('assets/images/login_bg2.webp'),
                 fit: BoxFit.fitWidth,
                 alignment: Alignment.bottomCenter,
               ),
@@ -256,14 +256,14 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // The "Quicky" wordmark itself, not styled Text —
-                                // quicky_text.png is the brand's own stylized
+                                // quicky_text.webp is the brand's own stylized
                                 // logotype (dimensional white-on-green lettering,
                                 // leaf accent on the "y"), not something a plain
                                 // TextStyle can reproduce.
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Image.asset(
-                                    'assets/images/quicky_text.png',
+                                    'assets/images/quicky_text.webp',
                                     height: 44,
                                     fit: BoxFit.contain,
                                   ),
@@ -551,7 +551,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                                 ),
                               ),
                             ),
-                            // Reserves login_bg2.png's own rendered height (it's
+                            // Reserves login_bg2.webp's own rendered height (it's
                             // fitWidth, so that height scales with screen width —
                             // 941×410 is the asset's actual pixel size) below the
                             // card, plus a little breathing room so the card

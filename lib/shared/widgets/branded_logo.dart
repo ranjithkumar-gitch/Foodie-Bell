@@ -6,7 +6,7 @@ import '../../core/branding/branding_controller.dart';
 
 /// The app logo, with an optional occasion overlay
 /// ([activeBrandThemeProvider]'s `logoOverlayUrl`) drawn on top of the base
-/// asset — every literal `Image.asset('assets/images/app_logo.png')` call
+/// asset — every literal `Image.asset('assets/images/app_logo.webp')` call
 /// site should go through this instead, so a QuickyAdmin-activated occasion
 /// theme shows up everywhere the logo renders (splash, sign-in, order
 /// success, ...) without each screen wiring branding itself. Fails silent:
@@ -25,7 +25,7 @@ class BrandedLogo extends ConsumerWidget {
       alignment: Alignment.center,
       fit: StackFit.passthrough,
       children: [
-        Image.asset('assets/images/app_logo.png', width: size, height: size, fit: fit),
+        Image.asset('assets/images/app_logo.webp', width: size, height: size, fit: fit),
         if (overlayUrl != null)
           CachedNetworkImage(
             imageUrl: overlayUrl,

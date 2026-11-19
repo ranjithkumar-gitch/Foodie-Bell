@@ -117,7 +117,7 @@ class AppColors {
   /// silently drifting apart one green-shade tweak at a time. Fixed
   /// (doesn't flip with light/dark theme like [AppPalette]'s own colors do)
   /// because it's tuned for one specific thing: legible, richly-saturated
-  /// green against `login_bg1.png`'s own busy greens at this exact spot —
+  /// green against `login_bg1.webp`'s own busy greens at this exact spot —
   /// `primary`/`primaryLight` both proved too close in tone to read as
   /// green at all there, and plain `Colors.greenAccent` (Material's
   /// pastel-mint shade200) worked but read a little washed out; this is

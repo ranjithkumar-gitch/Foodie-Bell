@@ -24,19 +24,19 @@ import 'user_registration_draft.dart';
 /// screen.
 ///
 /// Bespoke layout, not [AuthHeroScaffold] — mirrors `auth_login_screen.dart`'s
-/// visual language exactly: `login_bg1.png` (icon row + delivery rider)
-/// anchored to the top, `login_bg2.png` (the stores/delivery/community
+/// visual language exactly: `login_bg1.webp` (icon row + delivery rider)
+/// anchored to the top, `login_bg2.webp` (the stores/delivery/community
 /// footer) anchored to the bottom, a plain `palette.promoGradient` filling
 /// the gap between them. The header is just a back arrow (`context.pop()`,
 /// falling back to `/auth/login` if there's nothing to pop) above the same
-/// "Quicky" wordmark image (`quicky_text.png`) login uses — no "Register"
+/// "Quicky" wordmark image (`quicky_text.webp`) login uses — no "Register"
 /// text out here anymore; that heading now lives inside the card itself,
 /// styled the same way login's in-card "Login" title is (white, soft drop
 /// shadow). The form sits on the same glossy frosted-glass card treatment
 /// login uses — `BackdropFilter` blur, a full `Border.all` glass edge, all
 /// four corners rounded (the card floats clear of the screen edges, same
-/// as login's), sized to its own content so both `login_bg1.png` above and
-/// `login_bg2.png` below stay visible around it. No scrolling — an
+/// as login's), sized to its own content so both `login_bg1.webp` above and
+/// `login_bg2.webp` below stay visible around it. No scrolling — an
 /// `Expanded` spacer between the header and the card eats whatever
 /// vertical space is left, same fix as login's.
 class AuthRegisterScreen extends ConsumerStatefulWidget {
@@ -113,7 +113,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
               left: 0,
               right: 0,
               child: Image(
-                image: AssetImage('assets/images/login_bg1.png'),
+                image: AssetImage('assets/images/login_bg1.webp'),
                 fit: BoxFit.fitWidth,
                 alignment: Alignment.topCenter,
               ),
@@ -123,7 +123,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
               left: 0,
               right: 0,
               child: Image(
-                image: AssetImage('assets/images/login_bg2.png'),
+                image: AssetImage('assets/images/login_bg2.webp'),
                 fit: BoxFit.fitWidth,
                 alignment: Alignment.bottomCenter,
               ),
@@ -178,7 +178,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
                             ),
                             const SizedBox(width: 0),
                             Image.asset(
-                              'assets/images/quicky_text.png',
+                              'assets/images/quicky_text.webp',
                               height: 44,
                               fit: BoxFit.contain,
                             ),
@@ -421,7 +421,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
                         ),
                       ),
                     ),
-                    // Reserves login_bg2.png's own rendered height (its
+                    // Reserves login_bg2.webp's own rendered height (its
                     // real 941×410 aspect scaled to screen width) plus a
                     // little breathing room, so the card doesn't rest
                     // right on top of it — same fix as login's.

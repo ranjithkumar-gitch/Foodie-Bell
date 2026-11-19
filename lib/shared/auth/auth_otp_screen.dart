@@ -47,9 +47,9 @@ class OtpScreenArgs {
 /// `authStateChanges()` the same as a typed code.
 ///
 /// Bespoke layout, not [AuthHeroScaffold] — mirrors `auth_login_screen.dart`/
-/// `auth_register_screen.dart`'s visual language exactly: `login_bg1.png` +
-/// `login_bg2.png` hero background, a back arrow beside the "Quicky"
-/// wordmark (`quicky_text.png`) up top — no "Verify OTP" text out there
+/// `auth_register_screen.dart`'s visual language exactly: `login_bg1.webp` +
+/// `login_bg2.webp` hero background, a back arrow beside the "Quicky"
+/// wordmark (`quicky_text.webp`) up top — no "Verify OTP" text out there
 /// anymore; that heading now lives inside the card as "Enter verification
 /// code" (already the card's own heading, just restyled white with a soft
 /// drop shadow, same as login/register's in-card titles). The pin entry
@@ -245,7 +245,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
               left: 0,
               right: 0,
               child: Image(
-                image: AssetImage('assets/images/login_bg1.png'),
+                image: AssetImage('assets/images/login_bg1.webp'),
                 fit: BoxFit.fitWidth,
                 alignment: Alignment.topCenter,
               ),
@@ -255,7 +255,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
               left: 0,
               right: 0,
               child: Image(
-                image: AssetImage('assets/images/login_bg2.png'),
+                image: AssetImage('assets/images/login_bg2.webp'),
                 fit: BoxFit.fitWidth,
                 alignment: Alignment.bottomCenter,
               ),
@@ -314,7 +314,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                     ),
                                     const SizedBox(width: 6),
                                     Image.asset(
-                                      'assets/images/quicky_text.png',
+                                      'assets/images/quicky_text.webp',
                                       height: 44,
                                       fit: BoxFit.contain,
                                     ),
@@ -516,7 +516,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                 ),
                               ),
                             ),
-                            // Reserves login_bg2.png's own rendered height (its
+                            // Reserves login_bg2.webp's own rendered height (its
                             // real 941×410 aspect scaled to screen width) plus
                             // extra breathing room so the card sits up off the
                             // footer image — the Expanded spacer above shrinks to

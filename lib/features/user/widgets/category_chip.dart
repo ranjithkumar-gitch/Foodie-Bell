@@ -11,10 +11,10 @@ import '../translation/translated_text.dart';
 /// Any category Admin adds beyond these 4 has no matching asset and falls
 /// back to its plain icon ([CategoryChip.icon]) instead.
 const _categoryImageAssets = <String, String>{
-  'food': 'assets/images/food_logo.png',
-  'pharmacy': 'assets/images/pharmacy_logo.png',
-  'kirana': 'assets/images/kirana_logo.png',
-  'vegetables': 'assets/images/vegitables_logo.png',
+  'food': 'assets/images/food_logo.webp',
+  'pharmacy': 'assets/images/pharmacy_logo.webp',
+  'kirana': 'assets/images/kirana_logo.webp',
+  'vegetables': 'assets/images/vegitables_logo.webp',
 };
 
 String? categoryImageAsset(String categoryId) =>
