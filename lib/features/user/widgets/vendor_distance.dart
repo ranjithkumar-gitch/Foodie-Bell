@@ -68,7 +68,7 @@ String formatDeliveryWindow(BuildContext context, ({int min, int max}) eta) {
   if (max < 24 * 60) return formatDuration(context, max);
   final days = (max / (24 * 60)).ceil();
   if (days <= 7) return l10n.vendorEtaDays(days);
-  return l10n.vendorEtaDate(DateFormat('d MMM yyyy').format(DateTime.now().add(Duration(minutes: max))));
+  return l10n.vendorEtaDate(DateFormat('dd/MM/yyyy').format(DateTime.now().add(Duration(minutes: max))));
 }
 
 /// The live coupon worth headlining on [vendorId]'s card/storefront — the

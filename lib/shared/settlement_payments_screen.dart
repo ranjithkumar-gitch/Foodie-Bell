@@ -9,6 +9,7 @@ import 'settlement/party_today_money_card.dart';
 import 'settlement/settlement_report.dart';
 import 'widgets/currency_text.dart';
 import 'widgets/busy_overlay.dart';
+import 'utils/date_text.dart';
 
 /// Settlements for a Vendor or Driver (2026-11-20): first who owes whom
 /// with their Manager, then every payment between them. The Manager marks a
@@ -146,7 +147,7 @@ class _PaymentCard extends StatelessWidget {
               key: ValueKey('purpose:${t.id}'),
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
-          Text('${t.settlementDay} · ${t.method == 'upi' ? 'UPI ${t.reference ?? ''}' : 'Cash'}', style: TextStyle(color: palette.textSecondary, fontSize: 14)),
+          Text('${dmyKey(t.settlementDay)} · ${t.method == 'upi' ? 'UPI ${t.reference ?? ''}' : 'Cash'}', style: TextStyle(color: palette.textSecondary, fontSize: 14)),
           if (legacyStatus != null)
             Text(
               legacyStatus,

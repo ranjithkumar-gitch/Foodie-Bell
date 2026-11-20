@@ -12,7 +12,7 @@ const _kTrackedStatuses = [
   OrderStatus.delivered,
 ];
 
-final _stepTimeFormat = DateFormat('d MMM, h:mm a');
+final _stepTimeFormat = DateFormat('dd/MM/yyyy, h:mm a');
 
 /// Vertical status stepper mirroring the platform lifecycle (spec §4.12:
 /// Placed → Vendor Accepted → Driver Assigned → Picked Up → Delivered).

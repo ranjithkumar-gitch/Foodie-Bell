@@ -163,7 +163,7 @@ class _PendingCardState extends State<_PendingCard> {
       color: palette.error,
       icon: Icons.warning_amber_rounded,
       title: l10n.accountDeletePendingTitle,
-      body: at == null ? l10n.accountDeletePendingBodyNoDate : l10n.accountDeletePendingBody(DateFormat('d MMM yyyy').format(at.toLocal())),
+      body: at == null ? l10n.accountDeletePendingBodyNoDate : l10n.accountDeletePendingBody(DateFormat('dd/MM/yyyy').format(at.toLocal())),
       action: TextButton(onPressed: _cancelling ? null : _cancel, child: Text(_cancelling ? l10n.accountDeleteCancelling : l10n.accountDeleteCancelRequest)),
     );
   }

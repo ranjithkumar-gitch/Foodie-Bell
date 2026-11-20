@@ -14,6 +14,7 @@ import '../../../shared/cancellation_reasons.dart';
 import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/currency_text.dart';
 import 'reversal_proposal_sheet.dart';
+import '../../../shared/utils/date_text.dart';
 
 /// `reviewVendorIncident`'s shape — injectable for widget tests.
 typedef ReviewIncident = Future<({String reviewId, bool duplicate})> Function(String incidentId, {required String outcome, String? note, String? requestId});
@@ -74,9 +75,9 @@ class IncidentCard extends ConsumerWidget {
   final ReviewIncident review;
 
   String _when(DateTime? at) {
-    if (at == null) return incident.settlementDay;
+    if (at == null) return dmyKey(incident.settlementDay);
     final l = at.toLocal();
-    return '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')} ${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+    return '${dmy(l)} ${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
   }
 
   @override

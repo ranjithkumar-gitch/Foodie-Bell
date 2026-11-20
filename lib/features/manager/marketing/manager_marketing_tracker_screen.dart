@@ -87,7 +87,7 @@ class _ManagerMarketingTrackerScreenState extends State<ManagerMarketingTrackerS
                           children: [
                             Text(e.title, style: TextStyle(fontWeight: FontWeight.w700, color: palette.textPrimary)),
                             const SizedBox(height: 3),
-                            Text(DateFormat('d MMM yyyy').format(e.date), style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
+                            Text(DateFormat('dd/MM/yyyy').format(e.date), style: TextStyle(fontSize: 11.5, color: palette.textMuted)),
                             if (e.note.isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Text(e.note, style: TextStyle(fontSize: 12.5, color: palette.textSecondary)),

@@ -26,7 +26,7 @@ String reportDeadlineText(DateTime until, {DateTime? now}) {
   final local = until.toLocal();
   final time = DateFormat('h:mm a').format(local);
   final sameDay = local.year == n.year && local.month == n.month && local.day == n.day;
-  return sameDay ? 'until $time today' : 'until $time, ${DateFormat('d MMM').format(local)}';
+  return sameDay ? 'until $time today' : 'until $time, ${DateFormat('dd/MM/yyyy').format(local)}';
 }
 
 /// Where a settled payment stands, in words; null when there is nothing to

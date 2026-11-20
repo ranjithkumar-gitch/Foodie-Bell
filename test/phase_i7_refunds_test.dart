@@ -329,7 +329,7 @@ void main() {
     test('age and escalation wording: awaiting confirmation is never "unpaid"; confirmed stops it', () {
       expect(ageLabel(5), '5 h');
       expect(ageLabel(49), '2 d 1 h');
-      expect(istLabel(DateTime.utc(2026, 11, 2, 9, 35)), '2 Nov, 3:05 PM IST');
+      expect(istLabel(DateTime.utc(2026, 11, 2, 9, 35)), '02/11/2026, 3:05 PM IST');
       expect(_case(extra: overdue('managerFollowUp')).escalationLabel, 'Over 24 h · Manager following up');
       expect(_case(status: 'awaitingCustomerConfirmation', extra: overdue('adminReview', hours: 50)).escalationLabel, 'Over 48 h, awaiting confirmation · with Quicky for review');
       expect(_case(status: 'refunded', extra: overdue('adminReview', hours: 50)).escalationLabel, 'Was overdue; now confirmed');
@@ -359,7 +359,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('1 overdue (24 h or more): please follow up with the shop.'), findsOneWidget);
       expect(find.text('Over 24 h, awaiting confirmation · Manager following up'), findsOneWidget);
-      expect(find.textContaining('Last notified 2 Nov, 3:05 PM IST'), findsOneWidget);
+      expect(find.textContaining('Last notified 02/11/2026, 3:05 PM IST'), findsOneWidget);
       expect(tester.getTopLeft(find.byKey(const Key('refundListTile_ORD-OLD'))).dy, lessThan(tester.getTopLeft(find.byKey(const Key('refundListTile_ORD-NEW'))).dy));
       expect(find.byKey(const Key('followUpRefund_ORD-NEW')), findsNothing, reason: 'not overdue yet');
       expect(find.text('I received it'), findsNothing);

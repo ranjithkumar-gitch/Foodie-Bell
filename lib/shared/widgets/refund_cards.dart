@@ -8,6 +8,7 @@ import '../../data/models/refund_case.dart';
 import '../../data/providers/refunds_provider.dart';
 import '../../l10n/app_localizations_context.dart';
 import 'busy_overlay.dart';
+import '../utils/date_text.dart';
 
 /// Customer UPI refunds (Phase I.7): the cards on the customer's and the
 /// shop's order screens. Every action goes through the server
@@ -446,7 +447,7 @@ class _RecordRefundSheetState extends ConsumerState<RecordRefundSheet> {
           ),
           TextField(key: const Key('refundUtr'), controller: _utr, maxLength: 35, decoration: const InputDecoration(labelText: 'UPI transaction reference (UTR)')),
           Row(children: [
-            Expanded(child: Text('Sent on $_day')),
+            Expanded(child: Text('Sent on ${dmyKey(_day)}')),
             TextButton(
               onPressed: _busy
                   ? null

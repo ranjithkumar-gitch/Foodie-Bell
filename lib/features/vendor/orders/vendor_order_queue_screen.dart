@@ -292,7 +292,7 @@ String _itemsSummary(Order order) =>
 String _paymentText(PaymentMethod method) =>
     method == PaymentMethod.cod ? 'Cash on delivery' : 'Paid online';
 
-final _dayFormat = DateFormat('EEE, d MMM');
+final _dayFormat = DateFormat('EEE, dd/MM/yyyy');
 final _timeFormat = DateFormat('h:mm a');
 
 /// Every order, newest first, under a plain date heading per day.

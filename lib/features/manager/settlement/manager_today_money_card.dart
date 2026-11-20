@@ -134,6 +134,9 @@ class ManagerTodayMoneyCard extends StatelessWidget {
   }
 }
 
+/// The theme's buttons are full width (56 high); these sit in a row.
+final _compact = ElevatedButton.styleFrom(minimumSize: const Size(0, 40), padding: const EdgeInsets.symmetric(horizontal: 16));
+
 class _GroupTitle extends StatelessWidget {
   const _GroupTitle(this.text, this.color);
   final String text;
@@ -216,7 +219,7 @@ class _LineTile extends StatelessWidget {
                 ),
               ),
               if (state == MoneyLineState.open && !withQuicky)
-                ElevatedButton(key: ValueKey('record:$key'), onPressed: () => onRecord(line, toRecord), child: Text(line.collect ? 'Received' : 'Paid')),
+                ElevatedButton(key: ValueKey('record:$key'), style: _compact, onPressed: () => onRecord(line, toRecord), child: Text(line.collect ? 'Received' : 'Paid')),
             ],
           ),
           if (withQuicky && state == MoneyLineState.open)
@@ -260,7 +263,7 @@ class _LineTile extends StatelessWidget {
                     children: [
                       TextButton(key: ValueKey('reject:${t.id}'), onPressed: () => onAnswer(t, false), child: const Text('Something’s wrong')),
                       const SizedBox(width: 6),
-                      ElevatedButton(key: ValueKey('confirm:${t.id}'), onPressed: () => onAnswer(t, true), child: const Text('Yes, correct')),
+                      ElevatedButton(key: ValueKey('confirm:${t.id}'), style: _compact, onPressed: () => onAnswer(t, true), child: const Text('Yes, correct')),
                     ],
                   ),
                 ],

@@ -8,8 +8,8 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../driver_session.dart';
 import '../home/driver_home_screen.dart';
+import '../../../shared/utils/date_text.dart';
 
-const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 enum _Filter { all, delivered, cancelled }
@@ -162,7 +162,7 @@ class _DriverHistoryScreenState extends ConsumerState<DriverHistoryScreen> {
     final diff = today.difference(day).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
-    return '${_weekdays[day.weekday - 1]}, ${day.day} ${_months[day.month - 1]} ${day.year}';
+    return '${_weekdays[day.weekday - 1]}, ${dmy(day)}';
   }
 }
 

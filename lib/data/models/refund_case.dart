@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../shared/utils/date_text.dart';
 
 /// A customer's UPI refund (Phase I.7, QuickyAdmin `functions/refunds.js`,
 /// `refunds/{orderId}`), written only by the server. The customer paid the
@@ -243,8 +244,7 @@ String ageLabel(int hours) => hours < 24 ? '$hours h' : '${hours ~/ 24} d ${hour
 /// A time in India Standard Time, e.g. "2 Nov, 3:05 PM IST" (whatever the device's zone).
 String istLabel(DateTime t) {
   final ist = t.toUtc().add(const Duration(hours: 5, minutes: 30));
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   final h = ist.hour % 12 == 0 ? 12 : ist.hour % 12;
-  return '${ist.day} ${months[ist.month - 1]}, $h:${ist.minute.toString().padLeft(2, '0')} ${ist.hour < 12 ? 'AM' : 'PM'} IST';
+  return '${dmy(ist)}, $h:${ist.minute.toString().padLeft(2, '0')} ${ist.hour < 12 ? 'AM' : 'PM'} IST';
 }
 

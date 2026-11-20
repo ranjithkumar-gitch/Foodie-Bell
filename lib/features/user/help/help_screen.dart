@@ -19,7 +19,7 @@ import '../../../shared/error_reporting.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../home/selected_territory_provider.dart';
 
-final _ticketOrderDateFmt = DateFormat('d MMM, h:mm a');
+final _ticketOrderDateFmt = DateFormat('dd/MM/yyyy, h:mm a');
 
 class _Faq {
   const _Faq(this.question, this.answer);

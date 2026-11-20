@@ -14,7 +14,7 @@ import '../../../shared/widgets/status_chip.dart';
 import '../manager_session.dart';
 import '../../../shared/widgets/busy_overlay.dart';
 
-final _dateFormat = DateFormat('d MMM yyyy');
+final _dateFormat = DateFormat('dd/MM/yyyy');
 
 /// Vendor Promotion Approvals (spec §7.13): every promotion request from a
 /// vendor in this Manager's own territory. The Manager owns two actions —

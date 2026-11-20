@@ -79,7 +79,7 @@ class _TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    final paidAt = DateFormat('d MMM y, h:mm a').format(order.paymentCompletedAt);
+    final paidAt = DateFormat('dd/MM/yyyy, h:mm a').format(order.paymentCompletedAt);
     final tone = order.paymentStatus.tone == PaymentTone.refundOwed ? palette.warning : palette.success;
     return InkWell(
       borderRadius: BorderRadius.circular(16),

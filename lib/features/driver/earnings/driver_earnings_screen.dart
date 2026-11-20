@@ -16,8 +16,8 @@ import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../driver_session.dart';
 import '../home/driver_home_screen.dart';
+import '../../../shared/utils/date_text.dart';
 
-const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 enum _Period { today, week, month }
@@ -58,7 +58,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
 
   List<({String period, double amount, int count})> _weeklyHistory(List<EarningsDay> days, DateTime now) {
     final thisMonday = _dayOf(now).subtract(Duration(days: now.weekday - 1));
-    String label(DateTime d) => '${d.day} ${_months[d.month - 1]}';
+    String label(DateTime d) => dmy(d);
     return [
       for (var w = 0; w < _weeksOfHistory; w++)
         () {
@@ -451,7 +451,7 @@ class _Last7DaysChart extends StatelessWidget {
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       final d = days[group.x].day;
                       return BarTooltipItem(
-                        '${d.day} ${_months[d.month - 1]}\n',
+                        '${dmy(d)}\n',
                         TextStyle(color: palette.surface, fontSize: 11),
                         children: [
                           TextSpan(
@@ -501,7 +501,7 @@ class _DayHeader extends StatelessWidget {
         ? 'Today'
         : diff == 1
         ? 'Yesterday'
-        : '${_weekdays[day.weekday - 1]}, ${day.day} ${_months[day.month - 1]}';
+        : '${_weekdays[day.weekday - 1]}, ${dmy(day)}';
     return Row(
       children: [
         Text(label, style: TextStyle(fontWeight: FontWeight.w500, color: palette.textPrimary, fontSize: 13.5)),

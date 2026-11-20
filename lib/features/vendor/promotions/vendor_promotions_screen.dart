@@ -38,7 +38,7 @@ typedef _CouponRequestResult = ({
   DateTime endAt,
 });
 
-final _dateTimeFormat = DateFormat('d MMM yyyy, h:mm a');
+final _dateTimeFormat = DateFormat('dd/MM/yyyy, h:mm a');
 
 typedef _PromotionRequestResult = ({
   String tagline,
@@ -49,7 +49,7 @@ typedef _PromotionRequestResult = ({
   double price,
 });
 
-final _dateFormat = DateFormat('d MMM yyyy');
+final _dateFormat = DateFormat('dd/MM/yyyy');
 
 /// Promotions (spec §5.16) and Coupons, as two tabs on one screen — a
 /// Vendor's "get featured on Home" placement requests and their discount
