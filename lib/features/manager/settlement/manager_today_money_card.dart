@@ -10,6 +10,13 @@ String _rupees(int paise) => AppFormat.currency(paise / 100);
 
 String _orders(int n) => n == 1 ? '1 order' : '$n orders';
 
+/// An overpaid line, in words (2026-11-20).
+String overpaidText(ManagerMoneyLine l, String name) => l.collect
+    ? 'Received ${_rupees(l.overpaidPaise)} too much — you owe it back to $name'
+    : l.party == 'quicky'
+    ? 'Paid ${_rupees(l.overpaidPaise)} too much — QuickMandi owes you (ask QuickMandi to undo the extra payment)'
+    : 'Paid ${_rupees(l.overpaidPaise)} too much — $name owes you';
+
 /// What a Manager line is, in words: "₹350 COD cash · 2 orders".
 String managerLineText(ManagerMoneyLine l, int amountPaise) {
   final amount = _rupees(amountPaise);
@@ -69,7 +76,8 @@ class ManagerTodayMoneyCard extends StatelessWidget {
     final palette = context.colors;
     final lines = managerMoneyLines(statement, managerKey, transfers: transfers);
     final known = statementPaymentIds(statement);
-    final done = lines.where((l) => l.state(known) == MoneyLineState.done).length;
+    final done = lines.where((l) => l.state(known) == MoneyLineState.done && !l.isOverpaid).length;
+    final overpaid = lines.where((l) => l.isOverpaid).toList();
     final waiting = lines.where((l) => l.state(known) == MoneyLineState.waiting).length;
     final collect = lines.where((l) => l.collect).toList();
     final pay = lines.where((l) => !l.collect).toList();
@@ -110,12 +118,14 @@ class ManagerTodayMoneyCard extends StatelessWidget {
           if (collect.isNotEmpty) ...[
             const SizedBox(height: 12),
             _GroupTitle('COLLECT', palette.textSecondary),
-            for (final l in collect) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer, readOnly: readOnly),
+            for (final l in collect)
+              _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer, readOnly: readOnly),
           ],
           if (pay.isNotEmpty) ...[
             const SizedBox(height: 12),
             _GroupTitle('PAY', palette.textSecondary),
-            for (final l in pay) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer, readOnly: readOnly),
+            for (final l in pay)
+              _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer, readOnly: readOnly),
           ],
           if (waiting > 0) ...[
             const SizedBox(height: 10),
@@ -123,6 +133,14 @@ class ManagerTodayMoneyCard extends StatelessWidget {
               'Waiting for the other side to confirm: $waiting',
               key: const Key('waitingCount'),
               style: TextStyle(color: palette.warning, fontWeight: FontWeight.w700),
+            ),
+          ],
+          if (overpaid.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Paid more than was owed on ${overpaid.length == 1 ? '1 line' : '${overpaid.length} lines'} — the day settles once that is put right.',
+              key: const Key('overpaidNote'),
+              style: TextStyle(color: palette.warning, fontWeight: FontWeight.w700, fontSize: 12.5),
             ),
           ],
           if (!settled && lines.isNotEmpty && done == lines.length) ...[
@@ -153,7 +171,15 @@ class _GroupTitle extends StatelessWidget {
 }
 
 class _LineTile extends StatelessWidget {
-  const _LineTile({required this.line, required this.known, required this.managerKey, required this.partyName, required this.onRecord, required this.onAnswer, this.readOnly = false});
+  const _LineTile({
+    required this.line,
+    required this.known,
+    required this.managerKey,
+    required this.partyName,
+    required this.onRecord,
+    required this.onAnswer,
+    this.readOnly = false,
+  });
   final bool readOnly;
   final ManagerMoneyLine line;
   final Set<String> known;
@@ -181,10 +207,7 @@ class _LineTile extends StatelessWidget {
     // Settled payments still open to a report, or with a report going.
     final settled = [
       for (final t in line.transfers)
-        if (t.status == 'voided' ||
-            (t.status == 'confirmed' &&
-                (t.report != null || (t.reportUntil != null && DateTime.now().isBefore(t.reportUntil!)))))
-          t,
+        if (t.status == 'voided' || (t.status == 'confirmed' && (t.report != null || (t.reportUntil != null && DateTime.now().isBefore(t.reportUntil!))))) t,
     ];
 
     return Padding(
@@ -196,17 +219,21 @@ class _LineTile extends StatelessWidget {
           Row(
             children: [
               Icon(
-                switch (state) {
-                  MoneyLineState.done => Icons.check_circle_rounded,
-                  MoneyLineState.waiting => Icons.hourglass_top_rounded,
-                  MoneyLineState.open => Icons.radio_button_unchecked_rounded,
-                },
+                line.isOverpaid
+                    ? Icons.error_outline_rounded
+                    : switch (state) {
+                        MoneyLineState.done => Icons.check_circle_rounded,
+                        MoneyLineState.waiting => Icons.hourglass_top_rounded,
+                        MoneyLineState.open => Icons.radio_button_unchecked_rounded,
+                      },
                 size: 20,
-                color: switch (state) {
-                  MoneyLineState.done => palette.success,
-                  MoneyLineState.waiting => palette.warning,
-                  MoneyLineState.open => palette.textMuted,
-                },
+                color: line.isOverpaid
+                    ? palette.warning
+                    : switch (state) {
+                        MoneyLineState.done => palette.success,
+                        MoneyLineState.waiting => palette.warning,
+                        MoneyLineState.open => palette.textMuted,
+                      },
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -215,7 +242,9 @@ class _LineTile extends StatelessWidget {
                   children: [
                     Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
                     Text(
-                      state == MoneyLineState.done
+                      line.isOverpaid
+                          ? overpaidText(line, name)
+                          : state == MoneyLineState.done
                           ? (line.settledTogether ? 'Settled together with their other line ✓' : 'Done ✓')
                           : managerLineText(line, state == MoneyLineState.open ? toRecord : line.outstandingPaise),
                       style: TextStyle(color: palette.textSecondary, fontSize: 13),
@@ -224,16 +253,18 @@ class _LineTile extends StatelessWidget {
                 ),
               ),
               if (state == MoneyLineState.open && !withQuicky && !readOnly)
-                ElevatedButton(key: ValueKey('record:$key'), style: _compact, onPressed: () => onRecord(line, toRecord), child: Text(line.collect ? 'Received' : 'Paid')),
+                ElevatedButton(
+                  key: ValueKey('record:$key'),
+                  style: _compact,
+                  onPressed: () => onRecord(line, toRecord),
+                  child: Text(line.collect ? 'Received' : 'Paid'),
+                ),
             ],
           ),
           if (withQuicky && state == MoneyLineState.open && !readOnly)
             Padding(
               padding: const EdgeInsets.only(left: 30, top: 2),
-              child: Text(
-                'QuickMandi marks this settled when it gets the money.',
-                style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
-              ),
+              child: Text('QuickMandi marks this settled when it gets the money.', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
             ),
           for (final t in settled)
             Padding(
@@ -241,7 +272,8 @@ class _LineTile extends StatelessWidget {
               child: SettledPaymentNote(
                 transfer: t,
                 me: managerKey,
-                text: '${t.recordedBy == managerKey ? 'You marked' : 'QuickMandi marked'} ${_rupees(t.amountPaise)} settled'
+                text:
+                    '${t.recordedBy == managerKey ? 'You marked' : 'QuickMandi marked'} ${_rupees(t.amountPaise)} settled'
                     '${t.method == 'upi' ? ' (UPI)' : ' (cash)'}',
               ),
             ),

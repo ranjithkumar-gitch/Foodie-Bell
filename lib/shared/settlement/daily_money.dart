@@ -69,6 +69,7 @@ class ManagerMoneyLine {
     this.transfers = const [],
     this.settledTogether = false,
     this.dayFeePaise = 0,
+    this.overpaidPaise = 0,
   });
 
   /// The other side (a Driver, a shop or Quicky).
@@ -97,6 +98,13 @@ class ManagerMoneyLine {
 
   /// A Driver's day fees inside a [MoneyLineKind.codCash] line (2026-11-12).
   final int dayFeePaise;
+
+  /// More was paid than was owed (e.g. the same money marked twice) and the
+  /// pair's net balance hasn't come back to zero: on a Pay line the other
+  /// side owes the Manager this much; on a Collect line the Manager owes it
+  /// back (2026-11-20). Such a line isn't "done" — the day can't complete.
+  final int overpaidPaise;
+  bool get isOverpaid => overpaidPaise > 0;
 
   Iterable<SettlementTransfer> get pending => transfers.where((t) => t.status == 'pendingAck');
   Iterable<SettlementTransfer> get disputed => transfers.where((t) => t.status == 'disputed');
@@ -170,6 +178,12 @@ List<ManagerMoneyLine> managerMoneyLines(SettlementStatement s, PartyKey manager
         orders: _ordersFor(s, party, kind),
         transfers: transfersBetween(transfers, day: s.day, from: o.from, to: o.to),
         settledTogether: o.outstandingPaise > 0 && (balances[party] ?? 0) == 0,
+        // Positive balance = the party owes; negative = the party is owed.
+        overpaidPaise: o.outstandingPaise >= 0
+            ? 0
+            : collect
+            ? ((balances[party] ?? 0) < 0 ? -(balances[party] ?? 0) : 0)
+            : ((balances[party] ?? 0) > 0 ? (balances[party] ?? 0) : 0),
         dayFeePaise: kind == MoneyLineKind.codCash ? s.driverDayFees[party] ?? 0 : 0,
       ),
     );

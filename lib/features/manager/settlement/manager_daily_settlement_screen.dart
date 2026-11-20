@@ -93,12 +93,15 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
   }
 
   Future<void> _pickDay() async {
-    final current = DateTime.tryParse(_day ?? '') ?? DateTime.now();
+    // Today at most (2026-11-20): a day that hasn't started would only show
+    // today's leftovers again.
+    final today = DateTime.parse(currentSettlementDay(cutoffMinutes: ref.read(settlementCutoffProvider).valueOrNull ?? 22 * 60));
+    final current = DateTime.tryParse(_day ?? '') ?? today;
     final picked = await showDatePicker(
       context: context,
-      initialDate: current,
+      initialDate: current.isAfter(today) ? today : current,
       firstDate: DateTime(2025),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: today,
     );
     if (picked == null) return;
     await _load('${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
