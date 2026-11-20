@@ -230,6 +230,29 @@ void main() {
       expect(answered, ('t9', true));
     });
 
+    testWidgets('a closed (past) day shows its lines but no Received / Paid', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ManagerTodayMoneyCard(
+                statement: _statement(),
+                managerKey: _m,
+                transfers: const [],
+                partyName: (p) => p,
+                onRecord: (l, a) {},
+                onAnswer: (t, ok) {},
+                readOnly: true,
+              ),
+            ),
+          ),
+        ),
+      ));
+      expect(find.text('COLLECT'), findsOneWidget);
+      expect(find.text('Received'), findsNothing);
+      expect(find.text('Paid'), findsNothing);
+    });
+
     testWidgets('Driver: the Manager\'s "Received" is confirmed with "Yes, I handed it over"', (tester) async {
       final lines = driverMoneyLines([_earn(_day, {'codCollectedPaise': 17500, 'earningsPaise': 2000})], _day, _d, [_t('t1', _d, _m, 17500, counterparty: _d)]);
       await tester.pumpWidget(ProviderScope(

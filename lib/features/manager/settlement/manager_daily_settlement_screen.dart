@@ -21,6 +21,7 @@ import 'propose_adjustment_sheet.dart';
 import 'settlement_payment_sheet.dart';
 import '../../../shared/widgets/currency_text.dart';
 import '../../../shared/widgets/busy_overlay.dart';
+import '../../../shared/utils/date_text.dart';
 
 String _rupees(int paise) => AppFormat.currency(paise / 100);
 
@@ -235,6 +236,10 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
     // Cancellation money keeps its own section, shown up front only when
     // the day has some.
     final hasCancellation = s != null && (s.obligations.any((o) => o.isCancellation) || !(s.cancellationFinance?.isEmpty ?? true));
+    // A past day is closed (2026-11-20): what it left unpaid is carried into
+    // today's statement, so settling it here too would record it twice.
+    final cutoffNow = ref.watch(settlementCutoffProvider).valueOrNull ?? 22 * 60;
+    final closed = _day != null && _day!.compareTo(currentSettlementDay(cutoffMinutes: cutoffNow)) < 0;
     final adjustments = _day == null ? const <SettlementAdjustment>[] : ref.watch(dayAdjustmentsProvider(_day!)).valueOrNull ?? const <SettlementAdjustment>[];
     final attention = (ref.watch(activeOrdersProvider).valueOrNull ?? const <Order>[])
         .where((o) => o.paymentStatus == OrderPaymentStatus.disputed || (o.deliveryIssue != null && !o.deliveryIssue!.resolved && o.status == OrderStatus.pickedUp))
@@ -260,11 +265,23 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
               const SizedBox(height: 20),
             ],
             Row(children: [
-              Expanded(child: Text(_day == null ? 'Settlement' : 'Settlement day $_day', style: Theme.of(context).textTheme.titleLarge)),
+              Expanded(child: Text(_day == null ? 'Settlement' : 'Settlement day ${dmyKey(_day!)}', style: Theme.of(context).textTheme.titleLarge)),
               if (s != null) _StatusChip(status: s.status),
             ]),
             const SizedBox(height: 4),
             Text('Orders delivered after the cut-off count towards the next day.', style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
+            if (closed) ...[
+              const SizedBox(height: 10),
+              Container(
+                key: const Key('dayClosedNotice'),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: palette.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                child: Text(
+                  'This day is closed. Anything it left unpaid is already in today\'s settlement — settle it there, once.',
+                  style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             if (_loading) const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
             if (_error != null) Text(_error!, style: TextStyle(color: palette.error, fontWeight: FontWeight.w600)),
@@ -276,6 +293,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                 partyName: (p) => _partyName(p, managerId),
                 onRecord: (line, amount) => _recordLine(line, amount, managerKey),
                 onAnswer: _answer,
+                readOnly: closed,
               ),
               if (s.customerRefunds case final r? when r.values.any((v) => v != 0)) ...[
                 const SizedBox(height: 18),
@@ -297,6 +315,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                 managerKey: managerKey,
                 partyName: (p) => _partyName(p, managerId),
                 onRecorded: () => _load(_day!),
+                readOnly: closed,
               ),
               ],
               if (s.discrepancies.isNotEmpty) ...[
@@ -383,7 +402,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                       text: e.value > 0 ? 'owes you ${_rupees(e.value)}' : 'you owe ${_rupees(-e.value)}',
                       owesYou: e.value > 0,
                       // QuickMandi marks money with it settled itself (2026-11-20).
-                      onRecord: e.key.startsWith('user:') || e.key == 'quicky' ? null : () => _recordPayment(e.key, e.value, managerKey),
+                      onRecord: closed || e.key.startsWith('user:') || e.key == 'quicky' ? null : () => _recordPayment(e.key, e.value, managerKey),
                     ),
               ],
               if (s.generalBalances.entries.every((e) => e.value == 0 || e.key == managerKey))

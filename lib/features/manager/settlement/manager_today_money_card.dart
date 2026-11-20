@@ -45,7 +45,11 @@ class ManagerTodayMoneyCard extends StatelessWidget {
     required this.partyName,
     required this.onRecord,
     required this.onAnswer,
+    this.readOnly = false,
   });
+
+  /// A past (closed) day: lines show, nothing can be marked settled.
+  final bool readOnly;
 
   final SettlementStatement statement;
   final PartyKey managerKey;
@@ -106,12 +110,12 @@ class ManagerTodayMoneyCard extends StatelessWidget {
           if (collect.isNotEmpty) ...[
             const SizedBox(height: 12),
             _GroupTitle('COLLECT', palette.textSecondary),
-            for (final l in collect) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer),
+            for (final l in collect) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer, readOnly: readOnly),
           ],
           if (pay.isNotEmpty) ...[
             const SizedBox(height: 12),
             _GroupTitle('PAY', palette.textSecondary),
-            for (final l in pay) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer),
+            for (final l in pay) _LineTile(line: l, known: known, managerKey: managerKey, partyName: partyName, onRecord: onRecord, onAnswer: onAnswer, readOnly: readOnly),
           ],
           if (waiting > 0) ...[
             const SizedBox(height: 10),
@@ -149,7 +153,8 @@ class _GroupTitle extends StatelessWidget {
 }
 
 class _LineTile extends StatelessWidget {
-  const _LineTile({required this.line, required this.known, required this.managerKey, required this.partyName, required this.onRecord, required this.onAnswer});
+  const _LineTile({required this.line, required this.known, required this.managerKey, required this.partyName, required this.onRecord, required this.onAnswer, this.readOnly = false});
+  final bool readOnly;
   final ManagerMoneyLine line;
   final Set<String> known;
   final PartyKey managerKey;
@@ -218,11 +223,11 @@ class _LineTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (state == MoneyLineState.open && !withQuicky)
+              if (state == MoneyLineState.open && !withQuicky && !readOnly)
                 ElevatedButton(key: ValueKey('record:$key'), style: _compact, onPressed: () => onRecord(line, toRecord), child: Text(line.collect ? 'Received' : 'Paid')),
             ],
           ),
-          if (withQuicky && state == MoneyLineState.open)
+          if (withQuicky && state == MoneyLineState.open && !readOnly)
             Padding(
               padding: const EdgeInsets.only(left: 30, top: 2),
               child: Text(

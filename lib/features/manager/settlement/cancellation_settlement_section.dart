@@ -57,6 +57,7 @@ class CancellationSettlementSection extends StatefulWidget {
     required this.partyName,
     required this.onRecorded,
     this.record = recordSettlementTransfer,
+    this.readOnly = false,
     this.pickPayment = _showPaymentSheet,
   });
 
@@ -67,6 +68,9 @@ class CancellationSettlementSection extends StatefulWidget {
 
   /// Called after a payment was recorded (the screen reloads the statement).
   final Future<void> Function() onRecorded;
+
+  /// A past (closed) day: obligations show, nothing can be marked settled.
+  final bool readOnly;
   final RecordSettlementTransfer record;
   final PickSettlementPayment pickPayment;
 
@@ -204,7 +208,7 @@ class _CancellationSettlementSectionState extends State<CancellationSettlementSe
                 if (!mine) Text('QuickMandi marks this settled.', style: TextStyle(color: palette.textMuted, fontSize: 12.5)),
               ]),
             ),
-            if (mine && recordable > 0)
+            if (mine && recordable > 0 && !widget.readOnly)
               busy
                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                   : TextButton(onPressed: () => _record(o), child: Text(receiving ? 'Got paid' : 'Paid')),
