@@ -42,7 +42,7 @@ class QuickyApp extends ConsumerWidget {
     listenForClaimChanges(ref);
     listenForNotificationTaps(ref);
     return MaterialApp.router(
-      title: 'Quicky',
+      title: 'QuickMandi',
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(brand),

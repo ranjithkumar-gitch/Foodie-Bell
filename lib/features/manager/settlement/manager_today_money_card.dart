@@ -25,7 +25,7 @@ String managerLineText(ManagerMoneyLine l, int amountPaise) {
     MoneyLineKind.deliveryFees => '$amount delivery fees',
     MoneyLineKind.shopPayout => '$amount for COD orders',
     MoneyLineKind.shopUpiDues => '$amount commission + delivery (UPI orders)',
-    MoneyLineKind.quicky => '$amount Quicky’s share (commission, platform & day fees)',
+    MoneyLineKind.quicky => '$amount QuickMandi’s share (commission, platform & day fees)',
     MoneyLineKind.other => '$amount order money',
   };
   final parts = [

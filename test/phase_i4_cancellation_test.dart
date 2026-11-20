@@ -537,7 +537,7 @@ void main() {
       expect(find.text('4 cancelled · 2 rejected · 40 accepted'), findsOneWidget);
       expect(find.text('10.0%'), findsOneWidget);
       expect(find.text('Review needed'), findsOneWidget);
-      expect(find.text('Escalated to Quicky'), findsNothing);
+      expect(find.text('Escalated to QuickMandi'), findsNothing);
       expect(find.text('Flags are for information only — they never suspend, rank or charge a shop.'), findsOneWidget);
       expect(find.text('3 weeks running'), findsNothing);
     });
@@ -549,7 +549,7 @@ void main() {
           'flags': {'reviewRequired': true, 'escalation': true, 'rules': ['review:rate30', 'escalation:review3Weeks'], 'reviewRequiredWeeks': [true, true, true], 'provisionalThresholds': false},
         })),
       )));
-      expect(find.text('Escalated to Quicky'), findsOneWidget);
+      expect(find.text('Escalated to QuickMandi'), findsOneWidget);
       expect(find.text('3 weeks running'), findsOneWidget);
     });
 
@@ -632,10 +632,10 @@ void main() {
       await tester.pumpWidget(_app(SingleChildScrollView(child: section(statement(obligations: rows)))));
       expect(find.text('Charged to shops'), findsOneWidget);
       expect(find.text('Still owed by shops'), findsOneWidget);
-      expect(find.text('Still to send Quicky'), findsOneWidget);
+      expect(find.text('Still to send QuickMandi'), findsOneWidget);
       expect(find.text('Cancellation charge'), findsOneWidget);
       expect(find.text('Driver cancellation compensation'), findsOneWidget);
-      expect(find.text('Quicky’s share of cancellation charges'), findsOneWidget);
+      expect(find.text('QuickMandi’s share of cancellation charges'), findsOneWidget);
       // The general obligation is not in this section.
       expect(find.text('Order settlement'), findsNothing);
       expect(find.text('Got paid'), findsOneWidget);
@@ -644,7 +644,7 @@ void main() {
       expect(find.text('QuickMandi marks this settled.'), findsOneWidget);
     });
 
-    testWidgets('a charge Quicky collects directly is shown but not recordable', (tester) async {
+    testWidgets('a charge QuickMandi collects directly is shown but not recordable', (tester) async {
       await tester.pumpWidget(_app(section(statement(obligations: [ob('vendor:v1', 'quicky', 'cancellationCharge', 1000)]))));
       expect(find.text('QuickMandi marks this settled.'), findsOneWidget);
       expect(find.text('Got paid'), findsNothing);

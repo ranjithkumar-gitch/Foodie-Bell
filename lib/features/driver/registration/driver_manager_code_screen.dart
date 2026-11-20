@@ -54,7 +54,7 @@ class _DriverManagerCodeScreenState extends ConsumerState<DriverManagerCodeScree
           Text('Enter your Manager Code', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 4),
           Text(
-            'Your local Quicky Manager gave you this code when they signed you up — it links your account to their territory for review.',
+            'Your local QuickMandi Manager gave you this code when they signed you up — it links your account to their territory for review.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),

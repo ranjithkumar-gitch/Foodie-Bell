@@ -301,7 +301,7 @@ class VendorRefundCard extends ConsumerWidget {
           ]),
           const SizedBox(height: 8),
           if (k.owedPaise == null)
-            const Text('Quicky is checking the amount for this older order before a refund can be recorded.')
+            const Text('QuickMandi is checking the amount for this older order before a refund can be recorded.')
           else ...[
             Text('Refund owed to the customer: ${rupeesOf(k.owedPaise!)}', key: const Key('vendorRefundOwed'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             Text('Items, delivery fee and platform fee — everything the customer paid you.', style: TextStyle(color: palette.textSecondary, fontSize: 12)),
@@ -314,7 +314,7 @@ class VendorRefundCard extends ConsumerWidget {
               key: const Key('vendorRefundAge'),
               style: TextStyle(color: k.escalationStage == 'none' ? palette.textSecondary : palette.error, fontWeight: FontWeight.w600),
             ),
-            if (k.escalationStage == 'none') Text('Your Manager is asked to follow up after 24 hours, and Quicky reviews it after 48 hours.', style: TextStyle(color: palette.textSecondary, fontSize: 12)),
+            if (k.escalationStage == 'none') Text('Your Manager is asked to follow up after 24 hours, and QuickMandi reviews it after 48 hours.', style: TextStyle(color: palette.textSecondary, fontSize: 12)),
           ],
           const SizedBox(height: 8),
           Text(
@@ -329,14 +329,14 @@ class VendorRefundCard extends ConsumerWidget {
           if (dispute != null)
             Text(
               dispute.response == 'differentAmount'
-                  ? 'The customer says they received ${rupeesOf(dispute.receivedAmountPaise ?? 0)}, not ${rupeesOf(dispute.amountPaise)}. Quicky will review it; keep your UPI receipt ready.'
-                  : 'The customer says the refund of ${rupeesOf(dispute.amountPaise)} didn\'t arrive. Quicky will review it; keep your UPI receipt ready.',
+                  ? 'The customer says they received ${rupeesOf(dispute.receivedAmountPaise ?? 0)}, not ${rupeesOf(dispute.amountPaise)}. QuickMandi will review it; keep your UPI receipt ready.'
+                  : 'The customer says the refund of ${rupeesOf(dispute.amountPaise)} didn\'t arrive. QuickMandi will review it; keep your UPI receipt ready.',
               key: const Key('vendorRefundDispute'),
               style: TextStyle(color: palette.error),
             ),
-          if (k.status == RefundStatus.refundReviewRequired && dispute == null) const Text('Quicky is reviewing this refund.'),
+          if (k.status == RefundStatus.refundReviewRequired && dispute == null) const Text('QuickMandi is reviewing this refund.'),
           if (k.status == RefundStatus.refunded)
-            Text(k.quickyAdvancedPaise > 0 ? 'Quicky refunded the customer for you. You owe Quicky ${rupeesOf(k.quickyAdvancedPaise)}.' : 'The customer confirmed your refund.', style: TextStyle(color: palette.success, fontWeight: FontWeight.w700)),
+            Text(k.quickyAdvancedPaise > 0 ? 'QuickMandi refunded the customer for you. You owe QuickMandi ${rupeesOf(k.quickyAdvancedPaise)}.' : 'The customer confirmed your refund.', style: TextStyle(color: palette.success, fontWeight: FontWeight.w700)),
           if (k.canRecord) ...[
             const SizedBox(height: 10),
             FilledButton.icon(

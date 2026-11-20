@@ -182,8 +182,8 @@ void main() {
     testWidgets('disputed, under review and confirmed each say so', (tester) async {
       final actions = FakeRefundActions();
       for (final (status, text) in [
-        ('refundDisputed', "You reported this refund didn't arrive as recorded. Quicky is reviewing it."),
-        ('refundReviewRequired', 'Quicky is reviewing this refund.'),
+        ('refundDisputed', "You reported this refund didn't arrive as recorded. QuickMandi is reviewing it."),
+        ('refundReviewRequired', 'QuickMandi is reviewing this refund.'),
       ]) {
         await tester.pumpWidget(_app(const CustomerRefundCard(orderId: 'ORD-1'), overrides: _withCase(_case(status: status), actions)));
         await tester.pumpAndSettle();
@@ -271,7 +271,7 @@ void main() {
       expect([actions.calls[1]['amountPaise'], actions.calls[1]['upiReference'], actions.calls[1]['paidOn']], [12500, '4123 4567 8901', '2026-11-02']);
     });
 
-    testWidgets('awaiting, disputed, and an amount Quicky is still checking: no "Record refund"', (tester) async {
+    testWidgets('awaiting, disputed, and an amount QuickMandi is still checking: no "Record refund"', (tester) async {
       final actions = FakeRefundActions();
       final cases = [
         _case(status: 'awaitingCustomerConfirmation', extra: {'activeAttempt': _attempt, 'pendingPaise': 12500}),
@@ -283,7 +283,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('recordRefund')), findsNothing, reason: k.status.name);
       }
-      expect(find.text('Quicky is checking the amount for this older order before a refund can be recorded.'), findsOneWidget);
+      expect(find.text('QuickMandi is checking the amount for this older order before a refund can be recorded.'), findsOneWidget);
       await tester.pumpWidget(_app(const VendorRefundCard(orderId: 'ORD-1'), overrides: _withCase(cases[1], actions)));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('vendorRefundDispute')), findsOneWidget);
@@ -305,7 +305,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
       expect(find.text('2 open · ₹250.00 still owed to customers by shops'), findsOneWidget);
-      expect(find.text('Escalated to Quicky: Shop not answering'), findsOneWidget);
+      expect(find.text('Escalated to QuickMandi: Shop not answering'), findsOneWidget);
       expect(find.byKey(const Key('escalateRefund_ORD-B')), findsNothing);
       expect(find.byKey(const Key('escalateRefund_ORD-C')), findsNothing);
       expect(find.text('I received it'), findsNothing);
@@ -331,7 +331,7 @@ void main() {
       expect(ageLabel(49), '2 d 1 h');
       expect(istLabel(DateTime.utc(2026, 11, 2, 9, 35)), '02/11/2026, 3:05 PM IST');
       expect(_case(extra: overdue('managerFollowUp')).escalationLabel, 'Over 24 h · Manager following up');
-      expect(_case(status: 'awaitingCustomerConfirmation', extra: overdue('adminReview', hours: 50)).escalationLabel, 'Over 48 h, awaiting confirmation · with Quicky for review');
+      expect(_case(status: 'awaitingCustomerConfirmation', extra: overdue('adminReview', hours: 50)).escalationLabel, 'Over 48 h, awaiting confirmation · with QuickMandi for review');
       expect(_case(status: 'refunded', extra: overdue('adminReview', hours: 50)).escalationLabel, 'Was overdue; now confirmed');
       expect(_case().escalationLabel, '');
       expect(_case(extra: overdue('managerFollowUp')).ageHours(), 30);

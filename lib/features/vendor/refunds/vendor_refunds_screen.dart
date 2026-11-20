@@ -79,7 +79,7 @@ class RefundListTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             refund.owedPaise == null
-                ? 'Amount being checked by Quicky'
+                ? 'Amount being checked by QuickMandi'
                 : refund.status.isDone
                     ? 'Refunded ${rupeesOf(refund.refundedPaise)}'
                     : 'Still owed ${rupeesOf(refund.outstandingPaise ?? 0)} of ${rupeesOf(refund.owedPaise!)}${refund.pendingPaise > 0 ? ' · ${rupeesOf(refund.pendingPaise)} awaiting confirmation' : ''}',
@@ -94,7 +94,7 @@ class RefundListTile extends StatelessWidget {
               [
                 if (refund.lastNotifiedAt != null) 'Last notified ${istLabel(refund.lastNotifiedAt!)}',
                 if (refund.lastFollowUpAt != null) 'Last follow-up ${istLabel(refund.lastFollowUpAt!)}',
-                if (refund.lastReviewAt != null) 'Last Quicky review ${istLabel(refund.lastReviewAt!)}',
+                if (refund.lastReviewAt != null) 'Last QuickMandi review ${istLabel(refund.lastReviewAt!)}',
               ].join(' · '),
               style: TextStyle(color: palette.textSecondary, fontSize: 11.5),
             ),

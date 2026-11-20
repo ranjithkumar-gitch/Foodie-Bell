@@ -116,7 +116,7 @@ class _ReversalProposalSheetState extends State<ReversalProposalSheet> {
               _line('Waived', p.waivedPaise),
               _line('Refund owed to the shop', p.refundPaise, strong: true),
               _line('Driver keeps', p.driverCompPreservedPaise),
-              _line('Quicky pays for the reversal', p.quickyCostPaise),
+              _line('QuickMandi pays for the reversal', p.quickyCostPaise),
               if (p.otherChargesPaise > 0)
                 Text('This shop has other cancellation charges with you; its payments count towards those too.', style: small),
               const SizedBox(height: 4),

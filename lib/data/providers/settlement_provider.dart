@@ -112,12 +112,12 @@ const cancellationPurposes = {
 String settlementPurposeLabel(String purpose) => switch (purpose) {
   'cancellationCharge' => 'Cancellation charge',
   'cancellationDriverComp' => 'Driver cancellation compensation',
-  'cancellationRemittance' => 'Quicky’s share of cancellation charges',
+  'cancellationRemittance' => 'QuickMandi’s share of cancellation charges',
   'cancellationRefund' => 'Cancellation charge refund to the shop',
-  'cancellationRemittanceReturn' => 'Quicky returning its share (reversal)',
-  'cancellationCompFunding' => 'Quicky funding driver compensation (reversal)',
+  'cancellationRemittanceReturn' => 'QuickMandi returning its share (reversal)',
+  'cancellationCompFunding' => 'QuickMandi funding driver compensation (reversal)',
   'customerRefund' => 'Customer refund',
-  'refundAdvance' => 'Refund Quicky made for the shop',
+  'refundAdvance' => 'Refund QuickMandi made for the shop',
   _ => 'Order settlement',
 };
 
@@ -364,7 +364,7 @@ class PricingRates {
   double? get quickySharePercent => managerSharePercent == null ? null : 100 - managerSharePercent!;
 
   /// "50%", or "not yet set by Quicky" when there's no saved split.
-  String get managerShareLabel => managerSharePercent == null ? 'not yet set by Quicky' : '${formatPercent(managerSharePercent!)}%';
+  String get managerShareLabel => managerSharePercent == null ? 'not yet set by QuickMandi' : '${formatPercent(managerSharePercent!)}%';
 }
 
 /// [PricingRates] in force now; null while the pricing doc is loading.

@@ -33,7 +33,7 @@ String _row(WidgetTester tester, String label) => tester
 
 void main() {
   group("the shop's card", () {
-    testWidgets('two Managers and Quicky: the sums, never netted; every figure shown', (tester) async {
+    testWidgets('two Managers and QuickMandi: the sums, never netted; every figure shown', (tester) async {
       // A: ₹20 reversed, ₹8 paid → ₹8 refund due. B: ₹20, ₹5 paid → ₹15 owed. Quicky: ₹10 owed.
       await tester.pumpWidget(_app(const VendorCancellationChargesCard(
         totals: AsyncData(EarningsFigures({

@@ -53,7 +53,7 @@ List<RouteBase> get managerRoutes => [
     builder: (context, state, navigationShell) => RailDrawerShell(
       showAccountDeletion: true,
       navigationShell: navigationShell,
-      title: 'Quicky Manager',
+      title: 'QuickMandi Manager',
       items: const [
         RailItemData(icon: Icons.space_dashboard_outlined, selectedIcon: Icons.space_dashboard_rounded, label: 'Dashboard'),
         RailItemData(icon: Icons.storefront_outlined, selectedIcon: Icons.storefront_rounded, label: 'Vendors'),

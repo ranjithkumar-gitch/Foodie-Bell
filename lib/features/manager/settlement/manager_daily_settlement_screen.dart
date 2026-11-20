@@ -374,10 +374,10 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                 // its own rate; the current rates are on the pricing card.
                 _Line('Commission (on items)', _rupees(s.total('commissionPaise'))),
                 _Line('Your earnings (your share)', _rupees(s.total('managerEarningsPaise')), strong: true),
-                _Line('Quicky share', _rupees(s.total('quickyEarningsPaise'))),
+                _Line('QuickMandi share', _rupees(s.total('quickyEarningsPaise'))),
                 // Paid by customers on top of the order; all of it is Quicky's.
-                if (s.total('platformFeePaise') > 0) _Line('Platform fees (100% Quicky)', _rupees(s.total('platformFeePaise'))),
-                _Line('Total to pay Quicky', _rupees(s.total('quickyRevenuePaise')), strong: true),
+                if (s.total('platformFeePaise') > 0) _Line('Platform fees (100% QuickMandi)', _rupees(s.total('platformFeePaise'))),
+                _Line('Total to pay QuickMandi', _rupees(s.total('quickyRevenuePaise')), strong: true),
                 _Line('Driver earnings (delivery fees)', _rupees(s.total('driverEarningsPaise'))),
                 _Line('Shops’ earnings (goods)', _rupees(s.total('vendorEntitlementPaise'))),
                 // Driver day fees (2026-11-12): collected from Drivers with
@@ -387,7 +387,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                   const Divider(),
                   _Line('Driver day fees (${s.total('driverDayFees')})', _rupees(s.total('driverDayFeePaise'))),
                   _Line('Your share of day fees', _rupees(s.total('driverDayFeeManagerPaise')), strong: true),
-                  _Line('Quicky’s share of day fees', _rupees(s.total('driverDayFeeQuickyPaise'))),
+                  _Line('QuickMandi’s share of day fees', _rupees(s.total('driverDayFeeQuickyPaise'))),
                 ],
               ]),
               const SizedBox(height: 18),
@@ -481,7 +481,7 @@ class _PricingCard extends ConsumerWidget {
     var from = 0.0;
     return Card(
       child: ExpansionTile(
-        title: const Text('Pricing (set by Quicky)'),
+        title: const Text('Pricing (set by QuickMandi)'),
         subtitle: Text('Commission ${formatPercent(commission)}% · your share ${formatPercent(share)}%'),
         children: [
           for (final s in slabs)

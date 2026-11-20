@@ -33,7 +33,7 @@ Review _reviewFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     id: doc.id,
     orderId: data['orderId'] as String? ?? '',
     userId: data['userId'] as String? ?? '',
-    userName: data['userName'] as String? ?? 'A Quicky customer',
+    userName: data['userName'] as String? ?? 'A QuickMandi customer',
     vendorId: data['vendorId'] as String? ?? '',
     vendorRating: (data['vendorRating'] as num?)?.toInt() ?? 0,
     driverId: data['driverId'] as String?,

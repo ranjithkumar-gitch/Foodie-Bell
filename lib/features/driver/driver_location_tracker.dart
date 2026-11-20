@@ -132,7 +132,7 @@ class DriverLocationTracker {
         foregroundNotificationConfig: _onDelivery
             ? const ForegroundNotificationConfig(
                 notificationTitle: "You're on a delivery",
-                notificationText: 'Quicky is sharing your location so the customer can track their order.',
+                notificationText: 'QuickMandi is sharing your location so the customer can track their order.',
                 notificationChannelName: 'Delivery location',
                 enableWakeLock: true,
                 setOngoing: true,

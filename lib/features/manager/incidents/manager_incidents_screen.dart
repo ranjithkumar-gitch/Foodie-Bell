@@ -56,7 +56,7 @@ class ManagerIncidentsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    'Reviewing records what you found. Excusing a cancellation doesn’t refund its charge — that needs an adjustment approved by Quicky.',
+                    'Reviewing records what you found. Excusing a cancellation doesn’t refund its charge — that needs an adjustment approved by QuickMandi.',
                     style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
                   ),
                   const SizedBox(height: 12),
@@ -237,7 +237,7 @@ class _IncidentReviewSheetState extends State<IncidentReviewSheet> {
               ]),
             ),
             if (_outcome == 'excused')
-              Text('Excusing doesn’t refund the charge. Ask Quicky for an adjustment if it should be reversed.', style: TextStyle(color: palette.warning, fontSize: 12.5)),
+              Text('Excusing doesn’t refund the charge. Ask QuickMandi for an adjustment if it should be reversed.', style: TextStyle(color: palette.warning, fontSize: 12.5)),
             const SizedBox(height: 6),
             TextField(
               controller: _note,

@@ -51,7 +51,7 @@ class ManagerRefundsScreen extends ConsumerWidget {
               const SizedBox(height: 4),
               if (followUps > 0)
                 Text('$followUps overdue (24 h or more): please follow up with the shop.', key: const Key('managerFollowUpCount'), style: TextStyle(color: palette.error, fontWeight: FontWeight.w700)),
-              Text('The shop that was paid owes each refund. Follow up with the shop; escalate to Quicky if it isn\'t resolved. You can\'t confirm a refund for the customer.', style: TextStyle(color: palette.textSecondary, fontSize: 12)),
+              Text('The shop that was paid owes each refund. Follow up with the shop; escalate to QuickMandi if it isn\'t resolved. You can\'t confirm a refund for the customer.', style: TextStyle(color: palette.textSecondary, fontSize: 12)),
               const SizedBox(height: 12),
               for (final r in sorted) ...[
                 RefundListTile(
@@ -67,12 +67,12 @@ class ManagerRefundsScreen extends ConsumerWidget {
                               onPressed: () => _followUp(context, ref, r),
                             ),
                           if (r.escalated)
-                            Text('Escalated to Quicky${r.escalationReason != null ? ': ${r.escalationReason}' : ''}', style: TextStyle(color: palette.textSecondary, fontSize: 12))
+                            Text('Escalated to QuickMandi${r.escalationReason != null ? ': ${r.escalationReason}' : ''}', style: TextStyle(color: palette.textSecondary, fontSize: 12))
                           else
                             OutlinedButton.icon(
                               key: Key('escalateRefund_${r.orderId}'),
                               icon: const Icon(Icons.flag_outlined, size: 18),
-                              label: const Text('Escalate to Quicky'),
+                              label: const Text('Escalate to QuickMandi'),
                               onPressed: () => _escalate(context, ref, r),
                             ),
                           if (r.lastFollowUpRemark != null)
@@ -105,7 +105,7 @@ class ManagerRefundsScreen extends ConsumerWidget {
     if (reason == null) return;
     try {
       await runBusy(() => ref.read(refundActionsProvider).escalate(orderId: r.orderId, reason: reason));
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent to Quicky for review.')));
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent to QuickMandi for review.')));
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }

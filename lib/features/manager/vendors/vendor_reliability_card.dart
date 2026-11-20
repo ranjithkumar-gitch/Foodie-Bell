@@ -26,7 +26,7 @@ class VendorReliabilityCard extends StatelessWidget {
         data: (r) {
           if (r == null) return Text('No cancellations or rejections recorded.', style: TextStyle(color: palette.textMuted));
           final flags = [
-            if (r.escalation) ('Escalated to Quicky', palette.error),
+            if (r.escalation) ('Escalated to QuickMandi', palette.error),
             if (r.reviewRequired) ('Review needed', palette.warning),
             if (r.warning && !r.reviewRequired) ('Warning', palette.warning),
           ];

@@ -40,7 +40,7 @@ class _VendorRebateTermsScreenState extends ConsumerState<VendorRebateTermsScree
       step: 5,
       totalSteps: 5,
       title: 'Commission terms',
-      subtitle: 'Quicky charges every shop the same commission on the items it sells.',
+      subtitle: 'QuickMandi charges every shop the same commission on the items it sells.',
       continueLabel: 'Accept & verify phone number',
       onContinue: _accepted && rates != null ? _continue : null,
       children: [
@@ -58,7 +58,7 @@ class _VendorRebateTermsScreenState extends ConsumerState<VendorRebateTermsScree
                   : Text(rate, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 40)),
               const SizedBox(height: 6),
               const Text(
-                'of each order\'s item value (after your own coupon). Set by Quicky for all '
+                'of each order\'s item value (after your own coupon). Set by QuickMandi for all '
                 'shops; a change applies only to orders placed after it.',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 12.5),
               ),

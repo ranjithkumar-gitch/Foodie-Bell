@@ -392,7 +392,7 @@ class AppLocalizationsTe extends AppLocalizations {
   }
 
   @override
-  String get thankYouMessage => 'Quickyలో ఆర్డర్ చేసినందుకు ధన్యవాదాలు!';
+  String get thankYouMessage => 'QuickMandiలో ఆర్డర్ చేసినందుకు ధన్యవాదాలు!';
 
   @override
   String orderEnjoyedMessage(Object vendorName) {
@@ -508,7 +508,7 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get profileWalletComingSoonMessage =>
-      'మేము మీ Quicky వాలెట్‌ను నిర్మిస్తున్నాము — రీఫండ్‌లు, క్రెడిట్‌లు మరియు క్యాష్‌బ్యాక్ త్వరలో ఇక్కడ వస్తాయి.';
+      'మేము మీ QuickMandi వాలెట్‌ను నిర్మిస్తున్నాము — రీఫండ్‌లు, క్రెడిట్‌లు మరియు క్యాష్‌బ్యాక్ త్వరలో ఇక్కడ వస్తాయి.';
 
   @override
   String get profileHelpSupport => 'సహాయం & మద్దతు';
@@ -1221,11 +1221,11 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get vendorNoManagerBody =>
-      'మీ షాప్‌కు ఇంకా మేనేజర్‌ను కేటాయించలేదు. Quicky త్వరలో కేటాయిస్తుంది; అప్పటి వరకు కొత్త ఆర్డర్లు నిలిపివేయబడతాయి.';
+      'మీ షాప్‌కు ఇంకా మేనేజర్‌ను కేటాయించలేదు. QuickMandi త్వరలో కేటాయిస్తుంది; అప్పటి వరకు కొత్త ఆర్డర్లు నిలిపివేయబడతాయి.';
 
   @override
   String get vendorManagerInactiveBody =>
-      'మీ మేనేజర్ ప్రస్తుతం యాక్టివ్‌గా లేరు. Quicky దీన్ని పరిష్కరిస్తోంది. మీరు మీ ఖాతాను చూడవచ్చు, ఆర్డర్లను తిరస్కరించవచ్చు, కానీ కొత్త ఆర్డర్లు నిలిపివేయబడ్డాయి.';
+      'మీ మేనేజర్ ప్రస్తుతం యాక్టివ్‌గా లేరు. QuickMandi దీన్ని పరిష్కరిస్తోంది. మీరు మీ ఖాతాను చూడవచ్చు, ఆర్డర్లను తిరస్కరించవచ్చు, కానీ కొత్త ఆర్డర్లు నిలిపివేయబడ్డాయి.';
 
   @override
   String get vendorCancelButton => 'అంగీకరించిన ఆర్డర్‌ను రద్దు చేయి';
@@ -1416,7 +1416,7 @@ class AppLocalizationsTe extends AppLocalizations {
   String get refundPayerShop => 'దుకాణం';
 
   @override
-  String get refundPayerQuicky => 'Quicky';
+  String get refundPayerQuicky => 'QuickMandi';
 
   @override
   String refundSentClaim(
@@ -1451,14 +1451,14 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get refundNotReceivedBody =>
-      'Quicky దుకాణంతో కలిసి దీనిని సమీక్షిస్తుంది. ఉపయోగపడే వివరాలు జోడించండి.';
+      'QuickMandi దుకాణంతో కలిసి దీనిని సమీక్షిస్తుంది. ఉపయోగపడే వివరాలు జోడించండి.';
 
   @override
   String get refundDisputedNote =>
-      'ఈ రీఫండ్ నమోదైనట్లుగా అందలేదని మీరు తెలిపారు. Quicky దీనిని సమీక్షిస్తోంది.';
+      'ఈ రీఫండ్ నమోదైనట్లుగా అందలేదని మీరు తెలిపారు. QuickMandi దీనిని సమీక్షిస్తోంది.';
 
   @override
-  String get refundReviewNote => 'Quicky ఈ రీఫండ్‌ను సమీక్షిస్తోంది.';
+  String get refundReviewNote => 'QuickMandi ఈ రీఫండ్‌ను సమీక్షిస్తోంది.';
 
   @override
   String refundConfirmedNote(Object amount) {

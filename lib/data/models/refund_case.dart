@@ -174,7 +174,7 @@ class RefundCase {
     if (status.isDone) return escalationStage == 'none' ? '' : 'Was overdue; now confirmed';
     final awaiting = status == RefundStatus.awaitingCustomerConfirmation;
     return switch (escalationStage) {
-      'adminReview' => awaiting ? 'Over 48 h, awaiting confirmation · with Quicky for review' : 'Over 48 h · with Quicky for review',
+      'adminReview' => awaiting ? 'Over 48 h, awaiting confirmation · with QuickMandi for review' : 'Over 48 h · with QuickMandi for review',
       'managerFollowUp' => awaiting ? 'Over 24 h, awaiting confirmation · Manager following up' : 'Over 24 h · Manager following up',
       _ => '',
     };

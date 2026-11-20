@@ -432,9 +432,9 @@ class _CommissionNote extends ConsumerWidget {
     final rates = ref.watch(pricingRatesProvider);
     return Text(
       rates == null
-          ? 'Commission is set by Quicky for every shop.'
-          : 'Quicky commission: ${formatPercent(rates.commissionPercent)}% of each order\'s item value, the same for every shop '
-              '(your share ${rates.managerShareLabel}). Set by Quicky and may change.',
+          ? 'Commission is set by QuickMandi for every shop.'
+          : 'QuickMandi commission: ${formatPercent(rates.commissionPercent)}% of each order\'s item value, the same for every shop '
+              '(your share ${rates.managerShareLabel}). Set by QuickMandi and may change.',
       style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
     );
   }

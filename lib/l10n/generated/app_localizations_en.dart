@@ -393,7 +393,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get thankYouMessage => 'Thank you for ordering with Quicky!';
+  String get thankYouMessage => 'Thank you for ordering with QuickMandi!';
 
   @override
   String orderEnjoyedMessage(Object vendorName) {
@@ -509,7 +509,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileWalletComingSoonMessage =>
-      'We\'re building your Quicky wallet — refunds, credits, and cashback will land here soon.';
+      'We\'re building your QuickMandi wallet — refunds, credits, and cashback will land here soon.';
 
   @override
   String get profileHelpSupport => 'Help & Support';
@@ -1216,11 +1216,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vendorNoManagerBody =>
-      'No Manager is assigned to your shop yet. Quicky will assign one; until then new orders are paused.';
+      'No Manager is assigned to your shop yet. QuickMandi will assign one; until then new orders are paused.';
 
   @override
   String get vendorManagerInactiveBody =>
-      'Your Manager isn\'t active right now. Quicky is sorting this out. You can still see your account and decline orders, but new orders are paused.';
+      'Your Manager isn\'t active right now. QuickMandi is sorting this out. You can still see your account and decline orders, but new orders are paused.';
 
   @override
   String get vendorCancelButton => 'Cancel accepted order';
@@ -1412,7 +1412,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refundPayerShop => 'The shop';
 
   @override
-  String get refundPayerQuicky => 'Quicky';
+  String get refundPayerQuicky => 'QuickMandi';
 
   @override
   String refundSentClaim(
@@ -1447,14 +1447,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refundNotReceivedBody =>
-      'Quicky will review it with the shop. Add anything that helps.';
+      'QuickMandi will review it with the shop. Add anything that helps.';
 
   @override
   String get refundDisputedNote =>
-      'You reported this refund didn\'t arrive as recorded. Quicky is reviewing it.';
+      'You reported this refund didn\'t arrive as recorded. QuickMandi is reviewing it.';
 
   @override
-  String get refundReviewNote => 'Quicky is reviewing this refund.';
+  String get refundReviewNote => 'QuickMandi is reviewing this refund.';
 
   @override
   String refundConfirmedNote(Object amount) {

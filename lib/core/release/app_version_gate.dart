@@ -96,7 +96,7 @@ class UpdateRequiredScreen extends StatelessWidget {
                     Text('Update required', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
                     const SizedBox(height: 8),
                     Text(
-                      message ?? 'This version of Quicky is no longer supported. Please update to keep ordering and delivering.',
+                      message ?? 'This version of QuickMandi is no longer supported. Please update to keep ordering and delivering.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),

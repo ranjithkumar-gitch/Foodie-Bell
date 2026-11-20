@@ -35,7 +35,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('categoriesReadOnlyNotice')), findsOneWidget);
-    expect(find.textContaining('Only Quicky (the Super Admin)'), findsOneWidget);
+    expect(find.textContaining('Only QuickMandi (the Super Admin)'), findsOneWidget);
     final switches = tester.widgetList<SwitchListTile>(find.byType(SwitchListTile)).toList();
     expect(switches, hasLength(2));
     expect(switches.every((s) => s.onChanged == null), isTrue, reason: 'no Manager toggles');

@@ -16,6 +16,7 @@ import '../widgets/glossy_surface.dart';
 import 'auth_navigation.dart';
 import 'auth_otp_screen.dart';
 import 'phone_auth.dart';
+import '../widgets/brand_wordmark.dart';
 
 /// The app's one and only entry point — a single phone number field, no
 /// role picked up front and no password anywhere: every role, Manager
@@ -39,7 +40,7 @@ import 'phone_auth.dart';
 /// plain green gradient (`palette.promoGradient` — the same green both
 /// images are drawn in) fills whatever gap is left between them, so the
 /// seam reads as one continuous background rather than a visible edge.
-/// The "QuickMandi" wordmark (`quickmandi_text.webp`, the brand's own stylized
+/// The "Quick Mandi" banner (`BrandWordmark`, the brand.s own
 /// logotype) + "Get Orders to your Doorstep" subtext sit directly on that
 /// background (no card behind them), and the sign-in form below sits on a
 /// glossy frosted-glass card — `BackdropFilter`, transparent enough to
@@ -255,19 +256,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // The "QuickMandi" wordmark itself, not styled Text —
-                                // quickmandi_text.webp is the brand's own stylized
-                                // logotype (dimensional white-on-green lettering,
-                                // leaf accent on the "y"), not something a plain
-                                // TextStyle can reproduce.
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Image.asset(
-                                    'assets/images/quickmandi_text.webp',
-                                    height: 56,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
+                                const BrandWordmark(),
                                 const SizedBox(height: 6),
                                 Text(
                                   'Get Orders to your Doorstep',

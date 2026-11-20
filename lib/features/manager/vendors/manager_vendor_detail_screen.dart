@@ -182,7 +182,7 @@ class _ManagerVendorDetailScreenState extends ConsumerState<ManagerVendorDetailS
           const SizedBox(height: 24),
           Text('Commission', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text('The same for every shop, set by Quicky. The server applies the rate in force when each order is placed.', style: TextStyle(color: palette.textMuted, fontSize: 12)),
+          Text('The same for every shop, set by QuickMandi. The server applies the rate in force when each order is placed.', style: TextStyle(color: palette.textMuted, fontSize: 12)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

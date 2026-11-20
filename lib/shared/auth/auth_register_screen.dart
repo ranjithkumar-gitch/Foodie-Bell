@@ -11,6 +11,7 @@ import '../widgets/app_text_field.dart';
 import '../widgets/country_code_picker.dart';
 import '../widgets/glossy_surface.dart';
 import 'user_registration_draft.dart';
+import '../widgets/brand_wordmark.dart';
 
 /// Generic registration-details step for roles that don't need role-specific
 /// fields first — effectively User: name + phone + email (optional)
@@ -29,7 +30,7 @@ import 'user_registration_draft.dart';
 /// footer) anchored to the bottom, a plain `palette.promoGradient` filling
 /// the gap between them. The header is just a back arrow (`context.pop()`,
 /// falling back to `/auth/login` if there's nothing to pop) above the same
-/// "QuickMandi" wordmark image (`quickmandi_text.webp`) login uses — no "Register"
+/// "Quick Mandi" banner (`BrandWordmark`) login uses — no "Register"
 /// text out here anymore; that heading now lives inside the card itself,
 /// styled the same way login's in-card "Login" title is (white, soft drop
 /// shadow). The form sits on the same glossy frosted-glass card treatment
@@ -177,11 +178,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
                               ),
                             ),
                             const SizedBox(width: 0),
-                            Image.asset(
-                              'assets/images/quickmandi_text.webp',
-                              height: 56,
-                              fit: BoxFit.contain,
-                            ),
+                            const Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: BrandWordmark(size: 34))),
                           ],
                         ),
                         const SizedBox(height: 6),

@@ -74,7 +74,7 @@ String incidentOutcomeLabel(String outcome) => switch (outcome) {
   'acknowledged' => 'Acknowledged',
   'warned' => 'Warned',
   'excused' => 'Excused',
-  'escalated' => 'Escalated to Quicky',
+  'escalated' => 'Escalated to QuickMandi',
   _ => outcome,
 };
 

@@ -97,7 +97,7 @@ Order _order(String id, PaymentMethod method) => Order(
 
 void main() {
   group('Manager lines', () {
-    test('gross per person and direction: COD cash in, fees / payout / Quicky out; refunds and cancellations left out', () {
+    test('gross per person and direction: COD cash in, fees / payout / QuickMandi out; refunds and cancellations left out', () {
       final lines = managerMoneyLines(_statement(), _m);
       expect([for (final l in lines) (l.collect, l.party, l.kind, l.outstandingPaise, l.orders)], [
         (true, _d, MoneyLineKind.codCash, 17500, 1),

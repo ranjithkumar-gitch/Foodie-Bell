@@ -13,6 +13,7 @@ import '../../core/theme/app_colors.dart';
 import '../widgets/otp_input_field.dart';
 import 'auth_navigation.dart';
 import 'phone_auth.dart';
+import '../widgets/brand_wordmark.dart';
 
 /// Passed from the login/phone screens via go_router's `extra:` —
 /// `verificationId` is an opaque Firebase token, not a display value, so it
@@ -49,7 +50,7 @@ class OtpScreenArgs {
 /// Bespoke layout, not [AuthHeroScaffold] — mirrors `auth_login_screen.dart`/
 /// `auth_register_screen.dart`'s visual language exactly: `login_bg1.webp` +
 /// `login_bg2.webp` hero background, a back arrow beside the "Quicky"
-/// wordmark (`quickmandi_text.webp`) up top — no "Verify OTP" text out there
+/// banner (`BrandWordmark`) up top — no "Verify OTP" text out there
 /// anymore; that heading now lives inside the card as "Enter verification
 /// code" (already the card's own heading, just restyled white with a soft
 /// drop shadow, same as login/register's in-card titles). The pin entry
@@ -313,11 +314,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    Image.asset(
-                                      'assets/images/quickmandi_text.webp',
-                                      height: 56,
-                                      fit: BoxFit.contain,
-                                    ),
+                                    const Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: BrandWordmark(size: 34))),
                                   ],
                                 ),
                                 const SizedBox(height: 6),

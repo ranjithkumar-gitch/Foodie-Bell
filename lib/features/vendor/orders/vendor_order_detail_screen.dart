@@ -103,7 +103,7 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                   ),
                 _AmountRow(label: 'Delivery fee (for the driver)', value: order.deliveryFee),
                 // Quicky's platform fee, when charged: paid by the customer, not the shop's.
-                if (order.platformFee > 0) _AmountRow(label: 'Platform fee (Quicky)', value: order.platformFee),
+                if (order.platformFee > 0) _AmountRow(label: 'Platform fee (QuickMandi)', value: order.platformFee),
                 // Tax-inclusive prices (Phase I.4.3): only an earlier client-priced order shows the tax it recorded.
                 if (order.legacyTaxCharged > 0) _AmountRow(label: 'Taxes (earlier order)', value: order.legacyTaxCharged),
                 const SizedBox(height: 4),
@@ -112,7 +112,7 @@ class VendorOrderDetailScreen extends ConsumerWidget {
                   children: [Text('Customer pays', style: Theme.of(context).textTheme.titleMedium), CurrencyText(order.total, style: Theme.of(context).textTheme.titleMedium)],
                 ),
                 const SizedBox(height: 4),
-                _AmountRow(label: 'Quicky commission (${formatPercent(order.rebatePercent)}%)', value: -order.rebateAmount),
+                _AmountRow(label: 'QuickMandi commission (${formatPercent(order.rebatePercent)}%)', value: -order.rebateAmount),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

@@ -154,20 +154,20 @@ class _CancellationSettlementSectionState extends State<CancellationSettlementSe
               _Row('Paid to drivers', f.driverCompPaidPaise),
               _Row('Still owed to drivers', f.outstandingDriverCompPaise, strong: true),
               const Divider(),
-              _Row('Quicky’s share', f.quickyShareAssessedPaise),
-              _Row('Sent to Quicky', f.remittedPaise),
-              _Row('Still to send Quicky', f.outstandingRemittancePaise, strong: true),
+              _Row('QuickMandi’s share', f.quickyShareAssessedPaise),
+              _Row('Sent to QuickMandi', f.remittedPaise),
+              _Row('Still to send QuickMandi', f.outstandingRemittancePaise, strong: true),
               if (f.disputedPaise > 0) _Row('Disputed payments', f.disputedPaise, color: palette.error),
               // Charges Quicky approved reversing (Phase I.4.1): the shop's
               // unpaid part is waived, what it paid is refunded; the driver
               // keeps the compensation and Quicky funds it.
               if (f.hasReversals) ...[
                 const Divider(),
-                _Row('Reversed by Quicky', f.reversedPaise),
+                _Row('Reversed by QuickMandi', f.reversedPaise),
                 _Row('Waived (was unpaid)', f.waivedPaise),
                 _Row('Refund still owed to shops', f.outstandingRefundPaise, strong: true),
                 _Row('Refunded to shops', f.refundedPaise),
-                _Row('Still to come from Quicky', f.outstandingCompFundingPaise + f.outstandingRemittanceReturnPaise, strong: true),
+                _Row('Still to come from QuickMandi', f.outstandingCompFundingPaise + f.outstandingRemittanceReturnPaise, strong: true),
               ],
             ]),
           ),

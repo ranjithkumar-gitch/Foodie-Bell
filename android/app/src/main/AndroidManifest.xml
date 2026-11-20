@@ -1,16 +1,15 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The Driver's own GPS position, reported while they're signed in
-         (`driver_location_tracker.dart`) so the User can follow their
-         delivery on the map. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Location while the app is open: pinning a delivery address, nearby
+         shops and delivery times, a shop pinning its location, a driver's
+         position on the delivery map. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Keeps a Driver's location reporting while they're on a delivery with
-         the app in the background (e.g. turn-by-turn in Google Maps) — the
-         geolocator plugin's location foreground service, with its ongoing
-         "sharing your location" notification. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- No background location (2026-11-20): live driver tracking is parked
+         (`driver_location_tracker.dart` isn't started), so the
+         FOREGROUND_SERVICE_LOCATION permission is gone — Play requires a
+         declaration and video for it — and the geolocator plugin's location
+         service is removed below. Put both back with the tracking. -->
     <application
         android:label="QuickMandi"
         android:name="${applicationName}"
@@ -67,6 +66,11 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBVE7vsYfkVURXi8UTjXDyNoE_EBPOvdcQ" />
+        <!-- The geolocator plugin's background location service: unused
+             while driver tracking is parked (see the permissions above). -->
+        <service
+            android:name="com.baseflow.geolocator.GeolocatorLocationService"
+            tools:node="remove" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

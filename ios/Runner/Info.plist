@@ -46,12 +46,20 @@
 	<string>$(FIREBASE_MESSAGING_AUTO_INIT_ENABLED:default=YES)</string>
 	<key>GMSApiKey</key>
 	<string>$(GMS_API_KEY)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>upi</string>
+		<string>https</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>QuickMandi needs camera access so Vendors and Drivers can photograph documents to submit for review.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Drivers only: while you're on a delivery, QuickMandi keeps sharing your location if you switch to another app (for example Google Maps), so the customer can follow their order. Sharing stops when the delivery ends.</string>
+	<string>QuickMandi uses your location to pin your delivery address and, for drivers, to show your position on the delivery map. It is not tracked in the background.</string>
 	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
 	<dict>
 		<key>DeliveryTracking</key>
@@ -87,7 +95,6 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
-		<string>location</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

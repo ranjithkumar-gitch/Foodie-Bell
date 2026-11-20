@@ -32,8 +32,8 @@ class AuthBlockedScreen extends ConsumerWidget {
     final deleted = session.account?.deletedAt != null;
     final title = deleted ? 'Your account has been removed' : 'Your account has been suspended';
     final message = deleted
-        ? "This ${role.label} account was removed by Quicky Admin and can no longer sign in. Please contact Quicky Admin if you believe this is a mistake."
-        : "This ${role.label} account was suspended by Quicky Admin. Please contact Quicky Admin to reactivate your account.";
+        ? "This ${role.label} account was removed by QuickMandi Admin and can no longer sign in. Please contact QuickMandi Admin if you believe this is a mistake."
+        : "This ${role.label} account was suspended by QuickMandi Admin. Please contact QuickMandi Admin to reactivate your account.";
 
     return Scaffold(
       appBar: AppBar(title: const Text('Account access blocked')),

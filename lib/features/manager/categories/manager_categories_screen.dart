@@ -46,7 +46,7 @@ class ManagerCategoriesScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(20),
                 children: [
                   Text(
-                    'Categories available in ${territory.name}. Only Quicky (the Super Admin) can turn a category on or off for the territory — contact Quicky to change one.',
+                    'Categories available in ${territory.name}. Only QuickMandi (the Super Admin) can turn a category on or off for the territory — contact QuickMandi to change one.',
                     key: const Key('categoriesReadOnlyNotice'),
                     style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
                   ),

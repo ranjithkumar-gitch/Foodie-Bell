@@ -19,8 +19,8 @@ const _channel = AndroidNotificationChannel(
   // of this channel actually picks up sound/vibration here, instead of
   // silently keeping whatever settings its first-ever version had.
   'push_default_v2',
-  'Quicky notifications',
-  description: 'Offers, announcements, and updates from Quicky.',
+  'QuickMandi notifications',
+  description: 'Offers, announcements, and updates from QuickMandi.',
   importance: Importance.high,
   playSound: true,
   enableVibration: true,

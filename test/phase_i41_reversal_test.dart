@@ -94,7 +94,7 @@ void main() {
         ('Waived', 1200),
         ('Refund owed to the shop', 800),
         ('Driver keeps', 1000),
-        ('Quicky pays for the reversal', 2000),
+        ('QuickMandi pays for the reversal', 2000),
       ]) {
         expect(find.text(label), findsOneWidget, reason: label);
         expect(find.descendant(of: find.ancestor(of: find.text(label), matching: find.byType(Row)).first, matching: find.text(rs(paise))), findsOneWidget, reason: label);
@@ -199,7 +199,7 @@ void main() {
       },
     });
 
-    testWidgets("refund to the shop and Quicky's funding are their own rows; the refund is recorded with its purpose", (tester) async {
+    testWidgets("refund to the shop and QuickMandi's funding are their own rows; the refund is recorded with its purpose", (tester) async {
       final calls = <Map<String, Object?>>[];
       await tester.pumpWidget(_app(SingleChildScrollView(child: CancellationSettlementSection(
         statement: statement,
@@ -211,11 +211,11 @@ void main() {
             calls.add({'from': fromParty, 'to': toParty, 'amount': amountPaise, 'purpose': purpose}),
         pickPayment: (context, title, suggested) async => (amountPaise: suggested, upi: false, reference: null),
       ))));
-      expect(find.text('Reversed by Quicky'), findsOneWidget);
+      expect(find.text('Reversed by QuickMandi'), findsOneWidget);
       expect(find.text('Refund still owed to shops'), findsOneWidget);
       expect(find.text('Cancellation charge refund to the shop'), findsOneWidget);
-      expect(find.text('Quicky returning its share (reversal)'), findsOneWidget);
-      expect(find.text('Quicky funding driver compensation (reversal)'), findsOneWidget);
+      expect(find.text('QuickMandi returning its share (reversal)'), findsOneWidget);
+      expect(find.text('QuickMandi funding driver compensation (reversal)'), findsOneWidget);
       // The Manager pays the refund; Quicky's two payments are marked
       // settled by QuickMandi, not the Manager (2026-11-20).
       expect(find.text('Paid'), findsOneWidget);
@@ -252,7 +252,7 @@ void main() {
       expect(find.text(rs(800)), findsOneWidget);
     });
 
-    testWidgets('a refund from Quicky says Quicky and what it is for, and asks the shop to confirm', (tester) async {
+    testWidgets('a refund from QuickMandi says QuickMandi and what it is for, and asks the shop to confirm', (tester) async {
       const t = SettlementTransfer(id: 'r1', from: 'quicky', to: 'vendor:v1', amountPaise: 2000, method: 'cash', status: 'pendingAck', counterparty: 'vendor:v1', settlementDay: '2026-10-30', purpose: 'cancellationRefund');
       await tester.pumpWidget(_app(const SettlementPaymentsScreen(), overrides: [
         accessScopeProvider.overrideWithValue(const AccessScope(role: AppRole.vendor, accountId: 'v1', isActive: true)),

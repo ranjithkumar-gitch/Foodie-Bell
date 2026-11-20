@@ -98,7 +98,7 @@ class _AuthProfileSetupScreenState extends ConsumerState<AuthProfileSetupScreen>
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
             children: [
-              Text('Welcome to Quicky!', style: Theme.of(context).textTheme.headlineSmall),
+              Text('Welcome to QuickMandi!', style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 6),
               Text(
                 _phone.isEmpty ? 'Your number is verified.' : 'Your number $_phone is verified. What should we call you?',
@@ -139,7 +139,7 @@ class _AuthProfileSetupScreenState extends ConsumerState<AuthProfileSetupScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                'By continuing you agree to Quicky’s Terms of Service and Privacy Policy.',
+                'By continuing you agree to QuickMandi’s Terms of Service and Privacy Policy.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: palette.textMuted, fontSize: 12),
               ),

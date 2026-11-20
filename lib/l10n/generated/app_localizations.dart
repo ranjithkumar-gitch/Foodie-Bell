@@ -791,7 +791,7 @@ abstract class AppLocalizations {
   /// No description provided for @thankYouMessage.
   ///
   /// In en, this message translates to:
-  /// **'Thank you for ordering with Quicky!'**
+  /// **'Thank you for ordering with QuickMandi!'**
   String get thankYouMessage;
 
   /// No description provided for @orderEnjoyedMessage.
@@ -965,7 +965,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileWalletComingSoonMessage.
   ///
   /// In en, this message translates to:
-  /// **'We\'re building your Quicky wallet — refunds, credits, and cashback will land here soon.'**
+  /// **'We\'re building your QuickMandi wallet — refunds, credits, and cashback will land here soon.'**
   String get profileWalletComingSoonMessage;
 
   /// No description provided for @profileHelpSupport.
@@ -2189,13 +2189,13 @@ abstract class AppLocalizations {
   /// No description provided for @vendorNoManagerBody.
   ///
   /// In en, this message translates to:
-  /// **'No Manager is assigned to your shop yet. Quicky will assign one; until then new orders are paused.'**
+  /// **'No Manager is assigned to your shop yet. QuickMandi will assign one; until then new orders are paused.'**
   String get vendorNoManagerBody;
 
   /// No description provided for @vendorManagerInactiveBody.
   ///
   /// In en, this message translates to:
-  /// **'Your Manager isn\'t active right now. Quicky is sorting this out. You can still see your account and decline orders, but new orders are paused.'**
+  /// **'Your Manager isn\'t active right now. QuickMandi is sorting this out. You can still see your account and decline orders, but new orders are paused.'**
   String get vendorManagerInactiveBody;
 
   /// No description provided for @vendorCancelButton.
@@ -2524,7 +2524,7 @@ abstract class AppLocalizations {
   /// No description provided for @refundPayerQuicky.
   ///
   /// In en, this message translates to:
-  /// **'Quicky'**
+  /// **'QuickMandi'**
   String get refundPayerQuicky;
 
   /// No description provided for @refundSentClaim.
@@ -2583,19 +2583,19 @@ abstract class AppLocalizations {
   /// No description provided for @refundNotReceivedBody.
   ///
   /// In en, this message translates to:
-  /// **'Quicky will review it with the shop. Add anything that helps.'**
+  /// **'QuickMandi will review it with the shop. Add anything that helps.'**
   String get refundNotReceivedBody;
 
   /// No description provided for @refundDisputedNote.
   ///
   /// In en, this message translates to:
-  /// **'You reported this refund didn\'t arrive as recorded. Quicky is reviewing it.'**
+  /// **'You reported this refund didn\'t arrive as recorded. QuickMandi is reviewing it.'**
   String get refundDisputedNote;
 
   /// No description provided for @refundReviewNote.
   ///
   /// In en, this message translates to:
-  /// **'Quicky is reviewing this refund.'**
+  /// **'QuickMandi is reviewing this refund.'**
   String get refundReviewNote;
 
   /// No description provided for @refundConfirmedNote.

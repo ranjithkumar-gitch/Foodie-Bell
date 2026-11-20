@@ -90,7 +90,6 @@ flutter:
     - assets/images/quickmandi_logo.webp
     - assets/images/login_bg1.webp
     - assets/images/login_bg2.webp
-    - assets/images/quickmandi_text.webp
     - assets/sounds/order_buzzer.wav
 
   # To add assets to your application, add an assets section, like this:
