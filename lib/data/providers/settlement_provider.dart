@@ -220,6 +220,9 @@ class SettlementTransfer {
     required this.settlementDay,
     this.reference,
     this.purpose = 'general',
+    this.recordedBy,
+    this.reportUntil,
+    this.report,
   });
 
   final String id;
@@ -228,7 +231,8 @@ class SettlementTransfer {
   final int amountPaise;
   final String method;
 
-  /// `pendingAck`, `confirmed` or `disputed`.
+  /// `confirmed` (settled), `voided` (undone by the Super Admin), or on
+  /// payments from before 2026-11-20 `pendingAck` / `disputed`.
   final String status;
 
   /// The side that must acknowledge it (the one that didn't record it).
@@ -238,6 +242,27 @@ class SettlementTransfer {
 
   /// What the payment settles (Phase I.4); `general` before I.4.
   final String purpose;
+
+  /// The party that marked it (`quicky` for the Super Admin).
+  final PartyKey? recordedBy;
+
+  /// Until when the other side may report a problem (2026-11-20: a payment
+  /// counts as soon as a Manager or the Super Admin marks it settled; after
+  /// this it is final). Null on payments from before then.
+  final DateTime? reportUntil;
+
+  /// A reported problem: `status` `open` or `resolved`, `decision` `keep`
+  /// or `undo`, `note`, `reason`, `byParty`. Null when nobody reported one.
+  final Map<String, dynamic>? report;
+
+  String? get reportStatus => report?['status'] as String?;
+  String? get reportDecision => report?['decision'] as String?;
+  bool get isReportOpen => reportStatus == 'open';
+
+  /// [me] may report a problem now: settled by the other side, inside the
+  /// 24 hours, and not reported yet.
+  bool canReport(PartyKey me, {DateTime? now}) =>
+      status == 'confirmed' && reportUntil != null && report == null && recordedBy != me && (now ?? DateTime.now()).isBefore(reportUntil!);
 
   static SettlementTransfer fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> d) {
     final x = d.data();
@@ -252,6 +277,9 @@ class SettlementTransfer {
       settlementDay: x['settlementDay'] as String? ?? '',
       reference: x['reference'] as String?,
       purpose: x['purpose'] as String? ?? 'general',
+      recordedBy: x['recordedBy'] as String?,
+      reportUntil: (x['reportUntil'] as Timestamp?)?.toDate(),
+      report: x['report'] is Map ? Map<String, dynamic>.from(x['report'] as Map) : null,
     );
   }
 }

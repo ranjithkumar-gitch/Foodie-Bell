@@ -72,6 +72,8 @@ List<RouteBase> get managerRoutes => [
         DrawerLinkData(icon: Icons.category_outlined, label: 'Territory Categories', path: '/manager/categories'),
         DrawerLinkData(icon: Icons.receipt_long_rounded, label: 'Settlement History', path: '/manager/settlement/history'),
         DrawerLinkData(icon: Icons.trending_up_rounded, label: 'Territory Earnings Report', path: '/manager/reports/earnings'),
+        DrawerLinkData(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', path: '/legal/privacy?role=manager'),
+        DrawerLinkData(icon: Icons.gavel_rounded, label: 'Terms & Conditions', path: '/legal/terms?role=manager'),
       ],
     ),
     branches: [

@@ -296,6 +296,12 @@ Future<({bool online, int chargedPaise, bool needsConfirmation, int dayFeePaise}
 Future<void> acknowledgeSettlementTransfer(String transferId, {required bool confirm, String? note}) =>
     _call('acknowledgeSettlementTransfer', {'transferId': transferId, 'confirm': confirm, 'note': ?note});
 
+/// Reports a problem with a payment the other side marked settled, within
+/// 24 hours (`reportSettlementTransfer`). It stays settled while the Super
+/// Admin checks it.
+Future<void> reportSettlementTransfer(String transferId, {required String note}) =>
+    _call('reportSettlementTransfer', {'transferId': transferId, 'note': note});
+
 /// Settles a disputed payment the Manager is part of (`resolveDisputedTransfer`):
 /// `void` — it was recorded by mistake and stays out of every balance;
 /// `confirm` — the money did arrive (only the receiver). Audited.

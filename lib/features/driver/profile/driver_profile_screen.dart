@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/account_deletion/account_deletion.dart';
+import '../../../shared/legal/legal_content.dart';
+import '../../../shared/legal/legal_screen.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/firestore_drivers_provider.dart';
@@ -64,7 +66,10 @@ class DriverProfileScreen extends ConsumerWidget {
           _MenuTile(icon: Icons.event_available_rounded, label: 'Availability & Shift Preferences', onTap: () => context.push('/driver/availability')),
           _MenuTile(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: () => context.push('/driver/notifications')),
           _MenuTile(icon: Icons.receipt_long_rounded, label: 'Order History', onTap: () => context.go('/driver/history')),
+          _MenuTile(icon: Icons.account_balance_wallet_outlined, label: 'Settlements', onTap: () => context.push('/driver/settlement-payments')),
           _MenuTile(icon: Icons.help_outline_rounded, label: 'Help & Support', onTap: () => context.push('/driver/help')),
+          _MenuTile(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () => openLegal(context, LegalKind.privacy)),
+          _MenuTile(icon: Icons.gavel_rounded, label: 'Terms & Conditions', onTap: () => openLegal(context, LegalKind.terms)),
           const AccountDeletionTile(),
           _MenuTile(icon: Icons.logout_rounded, label: 'Log Out', color: palette.error, onTap: () => LogoutConfirmationSheet.show(context, ref)),
         ],

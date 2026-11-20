@@ -10,6 +10,8 @@ import '../../features/vendor/vendor_routes.dart';
 import '../../shared/auth/auth_routes.dart';
 import '../session/session_controller.dart';
 import 'session_redirect.dart';
+import '../../shared/legal/legal_content.dart';
+import '../../shared/legal/legal_screen.dart';
 
 /// Bridges Riverpod session state to go_router's `refreshListenable`, so a
 /// login/logout/role-switch re-runs `redirect` without rebuilding (and
@@ -50,6 +52,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ...vendorRoutes,
       ...driverRoutes,
       ...managerRoutes,
+      // Read-only legal pages for any role, signed in or not (2026-11-20).
+      GoRoute(
+        path: '/legal/privacy',
+        name: 'legalPrivacy',
+        builder: (context, state) => LegalScreen(kind: LegalKind.privacy, role: legalRoleFromQuery(state.uri.queryParameters['role'])),
+      ),
+      GoRoute(
+        path: '/legal/terms',
+        name: 'legalTerms',
+        builder: (context, state) => LegalScreen(kind: LegalKind.terms, role: legalRoleFromQuery(state.uri.queryParameters['role'])),
+      ),
     ],
   );
 });

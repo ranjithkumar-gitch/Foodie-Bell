@@ -13,6 +13,7 @@ import 'package:foodiebell/features/manager/incidents/reversal_proposal_sheet.da
 import 'package:foodiebell/features/manager/settlement/cancellation_settlement_section.dart';
 import 'package:foodiebell/l10n/generated/app_localizations.dart';
 import 'package:foodiebell/shared/settlement_payments_screen.dart';
+import 'package:foodiebell/shared/settlement/settlement_report.dart';
 import 'package:foodiebell/shared/widgets/cancellation_money_cards.dart';
 import 'package:foodiebell/shared/widgets/currency_text.dart';
 
@@ -215,9 +216,11 @@ void main() {
       expect(find.text('Cancellation charge refund to the shop'), findsOneWidget);
       expect(find.text('Quicky returning its share (reversal)'), findsOneWidget);
       expect(find.text('Quicky funding driver compensation (reversal)'), findsOneWidget);
-      // The Manager pays the refund; it receives Quicky's two payments.
+      // The Manager pays the refund; Quicky's two payments are marked
+      // settled by QuickMandi, not the Manager (2026-11-20).
       expect(find.text('Paid'), findsOneWidget);
-      expect(find.text('Got paid'), findsNWidgets(2));
+      expect(find.text('Got paid'), findsNothing);
+      expect(find.text('QuickMandi marks this settled.'), findsNWidgets(2));
       await tester.tap(find.text('Paid'));
       await tester.pumpAndSettle();
       expect(calls.single, {'from': manager, 'to': 'vendor:v1', 'amount': 2000, 'purpose': 'cancellationRefund'});
@@ -254,9 +257,10 @@ void main() {
       await tester.pumpWidget(_app(const SettlementPaymentsScreen(), overrides: [
         accessScopeProvider.overrideWithValue(const AccessScope(role: AppRole.vendor, accountId: 'v1', isActive: true)),
         myTransfersProvider.overrideWith((ref) => Stream.value([t])),
+        myPartyMoneyLinesProvider.overrideWith((ref) => const []),
       ]));
       await tester.pumpAndSettle();
-      expect(find.text('Quicky paid you'), findsOneWidget);
+      expect(find.text('QuickMandi paid you'), findsOneWidget);
       expect(find.text('Cancellation charge refund to the shop'), findsOneWidget);
       expect(find.text('Did you receive this money?'), findsOneWidget);
       expect(find.text('Manager paid you'), findsNothing);

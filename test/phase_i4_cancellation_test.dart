@@ -639,12 +639,14 @@ void main() {
       // The general obligation is not in this section.
       expect(find.text('Order settlement'), findsNothing);
       expect(find.text('Got paid'), findsOneWidget);
-      expect(find.text('Paid'), findsNWidgets(2));
+      // Quicky's share is marked settled by QuickMandi, not the Manager (2026-11-20).
+      expect(find.text('Paid'), findsOneWidget);
+      expect(find.text('QuickMandi marks this settled.'), findsOneWidget);
     });
 
     testWidgets('a charge Quicky collects directly is shown but not recordable', (tester) async {
       await tester.pumpWidget(_app(section(statement(obligations: [ob('vendor:v1', 'quicky', 'cancellationCharge', 1000)]))));
-      expect(find.text('Quicky settles this directly.'), findsOneWidget);
+      expect(find.text('QuickMandi marks this settled.'), findsOneWidget);
       expect(find.text('Got paid'), findsNothing);
       expect(find.text('Paid'), findsNothing);
     });
@@ -696,7 +698,7 @@ void main() {
 
     testWidgets('a refusal (not your territory) is shown as the server says', (tester) async {
       await tester.pumpWidget(_app(section(
-        statement(obligations: [rows[2]]),
+        statement(obligations: [rows[1]]),
         record: ({required idempotencyKey, required territoryId, required day, required fromParty, required toParty, required amountPaise, required upi, reference, purpose}) async =>
             throw const OrderActionException("That territory isn't yours.", code: 'permission-denied'),
       )));

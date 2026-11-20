@@ -514,6 +514,12 @@ class AppLocalizationsTe extends AppLocalizations {
   String get profileHelpSupport => 'సహాయం & మద్దతు';
 
   @override
+  String get legalPrivacyTile => 'గోప్యతా విధానం';
+
+  @override
+  String get legalTermsTile => 'నిబంధనలు & షరతులు';
+
+  @override
   String get profileLogOut => 'లాగ్ అవుట్';
 
   @override

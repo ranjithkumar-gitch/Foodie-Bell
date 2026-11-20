@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../shared/legal/legal_content.dart';
+import '../../../shared/legal/legal_screen.dart';
 import '../../../shared/account_deletion/account_deletion.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
@@ -327,6 +329,8 @@ class _ManagerProfileScreenState extends ConsumerState<ManagerProfileScreen> {
             label: 'Help & Support',
             onTap: () => context.push('/manager/support'),
           ),
+          MenuTile(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () => openLegal(context, LegalKind.privacy)),
+          MenuTile(icon: Icons.gavel_rounded, label: 'Terms & Conditions', onTap: () => openLegal(context, LegalKind.terms)),
           const AccountDeletionTile(),
           MenuTile(
             icon: Icons.logout_rounded,

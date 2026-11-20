@@ -53,7 +53,7 @@ class VendorEarningsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Earnings & Settlement'),
-        actions: [IconButton(icon: const Icon(Icons.account_balance_wallet_outlined), tooltip: 'Settlement payments', onPressed: () => context.push('/vendor/settlement-payments'))],
+        actions: [IconButton(icon: const Icon(Icons.account_balance_wallet_outlined), tooltip: 'Settlements', onPressed: () => context.push('/vendor/settlement-payments'))],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),

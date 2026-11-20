@@ -974,6 +974,18 @@ abstract class AppLocalizations {
   /// **'Help & Support'**
   String get profileHelpSupport;
 
+  /// No description provided for @legalPrivacyTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get legalPrivacyTile;
+
+  /// No description provided for @legalTermsTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms & Conditions'**
+  String get legalTermsTile;
+
   /// No description provided for @profileLogOut.
   ///
   /// In en, this message translates to:

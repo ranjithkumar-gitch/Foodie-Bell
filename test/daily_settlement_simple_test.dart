@@ -237,7 +237,7 @@ void main() {
       ));
       expect(find.textContaining('COD cash to your Manager'), findsOneWidget);
       expect(find.text('Yes, I handed it over'), findsOneWidget);
-      expect(find.text('Waiting for your Manager to pay.'), findsOneWidget);
+      expect(find.text('Waiting for your Manager to pay you.'), findsOneWidget);
     });
 
     testWidgets('nothing open shows a calm empty line', (tester) async {

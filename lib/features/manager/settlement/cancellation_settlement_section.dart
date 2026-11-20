@@ -108,7 +108,7 @@ class _CancellationSettlementSectionState extends State<CancellationSettlementSe
         purpose: o.purpose,
       ));
       _keys.remove(o.id);
-      messenger.showSnackBar(const SnackBar(content: Text('Recorded. It counts once the other side confirms it.')));
+      messenger.showSnackBar(const SnackBar(content: Text('Settled. They can report a problem within 24 hours.')));
       await widget.onRecorded();
     } on OrderActionException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
@@ -176,7 +176,9 @@ class _CancellationSettlementSectionState extends State<CancellationSettlementSe
 
   Widget _obligationTile(BuildContext context, SettlementObligation o) {
     final palette = context.colors;
-    final mine = o.from == widget.managerKey || o.to == widget.managerKey;
+    // Money with QuickMandi is marked settled by QuickMandi (2026-11-20).
+    final withQuicky = o.from == 'quicky' || o.to == 'quicky';
+    final mine = (o.from == widget.managerKey || o.to == widget.managerKey) && !withQuicky;
     final receiving = o.to == widget.managerKey;
     final busy = _busy.contains(o.id);
     final pending = _pendingOn(o);
@@ -199,7 +201,7 @@ class _CancellationSettlementSectionState extends State<CancellationSettlementSe
                 ),
                 if (pending > 0) Text('Awaiting confirmation ${_rupees(pending)}', key: ValueKey('pending:${o.id}'), style: TextStyle(color: palette.warning, fontSize: 12.5)),
                 if (o.disputedPaise > 0) Text('Disputed ${_rupees(o.disputedPaise)}', style: TextStyle(color: palette.error, fontSize: 12.5)),
-                if (!mine) Text('Quicky settles this directly.', style: TextStyle(color: palette.textMuted, fontSize: 12.5)),
+                if (!mine) Text('QuickMandi marks this settled.', style: TextStyle(color: palette.textMuted, fontSize: 12.5)),
               ]),
             ),
             if (mine && recordable > 0)

@@ -8,7 +8,8 @@ typedef SettlementPaymentInput = ({int amountPaise, bool upi, String? reference}
 
 /// Amount, method and UPI reference for a settlement payment. The amount
 /// starts at the server's outstanding figure; the Manager enters what
-/// actually changed hands.
+/// actually changed hands. Saving marks it settled: it counts at once, and
+/// the other side has 24 hours to report a problem (2026-11-20).
 class SettlementPaymentSheet extends StatefulWidget {
   const SettlementPaymentSheet({super.key, required this.title, required this.suggestedPaise, this.initialUpi = true});
   final String title;
@@ -69,7 +70,12 @@ class _SettlementPaymentSheetState extends State<SettlementPaymentSheet> {
           TextField(controller: _reference, decoration: InputDecoration(labelText: _upi ? 'UPI reference (UTR)' : 'Note (optional)')),
           if (_error != null) ...[const SizedBox(height: 8), Text(_error!, style: TextStyle(color: context.colors.error))],
           const SizedBox(height: 16),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _save, child: const Text('Save'))),
+          Text(
+            'It counts as settled straight away. They and QuickMandi are notified, and they can report a problem within 24 hours.',
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 12.5),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _save, child: const Text('Mark settled'))),
         ],
       ),
     );

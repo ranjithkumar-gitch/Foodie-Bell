@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/providers/settlement_provider.dart';
 import '../../../shared/settlement/daily_money.dart';
+import '../../../shared/settlement/settlement_report.dart';
 import '../../../shared/widgets/currency_text.dart';
 
 String _rupees(int paise) => AppFormat.currency(paise / 100);
@@ -31,8 +32,10 @@ String managerLineText(ManagerMoneyLine l, int amountPaise) {
 /// The top of the Manager's daily settlement: one line per person and
 /// direction, one button each, amounts filled in from the server's
 /// statement. Collect (Drivers' COD cash, shops' UPI dues) and Pay
-/// (Drivers' delivery fees, shops' COD payouts, Quicky). A line ticks once
-/// the other side has confirmed the payment.
+/// (Drivers' delivery fees, shops' COD payouts, QuickMandi). Since
+/// 2026-11-20 the Manager's "Received" / "Paid" marks it settled at once;
+/// the other side has 24 hours to report a problem. Money with QuickMandi
+/// is marked settled by QuickMandi, and the Manager can report it.
 class ManagerTodayMoneyCard extends StatelessWidget {
   const ManagerTodayMoneyCard({
     super.key,
@@ -166,6 +169,15 @@ class _LineTile extends StatelessWidget {
         if (t.counterparty != managerKey) t,
     ];
     final key = '${line.collect ? 'collect' : 'pay'}:${line.party}';
+    final withQuicky = line.party == 'quicky';
+    // Settled payments still open to a report, or with a report going.
+    final settled = [
+      for (final t in line.transfers)
+        if (t.status == 'voided' ||
+            (t.status == 'confirmed' &&
+                (t.report != null || (t.reportUntil != null && DateTime.now().isBefore(t.reportUntil!)))))
+          t,
+    ];
 
     return Padding(
       key: ValueKey(key),
@@ -203,10 +215,28 @@ class _LineTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (state == MoneyLineState.open)
+              if (state == MoneyLineState.open && !withQuicky)
                 ElevatedButton(key: ValueKey('record:$key'), onPressed: () => onRecord(line, toRecord), child: Text(line.collect ? 'Received' : 'Paid')),
             ],
           ),
+          if (withQuicky && state == MoneyLineState.open)
+            Padding(
+              padding: const EdgeInsets.only(left: 30, top: 2),
+              child: Text(
+                'QuickMandi marks this settled when it gets the money.',
+                style: TextStyle(color: palette.textSecondary, fontSize: 12.5),
+              ),
+            ),
+          for (final t in settled)
+            Padding(
+              padding: const EdgeInsets.only(left: 30),
+              child: SettledPaymentNote(
+                transfer: t,
+                me: managerKey,
+                text: '${t.recordedBy == managerKey ? 'You marked' : 'QuickMandi marked'} ${_rupees(t.amountPaise)} settled'
+                    '${t.method == 'upi' ? ' (UPI)' : ' (cash)'}',
+              ),
+            ),
           for (final t in mine)
             Padding(
               padding: const EdgeInsets.only(left: 30, top: 2),

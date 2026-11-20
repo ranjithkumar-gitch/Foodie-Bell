@@ -515,6 +515,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileHelpSupport => 'Help & Support';
 
   @override
+  String get legalPrivacyTile => 'Privacy Policy';
+
+  @override
+  String get legalTermsTile => 'Terms & Conditions';
+
+  @override
   String get profileLogOut => 'Log Out';
 
   @override

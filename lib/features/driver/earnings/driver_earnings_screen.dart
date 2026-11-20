@@ -121,7 +121,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Earnings'),
-        actions: [IconButton(icon: const Icon(Icons.account_balance_wallet_outlined), tooltip: 'Settlement payments', onPressed: () => context.push('/driver/settlement-payments'))],
+        actions: [IconButton(icon: const Icon(Icons.account_balance_wallet_outlined), tooltip: 'Settlements', onPressed: () => context.push('/driver/settlement-payments'))],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),

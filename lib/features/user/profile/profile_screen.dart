@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/account_deletion/account_deletion.dart';
+import '../../../shared/legal/legal_content.dart';
+import '../../../shared/legal/legal_screen.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/app_localizations_context.dart';
@@ -208,6 +210,8 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
+            _MenuTile(icon: Icons.privacy_tip_outlined, label: context.l10n.legalPrivacyTile, onTap: () => openLegal(context, LegalKind.privacy)),
+            _MenuTile(icon: Icons.gavel_rounded, label: context.l10n.legalTermsTile, onTap: () => openLegal(context, LegalKind.terms)),
             const AccountDeletionTile(),
             _MenuTile(
               icon: Icons.logout_rounded,

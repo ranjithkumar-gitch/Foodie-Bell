@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/session/account_resolver.dart';
 import '../../core/session/session_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/account.dart';
 import '../error_reporting.dart';
+import '../legal/legal_content.dart';
+import '../legal/legal_screen.dart';
 import 'auth_navigation.dart';
 import 'user_registration_draft.dart';
 
@@ -40,22 +41,6 @@ class _AuthTermsScreenState extends ConsumerState<AuthTermsScreen> {
   bool _agreed = false;
   bool _submitting = false;
   String? _error;
-
-  void _showFakeDoc(String title) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: const SingleChildScrollView(
-          child: Text(
-            'This is placeholder legal text for the Quicky demo. In a real build, '
-            'this would link to the hosted Terms of Service / Privacy Policy document.',
-          ),
-        ),
-        actions: [TextButton(onPressed: () => context.pop(), child: const Text('Close'))],
-      ),
-    );
-  }
 
   Future<void> _submit() async {
     final notifier = ref.read(sessionControllerProvider.notifier);
@@ -142,12 +127,12 @@ class _AuthTermsScreenState extends ConsumerState<AuthTermsScreen> {
                           children: [
                             Text('I agree to the ', style: textStyle),
                             GestureDetector(
-                              onTap: () => _showFakeDoc('Terms of Service'),
+                              onTap: () => openLegal(context, LegalKind.terms),
                               child: Text('Terms of Service', style: textStyle.copyWith(color: palette.primary, fontWeight: FontWeight.w700)),
                             ),
                             Text(' and ', style: textStyle),
                             GestureDetector(
-                              onTap: () => _showFakeDoc('Privacy Policy'),
+                              onTap: () => openLegal(context, LegalKind.privacy),
                               child: Text('Privacy Policy', style: textStyle.copyWith(color: palette.primary, fontWeight: FontWeight.w700)),
                             ),
                             Text('.', style: textStyle),

@@ -104,7 +104,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
   }
 
   String _partyName(PartyKey key, String managerId) {
-    if (key == 'quicky') return 'Quicky (Super Admin)';
+    if (key == 'quicky') return 'QuickMandi';
     final [kind, id] = key.split(':');
     if (kind == 'manager') return id == managerId ? 'You' : 'Manager';
     if (kind == 'user') return 'Customer';
@@ -195,7 +195,7 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
         purpose: 'general',
       ));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recorded. It counts once the other side confirms it.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settled. They can report a problem within 24 hours.')));
       await _load(_day!);
     } on OrderActionException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -382,7 +382,8 @@ class _ManagerDailySettlementScreenState extends ConsumerState<ManagerDailySettl
                       // the hub; Quicky (and anyone owed) is paid by you.
                       text: e.value > 0 ? 'owes you ${_rupees(e.value)}' : 'you owe ${_rupees(-e.value)}',
                       owesYou: e.value > 0,
-                      onRecord: e.key.startsWith('user:') ? null : () => _recordPayment(e.key, e.value, managerKey),
+                      // QuickMandi marks money with it settled itself (2026-11-20).
+                      onRecord: e.key.startsWith('user:') || e.key == 'quicky' ? null : () => _recordPayment(e.key, e.value, managerKey),
                     ),
               ],
               if (s.generalBalances.entries.every((e) => e.value == 0 || e.key == managerKey))

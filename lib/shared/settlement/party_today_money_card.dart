@@ -7,6 +7,7 @@ import '../../data/providers/settlement_provider.dart';
 import '../widgets/currency_text.dart';
 import 'daily_money.dart';
 import '../widgets/busy_overlay.dart';
+import 'settlement_report.dart';
 
 String _rupees(int paise) => AppFormat.currency(paise / 100);
 
@@ -17,7 +18,9 @@ String partyLineTitle(PartyMoneyLine l, int amountPaise) {
   final forOrders = orders == null || orders == 0 ? '' : ' for ${orders == 1 ? '1 order' : '$orders orders'}';
   return switch (l.kind) {
     MoneyLineKind.codCash =>
-      l.todayDayFeePaise > 0 ? 'Hand over $amount to your Manager (COD cash + ${_rupees(l.todayDayFeePaise)} day fee)' : 'Hand over $amount COD cash to your Manager',
+      l.todayDayFeePaise > 0
+          ? 'Hand over $amount to your Manager (COD cash + ${_rupees(l.todayDayFeePaise)} day fee)'
+          : 'Hand over $amount COD cash to your Manager',
     MoneyLineKind.deliveryFees => 'Your Manager pays you $amount delivery fees',
     MoneyLineKind.shopPayout => 'Your Manager pays you $amount$forOrders',
     MoneyLineKind.shopUpiDues => 'Pay your Manager $amount commission + delivery (UPI orders)',
@@ -26,11 +29,14 @@ String partyLineTitle(PartyMoneyLine l, int amountPaise) {
 }
 
 /// "Today's money" for a Driver or Vendor: what moves between them and
-/// their Manager, one line each, and a Yes / No when the Manager has
-/// recorded a payment. The Manager records every payment; it counts once
-/// the Driver or Vendor confirms it here (both sides, as before).
+/// their Manager, one line each. The Manager marks each payment settled and
+/// it counts at once (2026-11-20); the Driver or Vendor can report a problem
+/// within 24 hours. Payments recorded before then may still ask for a Yes /
+/// No here.
 class PartyTodayMoneyCard extends ConsumerWidget {
-  const PartyTodayMoneyCard({super.key, required this.lines, required this.me, this.onOpenPayments});
+  const PartyTodayMoneyCard({super.key, required this.lines, required this.me, this.onOpenPayments, this.title = 'Today’s money'});
+
+  final String title;
 
   final List<PartyMoneyLine> lines;
   final PartyKey me;
@@ -90,7 +96,7 @@ class PartyTodayMoneyCard extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: Text('Today’s money', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
               ),
               if (lines.isNotEmpty && allDone)
                 Text(
@@ -108,7 +114,7 @@ class PartyTodayMoneyCard extends ConsumerWidget {
           if (onOpenPayments != null)
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton(onPressed: onOpenPayments, child: const Text('All payments')),
+              child: TextButton(onPressed: onOpenPayments, child: const Text('All settlements')),
             ),
         ],
       ),
@@ -138,8 +144,13 @@ class _PartyLine extends StatelessWidget {
       MoneyLineState.done => line.iPay ? (line.kind == MoneyLineKind.codCash ? 'Handed over ✓' : 'Paid ✓') : 'Received ✓',
       _ when toAnswer.isNotEmpty => null,
       MoneyLineState.waiting => 'Waiting for your Manager to confirm.',
-      MoneyLineState.open => line.iPay ? 'When your Manager gets it, they tap “Received”. Then you confirm here.' : 'Waiting for your Manager to pay.',
+      MoneyLineState.open => line.iPay ? 'When your Manager gets it, they mark it settled.' : 'Waiting for your Manager to pay you.',
     };
+    // Settled payments still open to a report, or with a report going (2026-11-20).
+    final settled = [
+      for (final t in line.transfers)
+        if (t.status == 'voided' || (t.status == 'confirmed' && (t.canReport(me) || t.report != null))) t,
+    ];
     final yes = switch (line.kind) {
       MoneyLineKind.codCash => 'Yes, I handed it over',
       MoneyLineKind.shopUpiDues => 'Yes, I paid it',
@@ -199,6 +210,17 @@ class _PartyLine extends StatelessWidget {
               ),
             ],
           ),
+          for (final t in settled)
+            Padding(
+              padding: const EdgeInsets.only(left: 30),
+              child: SettledPaymentNote(
+                transfer: t,
+                me: me,
+                text:
+                    '${line.iPay ? 'Your Manager marked receiving' : 'Your Manager marked paying you'} ${_rupees(t.amountPaise)}'
+                    '${t.method == 'upi' ? ' by UPI' : ' in cash'}',
+              ),
+            ),
           for (final t in toAnswer)
             Padding(
               padding: const EdgeInsets.only(left: 30, top: 6),
