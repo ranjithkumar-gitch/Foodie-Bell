@@ -205,7 +205,11 @@ class ProfileScreen extends ConsumerWidget {
                 _CategoryMenuRow(
                   icon: Icons.shopping_bag_outlined,
                   label: context.l10n.profileOrderHistory,
-                  onTap: () => context.push('/user/orders'),
+                  // `go`, not `push`: Orders is a bottom-tab (shell
+                  // branch) route and Profile sits outside the shell —
+                  // pushing it duplicated the shell's page key, after
+                  // which the navigator stopped responding to taps.
+                  onTap: () => context.go('/user/orders'),
                 ),
               ],
             ),

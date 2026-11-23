@@ -22,6 +22,7 @@ import '../../../shared/widgets/upi_payment_card.dart';
 import 'cancel_order_button.dart';
 import 'shop_cancelled_banner.dart';
 import '../translation/translated_text.dart';
+import 'order_invoice_pdf.dart';
 import 'order_tracking_widgets.dart';
 
 /// Combines Order Tracking (Live) (spec §4.12) and Order Detail / Invoice
@@ -442,6 +443,17 @@ class OrderDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+          // Printable invoice for tax records (2026-11-20) — delivered
+          // orders only.
+          if (order.status == OrderStatus.delivered) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const Key('downloadInvoiceButton'),
+              onPressed: () => downloadOrderInvoice(context, order, failedMessage: context.l10n.invoiceDownloadFailed),
+              icon: const Icon(Icons.download_rounded),
+              label: Text(context.l10n.invoiceDownload),
+            ),
+          ],
           if (order.status == OrderStatus.delivered) ...[
             const SizedBox(height: 20),
             myReview == null

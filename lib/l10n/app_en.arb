@@ -534,5 +534,7 @@
   "accountDeleteCancelledToast": "Deletion request cancelled.",
   "accountDeleteRejectedTitle": "Your deletion request was declined",
   "accountDeleteRejectedBody": "{reason} You can contact Help & Support, or request again later.",
-  "@accountDeleteRejectedBody": { "placeholders": { "reason": {} } }
+  "@accountDeleteRejectedBody": { "placeholders": { "reason": {} } },
+  "invoiceDownload": "Download invoice",
+  "invoiceDownloadFailed": "Couldn't create the invoice. Please try again."
 }

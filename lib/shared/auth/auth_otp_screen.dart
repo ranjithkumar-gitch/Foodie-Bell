@@ -13,7 +13,7 @@ import '../../core/theme/app_colors.dart';
 import '../widgets/otp_input_field.dart';
 import 'auth_navigation.dart';
 import 'phone_auth.dart';
-import '../widgets/brand_wordmark.dart';
+import 'auth_background.dart';
 
 /// Passed from the login/phone screens via go_router's `extra:` —
 /// `verificationId` is an opaque Firebase token, not a display value, so it
@@ -226,41 +226,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // Fills the gap between the two images below (each sized to
-            // its own aspect ratio, not stretched to cover the full
-            // screen) with the same green they're drawn in, so the seams
-            // read as one continuous background.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: palette.promoGradient,
-                  ),
-                ),
-              ),
-            ),
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Image(
-                image: AssetImage('assets/images/login_bg1.webp'),
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.topCenter,
-              ),
-            ),
-            const Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Image(
-                image: AssetImage('assets/images/login_bg2.webp'),
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.bottomCenter,
-              ),
-            ),
+            const AuthBackground(),
             SafeArea(
               // The whole background, login_bg1's rider up top down to
               // login_bg2's stores footer at the bottom, shows in one screen
@@ -313,18 +279,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                         size: 28,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    const Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: BrandWordmark(size: 34))),
                                   ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Get Orders to your Doorstep',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
                                 ),
                               ],
                             ),
@@ -521,8 +476,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                             // off the bottom of the screen (same knob as login's).
                             SizedBox(
                               height: math.max(
-                                MediaQuery.sizeOf(context).width * (410 / 941) +
-                                    40,
+                                authFooterReserve(context, min: 40),
                                 // With the keyboard up (it overlays the screen,
                                 // resizeToAvoidBottomInset is false), keep the card
                                 // above it with a little room to spare.

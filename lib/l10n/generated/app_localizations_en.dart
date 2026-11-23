@@ -1571,4 +1571,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String accountDeleteRejectedBody(Object reason) {
     return '$reason You can contact Help & Support, or request again later.';
   }
+
+  @override
+  String get invoiceDownload => 'Download invoice';
+
+  @override
+  String get invoiceDownloadFailed =>
+      'Couldn\'t create the invoice. Please try again.';
 }

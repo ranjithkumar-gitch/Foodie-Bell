@@ -11,7 +11,7 @@ import '../widgets/app_text_field.dart';
 import '../widgets/country_code_picker.dart';
 import '../widgets/glossy_surface.dart';
 import 'user_registration_draft.dart';
-import '../widgets/brand_wordmark.dart';
+import 'auth_background.dart';
 
 /// Generic registration-details step for roles that don't need role-specific
 /// fields first — effectively User: name + phone + email (optional)
@@ -94,41 +94,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
         backgroundColor: palette.primaryDark,
         body: Stack(
           children: [
-            // Fills the gap between the two images below (each sized to
-            // its own aspect ratio, not stretched to cover the full
-            // screen) with the same green they're drawn in, so the seams
-            // read as one continuous background.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: palette.promoGradient,
-                  ),
-                ),
-              ),
-            ),
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Image(
-                image: AssetImage('assets/images/login_bg1.webp'),
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.topCenter,
-              ),
-            ),
-            const Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Image(
-                image: AssetImage('assets/images/login_bg2.webp'),
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.bottomCenter,
-              ),
-            ),
+            const AuthBackground(),
             SafeArea(
               // No scrolling here — the whole background, login_bg1's rider
               // up top down to login_bg2's stores footer at the bottom, has
@@ -177,18 +143,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const SizedBox(width: 0),
-                            const Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: BrandWordmark(size: 34))),
                           ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Get Orders to your Doorstep',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
                         ),
                       ],
                     ),
@@ -424,7 +379,7 @@ class _AuthRegisterScreenState extends ConsumerState<AuthRegisterScreen> {
                     // right on top of it — same fix as login's.
                     SizedBox(
                       height:
-                          MediaQuery.sizeOf(context).width * (410 / 941) + 0,
+                          authFooterReserve(context),
                     ),
                   ],
                 ),

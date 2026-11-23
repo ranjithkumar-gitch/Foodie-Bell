@@ -430,7 +430,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 label: 'Profile',
                                 child: InkWell(
                                   key: const Key('homeProfileButton'),
-                                  customBorder: const CircleBorder(),
+                                  customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   onTap: () => context.push('/user/profile'),
                                   child: account == null
                                       ? Container(
@@ -439,7 +439,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
                                             color: palette.primary.withValues(alpha: 0.1),
-                                            shape: BoxShape.circle,
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Icon(Icons.person_rounded, color: palette.primary),
                                         )
@@ -448,7 +448,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       url: account.avatarUrl!,
                                       width: 44,
                                       height: 44,
-                                      borderRadius: BorderRadius.circular(22),
+                                      borderRadius: BorderRadius.circular(12),
                                     )
                                   : Container(
                                       width: 44,
@@ -458,7 +458,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         color: palette.primary.withValues(
                                           alpha: 0.1,
                                         ),
-                                        shape: BoxShape.circle,
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
                                         firstName.isEmpty

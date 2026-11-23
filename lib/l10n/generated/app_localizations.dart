@@ -2789,6 +2789,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{reason} You can contact Help & Support, or request again later.'**
   String accountDeleteRejectedBody(Object reason);
+
+  /// No description provided for @invoiceDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download invoice'**
+  String get invoiceDownload;
+
+  /// No description provided for @invoiceDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t create the invoice. Please try again.'**
+  String get invoiceDownloadFailed;
 }
 
 class _AppLocalizationsDelegate

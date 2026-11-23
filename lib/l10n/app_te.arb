@@ -470,5 +470,7 @@
   "accountDeleteCancelling": "రద్దు చేస్తోంది…",
   "accountDeleteCancelledToast": "తొలగింపు అభ్యర్థన రద్దు చేయబడింది.",
   "accountDeleteRejectedTitle": "మీ తొలగింపు అభ్యర్థన తిరస్కరించబడింది",
-  "accountDeleteRejectedBody": "{reason} మీరు సహాయం & మద్దతును సంప్రదించవచ్చు, లేదా తర్వాత మళ్లీ అభ్యర్థించవచ్చు."
+  "accountDeleteRejectedBody": "{reason} మీరు సహాయం & మద్దతును సంప్రదించవచ్చు, లేదా తర్వాత మళ్లీ అభ్యర్థించవచ్చు.",
+  "invoiceDownload": "ఇన్‌వాయిస్ డౌన్‌లోడ్ చేయండి",
+  "invoiceDownloadFailed": "ఇన్‌వాయిస్ తయారు చేయలేకపోయాం. మళ్ళీ ప్రయత్నించండి."
 }

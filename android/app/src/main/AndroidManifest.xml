@@ -5,6 +5,11 @@
          position on the delivery map. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- UCropActivity below is locked to portrait, which makes Play assume
+         the app *requires* a portrait screen and hide it from devices
+         without one (some tablets, Chromebooks). Portrait is preferred,
+         not required. -->
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
     <!-- No background location (2026-11-20): live driver tracking is parked
          (`driver_location_tracker.dart` isn't started), so the
          FOREGROUND_SERVICE_LOCATION permission is gone — Play requires a

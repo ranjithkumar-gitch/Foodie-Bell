@@ -1577,4 +1577,11 @@ class AppLocalizationsTe extends AppLocalizations {
   String accountDeleteRejectedBody(Object reason) {
     return '$reason మీరు సహాయం & మద్దతును సంప్రదించవచ్చు, లేదా తర్వాత మళ్లీ అభ్యర్థించవచ్చు.';
   }
+
+  @override
+  String get invoiceDownload => 'ఇన్‌వాయిస్ డౌన్‌లోడ్ చేయండి';
+
+  @override
+  String get invoiceDownloadFailed =>
+      'ఇన్‌వాయిస్ తయారు చేయలేకపోయాం. మళ్ళీ ప్రయత్నించండి.';
 }

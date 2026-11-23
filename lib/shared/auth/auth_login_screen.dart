@@ -16,7 +16,7 @@ import '../widgets/glossy_surface.dart';
 import 'auth_navigation.dart';
 import 'auth_otp_screen.dart';
 import 'phone_auth.dart';
-import '../widgets/brand_wordmark.dart';
+import 'auth_background.dart';
 
 /// The app's one and only entry point — a single phone number field, no
 /// role picked up front and no password anywhere: every role, Manager
@@ -175,43 +175,7 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
         backgroundColor: palette.primaryDark,
         body: Stack(
           children: [
-            // Fills the gap between the two images below (they're each
-            // sized to their own aspect ratio, not stretched to cover the
-            // full screen, so there's a real gap between them on most
-            // devices) with the same green the images themselves are
-            // drawn in, so the seams read as one continuous background
-            // rather than a visible edge where the images stop.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: palette.promoGradient,
-                  ),
-                ),
-              ),
-            ),
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Image(
-                image: AssetImage('assets/images/login_bg1.webp'),
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.topCenter,
-              ),
-            ),
-            const Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Image(
-                image: AssetImage('assets/images/login_bg2.webp'),
-                fit: BoxFit.fitWidth,
-                alignment: Alignment.bottomCenter,
-              ),
-            ),
+            const AuthBackground(),
             SafeArea(
               // No scrolling here (was SingleChildScrollView) — the whole
               // background, login_bg1's rider up top down to login_bg2's
@@ -253,21 +217,6 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const BrandWordmark(),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Get Orders to your Doorstep',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
                             // Flexible gap (replaces the old fixed SizedBox) so the
                             // card settles wherever's left between the wordmark and
                             // the bottom-reserved space, keeping bg1 fully visible
@@ -540,17 +489,11 @@ class _AuthLoginScreenState extends ConsumerState<AuthLoginScreen> {
                                 ),
                               ),
                             ),
-                            // Reserves login_bg2.webp's own rendered height (it's
-                            // fitWidth, so that height scales with screen width —
-                            // 941×410 is the asset's actual pixel size) below the
-                            // card, plus a little breathing room so the card
-                            // doesn't rest right on top of it. Kept small (was 40)
-                            // — too much here starves the Expanded spacer above,
-                            // pulling the card up far enough to crowd out
-                            // login_bg1's rider at the top.
+                            // A little room below the card — or, with the
+                            // keyboard up, enough to keep the card above it.
                             SizedBox(
                               height: math.max(
-                                MediaQuery.sizeOf(context).width * (410 / 941),
+                                authFooterReserve(context),
                                 // The keyboard covers the bottom of the screen
                                 // (resizeToAvoidBottomInset is false); keep the
                                 // card above it with a little room to spare. The
